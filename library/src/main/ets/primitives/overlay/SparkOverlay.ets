@@ -96,6 +96,8 @@ class OpenEntry {
   content: ComponentContent<SparkOverlayScope>;
   uiContext: UIContext;
   closing: boolean = false;
+  /** alignment the layer was opened with (re-sent on every update: the device resets omitted fields) */
+  alignment: DialogAlignment = DialogAlignment.TopStart;
 
   constructor(scope: SparkOverlayScope, content: ComponentContent<SparkOverlayScope>, uiContext: UIContext) {
     this.scope = scope;
@@ -131,7 +133,12 @@ export class SparkOverlayService {
       return Promise.resolve();
     }
     try {
-      return e.uiContext.getPromptAction().updateCustomDialog(e.content, { offset: { dx: dx, dy: dy } })
+      return e.uiContext.getPromptAction().updateCustomDialog(e.content, {
+        alignment: e.alignment,
+        autoCancel: false,
+        maskColor: Color.Transparent,
+        offset: { dx: dx, dy: dy }
+      })
         .catch(() => {
         });
     } catch (err) {
@@ -152,6 +159,9 @@ export class SparkOverlayService {
     }
     const content = new ComponentContent<SparkOverlayScope>(uiContext, host, scope);
     const entry = new OpenEntry(scope, content, uiContext);
+    entry.alignment = scope.presentation === 'toast' ?
+      (scope.layout.env.windowWidthClass === 'compact' ? DialogAlignment.Bottom : DialogAlignment.BottomEnd) :
+      DialogAlignment.TopStart;
     SparkOverlayService.entries.set(scope.id, entry);
     const order = scope.presentation === 'toast' ? 100000 : Math.min(99999, SparkOverlayService.nextOrder++);
     const options: promptAction.BaseDialogOptions = {
@@ -160,9 +170,7 @@ export class SparkOverlayService {
       maskColor: Color.Transparent,
       // Content-sized layers (see SparkOverlayScope.contentSized) are aligned / offset by the dialog; every
       // other layer is a full-window host. Anchored ones start off-screen until placed (moveTo).
-      alignment: scope.presentation === 'toast' ?
-        (scope.layout.env.windowWidthClass === 'compact' ? DialogAlignment.Bottom : DialogAlignment.BottomEnd) :
-        DialogAlignment.TopStart,
+      alignment: entry.alignment,
       offset: scope.contentSized && scope.presentation === 'anchored' ? { dx: 0, dy: -10000 } :
         { dx: scope.offsetX, dy: scope.offsetY },
       transition: TransitionEffect.IDENTITY,
