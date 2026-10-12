@@ -1,29 +1,8 @@
 import { SparkColors } from './SparkColors';
+import { SparkComponentTokens } from './SparkComponentTokens';
+import { SparkShadow } from './SparkShadow';
 
-/** A single drop shadow. ArkUI renders one shadow per component, so CSS multi-shadows keep the first layer. */
-export class SparkShadow {
-  offsetX: number = 0;
-  offsetY: number = 0;
-  /** blur radius in vp */
-  radius: number = 0;
-  color: string = '#00000000';
-
-  constructor(offsetX: number, offsetY: number, radius: number, color: string) {
-    this.offsetX = offsetX;
-    this.offsetY = offsetY;
-    this.radius = radius;
-    this.color = color;
-  }
-
-  toOptions(): ShadowOptions {
-    return {
-      radius: this.radius,
-      color: this.color,
-      offsetX: this.offsetX,
-      offsetY: this.offsetY
-    };
-  }
-}
+export { SparkShadow } from './SparkShadow';
 
 /** Shadow scale xs–2xl (Tailwind v4 defaults). */
 @ObservedV2
@@ -285,6 +264,13 @@ export class SparkTheme {
   @Trace text: SparkTypography = new SparkTypography();
   @Trace shadows: SparkShadows = new SparkShadows();
   @Trace motion: SparkMotion = new SparkMotion();
+  /** `--border-width`: default width (vp) of every SparkUI border (cards, inputs, outline buttons, panels …). */
+  @Trace borderWidth: number = 1;
+  /**
+   * Component tokens (`--<component>-<property>`, ADR D13): `theme.comp.color('card', 'background', fallback)`.
+   * Unset tokens fall back to the component's built-in recipe.
+   */
+  @Trace comp: SparkComponentTokens = new SparkComponentTokens();
 
   /** shadcn: calc(var(--radius) - 4px) */
   @Computed
@@ -323,5 +309,7 @@ export class SparkTheme {
     this.text.copyFrom(o.text);
     this.shadows.copyFrom(o.shadows);
     this.motion.copyFrom(o.motion);
+    this.borderWidth = o.borderWidth;
+    this.comp.copyFrom(o.comp);
   }
 }

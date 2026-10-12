@@ -60,7 +60,7 @@
 
 严格实现规范所列子集：`:root`、`.dark`、`@size(compact|medium|expanded|large)`、`--var: value;`、注释；颜色 `oklch/hsl/rgb/#hex`，长度 `rem/px/vp`。
 为了能**直接粘贴 shadcn / tweakcn 导出**，对以下内容"识别但跳过 + 产出 info 级诊断"，不视为扩展：`@theme inline {}`、`@layer base {}`、`@import`、`@custom-variant`、`--font-*`、`--tracking-*`、`--shadow-*` 的原样值（阴影值本期解析为 Token，字体族跳过）。
-组件 Token 覆盖（如 `--button-height-sm`）列为后续语法扩展，届时再单独确认。
+组件 Token 覆盖（如 `--button-height-sm`）已在 D13 中确认并实现。
 
 ---
 
@@ -171,3 +171,114 @@
   - 代码 API：`SparkUI.themes.setMotion(key, { duration, ease, enabled })` 和 `setMotionEnabled()`，内部写入同名变量，因此会随主题一起导出。
 - **铁律**：按压态（pressed）不加任何动画；选中类控件不对两个兄弟节点同时做背景渐变（避免出现"两个高亮"），而是用单个滑动指示器（Tabs）或直接瞬切。
 - **主题切换时序**：`useAccent` / `usePreset` / `setMode` 会先在 `animateTo` 中切换 Token，再发布 `@Trace` 的选中值，避免选中态被卷进主题过渡动画。原因：ArkUI 的 `animateTo` 会把调用时尚未刷新的状态变化一并动画。
+
+---
+
+## D13. 组件 Token 体系（用户决策，2026-10-12）
+
+> 用户原话："success/warning/info 当然应该是真正的主题 token；还有更多：是否有边框、背景色、是否透明……我们需要一个完整、高度可定制的组件体系。"
+> 本节取代 D4 中"组件 Token 覆盖列为后续语法扩展"的保留意见。语法仍是 D4 的 CSS 子集，只是新增了变量名，不新增语法结构。
+
+### 1. 三层 Token
+
+| 层 | 形式 | 例子 | 存放 |
+|---|---|---|---|
+| 语义 Token | `--<name>` | `--primary`、`--success`、`--warning-foreground` | `theme.colors`（由 `tools/gen-tokens.mjs` 生成） |
+| 全局旋钮 | `--<knob>` | `--border-width`（默认 1px） | `theme.borderWidth` |
+| 组件 Token | `--<component>-<property>` | `--card-background`、`--button-radius`、`--dialog-overlay` | `theme.comp`（`SparkComponentTokens`） |
+
+**状态色成为语义 Token**：新增 `success`、`success-foreground`、`warning`、`warning-foreground`、`info`、`info-foreground`。所有预设的 `:root` 和 `.dark` 中都有定义，取值为 emerald 600/500、amber 600/500、sky 600/400，前景色与原 `SparkTones.palette` 一致，因此视觉不变。shadcn / tweakcn 导出里没有这些变量也不受影响：控制器总是先套用基础预设，再叠加用户文件，缺失的变量保留预设值。`SparkTones` 改为读取这些 Token；`SparkTones.palette` / `SparkStatusPalette` 为了源码兼容而保留，但已标为 deprecated，不再被读取。
+
+**全局旋钮只保留 `--border-width`**。所有带边框的组件（Card、Input、outline Button、Badge、Alert、Checkbox、浮层面板、Toast、Tabs 暗色指示器）原来都用同一个 1px 字面量，一个旋钮就能实现"全站无边框"或"粗边框"风格。不加 `--surface-opacity`：同样的效果可以直接写在颜色 Token 的 alpha 里（`--card-background: oklch(1 0 0 / 60%)`）。不加 `--shadow-strength`：阴影强度已经由 `--shadow-*` 覆盖（tweakcn 导出会把 shadow-opacity 烘焙进这些值），单个组件还可以用 `-shadow: none` 关闭。再加一个乘性旋钮只会让叠加规则难以预测。
+
+### 2. 命名、值与诊断
+
+- **命名**：`--<component>-<property>`。有变体的组件，默认变体用不带前缀的属性名，其它变体在属性名前加变体名：`--button-background`（default）、`--button-outline-background`、`--card-ghost-background`。尺寸后缀同理：`--button-height`、`--button-height-sm`、`--button-height-lg`。
+- **匹配顺序**：
+  1. 先匹配语义 Token。所以 `--card-foreground`、`--popover-foreground`、`--input`、`--sidebar-*` 仍是语义 Token。
+  2. 再按最长组件名前缀匹配。例如 `toggle-group-…` 优先于 `toggle-…`。
+- **值类型**（`SparkTokenKind`）：
+  - `color`：任何主题颜色语法，含 alpha（`oklch(… / 50%)`）、`transparent`、`none`，以及新增的 `color-mix(in <space>, c1 p%, c2 p%)`（按 sRGB 预乘混合）。
+  - `length`：px / rem / vp / 无单位，`none`（= 0），以及 `calc()`（支持 + − × ÷ 和括号）。
+  - `shadow`：CSS box-shadow 的第一层，或 `none`。
+  - `number`：如 `600`、`0.97`；百分数会换算，`50%` → 0.5。
+  - `bool`。
+- **var() 引用**：`var()` 可引用任何变量。fallback 允许嵌套函数，例如 `var(--x, oklch(1 0 0 / 50%))`。
+- **诊断**：
+  - 已登记的 Token，值无法按其类型解析时，产生 `error`；组件保留内置值。
+  - 已知组件的未登记属性产生 `warning`，但值仍会存储，可通过 `theme.comp` 读取，供自定义组件使用。用 `SparkComponentTokenRegistry.define()` 登记后，它会像内置 Token 一样参与校验。
+  - 不匹配任何组件的变量，仍按原规则报 unknown variable。
+- **默认值 = 未设置**：组件 Token 不写进预设。组件以自身的 shadcn 配方作为 fallback，因此不设置任何 Token 时视觉完全不变；导出的 theme.css 也只包含真正被覆盖的变量。
+
+### 3. 读取 API
+
+ArkTS 严格模式不允许索引签名，所以内部用 `Map` 存储：
+
+```ts
+theme.comp.color('card', 'background', theme.colors.card)   // '#AARRGGBB'
+theme.comp.length('button', 'radius', theme.radiusMd)       // vp
+theme.comp.shadow('popover', 'shadow', theme.shadows.md)    // SparkShadow | undefined；none → isNone
+theme.comp.number('button', 'font-weight', 500)
+theme.comp.bool(...)
+theme.comp.has(...) / raw(...) / keys()
+```
+
+- **响应式**：`SparkComponentTokens` 是 `@ObservedV2`，每个读方法都会读取 `@Trace version`。主题刷新时，`copyFrom` 只在 Token 集合真正变化时执行 `version++`，读取过它的组件及其 `@Computed` 配方随之重算。
+- **组件内部**：统一使用 `SparkTokenReader(theme, component)`，调用 `r.color(props, instanceValue, recipeValue)`。`props` 可以是数组，最具体的放在最前，例如 `['outline-border-width', 'border-width']`。
+
+### 4. 单实例覆盖：`tokens` 参数（唯一约定）
+
+- **写法**：组件提供 `@Param tokens: XxxTokens = {}`。`XxxTokens` 是字段全部可选的 interface，例如 `SCard({ tokens: { background: 'transparent', borderWidth: 0, shadow: 'none' } })`。
+- **优先级**（从高到低）：
+  1. 实例 `tokens`
+  2. `--<component>-<variant>-<prop>`
+  3. `--<component>-<prop>`
+  4. 全局旋钮
+  5. 内置配方
+- **值约定**：颜色和阴影用字符串，语法与主题文件相同，非法值被忽略；长度和数值用 number（vp）。
+- **与 `modifier` 的关系**：现有的 `modifier`（AttributeModifier）保留，作为最后一层任意属性覆盖。`tokens` 是语义化的设计参数，`modifier` 是兜底的逃生口，两者互不替代。
+- **已提供**：
+  - `ButtonTokens`、`CardTokens`
+  - `InputTokens`（SInput / STextarea 共用）
+  - `BadgeTokens`、`AlertTokens`、`ToggleTokens`、`SwitchTokens`、`CheckboxTokens`、`ProgressTokens`
+  - `TabsTokens`（STabsList）
+  - `SparkSurfaceTokens`（SDialogContent / SSheetContent / SPopoverContent / SDropdownMenuContent 共用）
+
+### 5. 运行时
+
+- `SparkUI.themes.setVariable('--card-border-width', '0')` 写入 overrides，会随主题一起导出。
+- 新增 `removeVariable(name, block?)`：删除覆盖值，恢复为配方值。
+- 新增 `variable(name, block?)`：读取当前的覆盖值。
+
+### 6. Token 目录（已接入的组件）
+
+| 组件 | Token |
+|---|---|
+| 全局 | `--border-width`；`--overlay-backdrop`（模态遮罩，默认 black/50） |
+| button | `radius` `height[-sm/-lg]` `padding-x[-sm/-lg]` `gap` `font-size` `icon-size` `border-width` `font-weight` `pressed-scale` `shadow`；各变体（default/destructive/outline/secondary/ghost/link）有 `background` `foreground` `border-color` `hover-background` `pressed-background`；非默认变体另有 `border-width` `shadow` |
+| card | `radius` `border-width` `padding` `padding-sm`；各变体（default/outline/elevated/ghost/filled）有 `background` `border-color` `hover-background` `pressed-background` `shadow` `hover-shadow` |
+| input（同时作用于 textarea、input-group、number-field、tags-input 的配色） | `background` `foreground` `placeholder-color` `border-color` `focus-border-color` `invalid-border-color` `ring-color` `invalid-ring-color` `radius` `border-width` `ring-width` `height[-sm/-lg]` `padding-x` |
+| badge | `radius` `border-width` `padding-x` `font-weight`；各变体有 `background` `foreground` `border-color`（只作用于实心样式；soft 样式跟随状态 Token） |
+| alert | `radius` `border-width` `padding-x` `padding-y`；各变体有 `background` `foreground` `border-color` `description-color` |
+| dialog | `background` `border-color` `overlay` `radius` `border-width` `padding` `max-width` `shadow` |
+| drawer | `overlay` |
+| sheet | `background` `border-color` `overlay` `border-width` `padding` `shadow` |
+| popover / menu | `background` `border-color` `radius` `border-width` `padding` `shadow` |
+| tabs | `list-background` `list-radius` `list-padding` `height` `indicator-background` `indicator-border-color` `indicator-border-width` `indicator-radius` `indicator-shadow` `trigger-foreground` `trigger-active-foreground` |
+| toggle / toggle-group | `hover-background` `hover-foreground` `on-background` `on-foreground` `border-color` `radius` `border-width` `height[-sm/-lg]` `shadow`；`--toggle-group-indicator-background` |
+| switch | `background` `checked-background` `thumb` `checked-thumb` `shadow` |
+| checkbox | `background` `border-color` `checked-background` `checked-border-color` `checked-foreground` `radius` `border-width` |
+| progress | `indicator-background` `track-background`（仅 default tone）`height` `radius` |
+| toast | `background` `foreground` `description-color` `border-color` `radius` `border-width` `padding` `shadow` |
+| tooltip | `background` `foreground` `radius` |
+| code（SCodeBlock） | `background` `foreground` `keyword` `string` `comment` `number` `decorator` `type` `function` `property` `punctuation` `variable` `tag` `attribute` `regex` `meta` `inserted` `deleted`（未设置时取 `SparkCodeTheme.github()` 的值；没传 `codeTheme` 的代码块会跟随这些 Token） |
+
+遮罩颜色按以下顺序解析：
+1. `--<浮层 motion key>-overlay`，如 `--dialog-overlay`、`--sheet-overlay`、`--drawer-overlay`
+2. `--overlay-backdrop`
+3. `#80000000`
+
+### 7. 约束
+
+- 按压态规则不变。Token 只改变配方的数值；pressed 仍只经 `applyPressedAttribute` / `stateStyles` 生效，不加动画。
+- 背景被重新着色时（实例或 Token 改了 `background`），hover / pressed 层级从新颜色派生。显式设置了 `hover-background` / `pressed-background` 时，以设置值为准。

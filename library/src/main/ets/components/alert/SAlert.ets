@@ -6,25 +6,50 @@ import { SparkTone, SparkTones } from '../../core/SparkTone';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
+import { sparkVariantProp, SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { SButton } from '../button/SButton';
 
 const KEY: string = 'spark.alert';
 
 export type AlertVariant = 'default' | 'destructive' | 'success' | 'warning' | 'info';
 
+/**
+ * Per-instance token overrides of an alert (ADR D13): `SAlert({ tokens: { borderWidth: 0, radius: 0 } })`.
+ * Instance → theme `--alert-<variant>-<prop>` / `--alert-<prop>` → recipe.
+ */
+export interface AlertTokens {
+  background?: string;
+  /** title / icon colour */
+  foreground?: string;
+  descriptionColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  radius?: number;
+  paddingX?: number;
+  paddingY?: number;
+}
+
 /** Title / icon colour of an alert variant (`text-destructive`, status tones; card foreground by default). */
 export function sparkAlertForeground(t: SparkTheme, variant: AlertVariant): string {
-  if (variant === 'default') {
-    return t.colors.cardForeground;
-  }
-  return SparkTones.base(t, variant as SparkTone);
+  const fallback = variant === 'default' ? t.colors.cardForeground : SparkTones.base(t, variant as SparkTone);
+  return t.comp.color('alert', sparkVariantProp(variant, 'foreground'), fallback);
+}
+
+/** Description colour (`text-muted-foreground`, destructive: `text-destructive/90`). */
+export function sparkAlertDescriptionColor(t: SparkTheme, variant: AlertVariant): string {
+  const fallback = variant === 'destructive' ? SparkColor.alpha(t.colors.destructive, 0.9) : t.colors.mutedForeground;
+  return t.comp.color('alert', sparkVariantProp(variant, 'description-color'), fallback);
 }
 
 /** Alert variant shared with SAlertTitle / SAlertDescription. */
 @ObservedV2
 export class SparkAlertState {
   @Trace variant: AlertVariant = 'default';
+  /** instance overrides (`tokens.foreground` / `tokens.descriptionColor`) */
+  @Trace titleColor: string | undefined = undefined;
+  @Trace descriptionColor: string | undefined = undefined;
 }
 
 function resolveAlert(uiContext: UIContext, id: number): SparkAlertState | undefined {
@@ -73,6 +98,8 @@ export struct SAlert {
   @Event onDismiss: () => void = () => {
   };
   @Param modifier: AttributeModifier<RowAttribute> = new SparkNoopModifier<RowAttribute>();
+  /** Per-instance token overrides (instance → theme `--alert-*` → recipe), see {@link AlertTokens}. */
+  @Param tokens: AlertTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkAlertState = new SparkAlertState();
@@ -80,6 +107,7 @@ export struct SAlert {
 
   aboutToAppear(): void {
     this.state.variant = this.variant;
+    this.syncTokens();
     SparkContext.provide(this.getUIContext(), this.getUniqueId(), KEY, this.state);
   }
 
@@ -92,9 +120,45 @@ export struct SAlert {
     this.state.variant = this.variant;
   }
 
+  @Monitor('tokens')
+  syncTokens(): void {
+    const t = this.tokens;
+    this.state.titleColor = t.foreground === undefined ? undefined : SparkTokenOverride.color(t.foreground, '#00000000');
+    this.state.descriptionColor = t.descriptionColor === undefined ? undefined :
+      SparkTokenOverride.color(t.descriptionColor, '#00000000');
+  }
+
+  private get tok(): SparkTokenReader {
+    return new SparkTokenReader(this.theme, 'alert');
+  }
+
+  private vp(p: string): string {
+    return sparkVariantProp(this.variant, p);
+  }
+
   @Computed
   get fg(): string {
-    return sparkAlertForeground(this.theme, this.variant);
+    return SparkTokenOverride.color(this.tokens.foreground, sparkAlertForeground(this.theme, this.variant));
+  }
+
+  @Computed
+  get edgeWidth(): number {
+    return this.tok.len('border-width', this.tokens.borderWidth, this.theme.borderWidth);
+  }
+
+  @Computed
+  get radius(): number {
+    return this.tok.len('radius', this.tokens.radius, this.theme.radiusLg);
+  }
+
+  @Computed
+  get paddingX(): number {
+    return this.tok.len('padding-x', this.tokens.paddingX, this.compact ? 12 : 16);
+  }
+
+  @Computed
+  get paddingY(): number {
+    return this.tok.len('padding-y', this.tokens.paddingY, this.compact ? 8 : 12);
   }
 
   @Computed
@@ -104,12 +168,15 @@ export struct SAlert {
 
   @Computed
   get surface(): string {
-    return this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).soft : this.theme.colors.card;
+    const recipe = this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).soft : this.theme.colors.card;
+    return this.tok.color(this.vp('background'), this.tokens.background, recipe);
   }
 
   @Computed
   get edgeColor(): string {
-    return this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).border : this.theme.colors.border;
+    const recipe = this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).border :
+      this.theme.colors.border;
+    return this.tok.color(this.vp('border-color'), this.tokens.borderColor, recipe);
   }
 
   private dismiss(): void {
@@ -153,14 +220,9 @@ export struct SAlert {
         }
         .width('100%')
         .alignItems(this.compact ? VerticalAlign.Center : VerticalAlign.Top)
-        .padding({
-          left: this.compact ? 12 : 16,
-          right: this.compact ? 12 : 16,
-          top: this.compact ? 8 : 12,
-          bottom: this.compact ? 8 : 12
-        })
+        .padding({ left: this.paddingX, right: this.paddingX, top: this.paddingY, bottom: this.paddingY })
         .backgroundColor(this.surface)
-        .border({ width: 1, color: this.edgeColor, radius: this.theme.radiusLg })
+        .border({ width: this.edgeWidth, color: this.edgeColor, radius: this.radius })
         .accessibilityGroup(true)
         .transition(SparkAnim.enter(this.theme, 'alert', 'fast', 0.98))
         .attributeModifier(this.modifier)
@@ -193,7 +255,7 @@ export struct SAlertTitle {
       .lineHeight(this.theme.text.leadingSm)
       .fontWeight(this.theme.text.weightMedium)
       .letterSpacing(-0.025 * this.theme.text.sm)
-      .fontColor(sparkAlertForeground(this.theme, this.alert?.variant ?? 'default'))
+      .fontColor(this.alert?.titleColor ?? sparkAlertForeground(this.theme, this.alert?.variant ?? 'default'))
       .maxLines(1)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
       .constraintSize({ minHeight: 16 })
@@ -220,8 +282,7 @@ export struct SAlertDescription {
 
   @Computed
   get fg(): string {
-    return this.alert?.variant === 'destructive' ? SparkColor.alpha(this.theme.colors.destructive, 0.9) :
-      this.theme.colors.mutedForeground;
+    return this.alert?.descriptionColor ?? sparkAlertDescriptionColor(this.theme, this.alert?.variant ?? 'default');
   }
 
   build() {

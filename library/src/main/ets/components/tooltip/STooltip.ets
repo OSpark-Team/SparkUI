@@ -152,10 +152,10 @@ export struct STooltipTrigger {
       builder: () => this.panelBuilder(),
       placement: popupPlacement(this.ctx?.side ?? 'top', this.ctx?.alignment ?? 'center'),
       targetSpace: this.ctx?.sideOffset ?? 6,
-      popupColor: this.theme.colors.primary,
+      popupColor: this.theme.comp.color('tooltip', 'background', this.theme.colors.primary),
       backgroundBlurStyle: BlurStyle.NONE,
       shadow: { radius: 0, color: Color.Transparent },
-      radius: this.theme.radiusMd,
+      radius: this.theme.comp.length('tooltip', 'radius', this.theme.radiusMd),
       enableArrow: true,
       arrowWidth: 10,
       arrowHeight: 5,
@@ -226,7 +226,7 @@ export struct STooltipContent {
       if (this.text !== undefined) {
         Text(this.text)
           .fontSize(this.theme.text.xs)
-          .fontColor(this.theme.colors.primaryForeground)
+          .fontColor(this.theme.comp.color('tooltip', 'foreground', this.theme.colors.primaryForeground))
       }
       this.content()
     }

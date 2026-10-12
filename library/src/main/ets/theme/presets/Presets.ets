@@ -1,7 +1,8 @@
 /**
  * Built-in theme presets, expressed in the very same CSS subset users load at runtime
  * (SparkUI dogfoods its own parser). Values match shadcn's v4 base colours; each preset is generated
- * from a Tailwind v4 gray family (oklch L C H per step).
+ * from a Tailwind v4 gray family (oklch L C H per step). Status tokens (success / warning / info, ADR D13) use
+ * Tailwind emerald 600/500, amber 600/500 and sky 600/400.
  */
 
 export class GrayScale {
@@ -66,6 +67,12 @@ export function buildGrayThemeCss(g: GrayScale): string {
   --accent-foreground: ${o(g.s900)};
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.596 0.145 163.225);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.666 0.179 58.318);
+  --warning-foreground: oklch(0.216 0.006 56.043);
+  --info: oklch(0.588 0.158 241.966);
+  --info-foreground: oklch(1 0 0);
   --border: ${o(g.s200)};
   --input: ${o(g.s200)};
   --ring: ${o(g.s400)};
@@ -101,6 +108,12 @@ export function buildGrayThemeCss(g: GrayScale): string {
   --accent-foreground: ${o(g.s50)};
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.696 0.17 162.48);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.769 0.188 70.08);
+  --warning-foreground: oklch(0.216 0.006 56.043);
+  --info: oklch(0.746 0.16 232.661);
+  --info-foreground: oklch(1 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: ${o(g.s500)};

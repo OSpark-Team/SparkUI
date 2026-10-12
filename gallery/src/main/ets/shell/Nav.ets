@@ -1,196 +1,125 @@
-import { SIcon, SparkInteraction, SparkTheme, SparkUI } from '@sparkui/core';
+import { SparkShellNavGroup, SparkShellNavItem, sparkShellNavTitle } from '@sparkui/core';
 
-export class NavItem {
-  id: string;
-  title: string;
-  icon: string;
-
-  constructor(id: string, title: string, icon: string) {
-    this.id = id;
-    this.title = title;
-    this.icon = icon;
-  }
-}
-
-export class NavGroup {
-  title: string;
-  items: NavItem[];
-
-  constructor(title: string, items: NavItem[]) {
-    this.title = title;
-    this.items = items;
-  }
-}
-
-export const NAV: NavGroup[] = [
-  new NavGroup('Getting Started', [
-    new NavItem('intro', 'Introduction', 'book-open'),
-    new NavItem('theming', 'Theming', 'palette'),
-    new NavItem('responsive', 'Responsive Layout', 'layout-grid'),
-    new NavItem('layout', 'Adaptive Context', 'layout-dashboard')
+/**
+ * Gallery routes: every page id rendered by DocContent (pages/Index.ets), grouped for the SAppShell sidebar.
+ * The gallery has no router: the active id is the SAppShell `value` (persisted), DocContent switches on it.
+ */
+export const NAV: SparkShellNavGroup[] = [
+  new SparkShellNavGroup('Getting Started', [
+    new SparkShellNavItem('intro', 'Introduction', 'book-open'),
+    new SparkShellNavItem('theming', 'Theming', 'palette'),
+    new SparkShellNavItem('responsive', 'Responsive Layout', 'layout-grid'),
+    new SparkShellNavItem('layout', 'Adaptive Context', 'layout-dashboard')
   ]),
-  new NavGroup('Foundations', [
-    new NavItem('icons', 'Icons', 'sparkles'),
-    new NavItem('code', 'Code Block', 'code')
+  new SparkShellNavGroup('Foundations', [
+    new SparkShellNavItem('icons', 'Icons', 'sparkles'),
+    new SparkShellNavItem('code', 'Code Block', 'code'),
+    new SparkShellNavItem('transition', 'Transition', 'play')
   ]),
-  new NavGroup('Blocks', [
-    new NavItem('app-shell', 'App Shell', 'layout-dashboard'),
-    new NavItem('sidebar', 'Sidebar', 'panel-left'),
-    new NavItem('topbar', 'Top Bar', 'menu'),
-    new NavItem('list-detail', 'List Detail', 'mail'),
-    new NavItem('supporting-pane', 'Supporting Pane', 'panel-right'),
-    new NavItem('dashboard-grid', 'Dashboard Grid', 'chart-pie')
+  new SparkShellNavGroup('Blocks', [
+    new SparkShellNavItem('app-shell', 'App Shell', 'layout-dashboard'),
+    new SparkShellNavItem('sidebar', 'Sidebar', 'panel-left'),
+    new SparkShellNavItem('topbar', 'Top Bar', 'menu'),
+    new SparkShellNavItem('list-detail', 'List Detail', 'mail'),
+    new SparkShellNavItem('supporting-pane', 'Supporting Pane', 'panel-right'),
+    new SparkShellNavItem('dashboard-grid', 'Dashboard Grid', 'chart-pie'),
+    new SparkShellNavItem('title-bar', 'Title Bar', 'laptop')
   ]),
-  new NavGroup('Charts', [
-    new NavItem('charts', 'Chart', 'activity'),
-    new NavItem('area-chart', 'Area Chart', 'trending-up'),
-    new NavItem('bar-chart', 'Bar Chart', 'chart-bar'),
-    new NavItem('line-chart', 'Line Chart', 'chart-line'),
-    new NavItem('pie-chart', 'Pie Chart', 'chart-pie'),
-    new NavItem('radar-chart', 'Radar Chart', 'star'),
-    new NavItem('radial-chart', 'Radial Chart', 'circle')
+  new SparkShellNavGroup('Charts', [
+    new SparkShellNavItem('charts', 'Chart', 'activity'),
+    new SparkShellNavItem('area-chart', 'Area Chart', 'trending-up'),
+    new SparkShellNavItem('bar-chart', 'Bar Chart', 'chart-bar'),
+    new SparkShellNavItem('line-chart', 'Line Chart', 'chart-line'),
+    new SparkShellNavItem('pie-chart', 'Pie Chart', 'chart-pie'),
+    new SparkShellNavItem('radar-chart', 'Radar Chart', 'star'),
+    new SparkShellNavItem('radial-chart', 'Radial Chart', 'circle')
   ]),
-  new NavGroup('Components', [
-    new NavItem('alert', 'Alert', 'circle-alert'),
-    new NavItem('aspect-ratio', 'Aspect Ratio', 'image'),
-    new NavItem('avatar', 'Avatar', 'user-round'),
-    new NavItem('badge', 'Badge', 'tag'),
-    new NavItem('button', 'Button', 'square'),
-    new NavItem('card', 'Card', 'layout-list'),
-    new NavItem('empty', 'Empty', 'inbox'),
-    new NavItem('item', 'Item', 'list'),
-    new NavItem('separator', 'Separator & Kbd', 'command'),
-    new NavItem('skeleton', 'Skeleton & Spinner', 'loader-circle'),
-    new NavItem('table', 'Table', 'table'),
-    new NavItem('typography', 'Typography', 'type')
+  new SparkShellNavGroup('Components', [
+    new SparkShellNavItem('alert', 'Alert', 'circle-alert'),
+    new SparkShellNavItem('aspect-ratio', 'Aspect Ratio', 'image'),
+    new SparkShellNavItem('avatar', 'Avatar', 'user-round'),
+    new SparkShellNavItem('badge', 'Badge', 'tag'),
+    new SparkShellNavItem('button', 'Button', 'square'),
+    new SparkShellNavItem('card', 'Card', 'layout-list'),
+    new SparkShellNavItem('empty', 'Empty', 'inbox'),
+    new SparkShellNavItem('item', 'Item', 'list'),
+    new SparkShellNavItem('separator', 'Separator & Kbd', 'command'),
+    new SparkShellNavItem('skeleton', 'Skeleton & Spinner', 'loader-circle'),
+    new SparkShellNavItem('table', 'Table', 'table'),
+    new SparkShellNavItem('typography', 'Typography', 'type')
   ]),
-  new NavGroup('Navigation', [
-    new NavItem('accordion', 'Accordion', 'chevrons-up-down'),
-    new NavItem('breadcrumb', 'Breadcrumb', 'chevron-right'),
-    new NavItem('button-group', 'Button Group', 'ellipsis'),
-    new NavItem('collapsible', 'Collapsible', 'chevron-down'),
-    new NavItem('pagination', 'Pagination', 'chevrons-right'),
-    new NavItem('scroll-area', 'Scroll Area', 'move'),
-    new NavItem('stepper', 'Stepper', 'list'),
-    new NavItem('tabs', 'Tabs', 'layout-grid'),
-    new NavItem('toggle', 'Toggle & Group', 'bold')
+  new SparkShellNavGroup('Navigation', [
+    new SparkShellNavItem('accordion', 'Accordion', 'chevrons-up-down'),
+    new SparkShellNavItem('breadcrumb', 'Breadcrumb', 'chevron-right'),
+    new SparkShellNavItem('button-group', 'Button Group', 'ellipsis'),
+    new SparkShellNavItem('collapsible', 'Collapsible', 'chevron-down'),
+    new SparkShellNavItem('pagination', 'Pagination', 'chevrons-right'),
+    new SparkShellNavItem('scroll-area', 'Scroll Area', 'move'),
+    new SparkShellNavItem('stepper', 'Stepper', 'list'),
+    new SparkShellNavItem('tabs', 'Tabs', 'layout-grid'),
+    new SparkShellNavItem('toggle', 'Toggle & Group', 'bold')
   ]),
-  new NavGroup('Forms', [
-    new NavItem('calendar', 'Calendar', 'calendar'),
-    new NavItem('checkbox', 'Checkbox', 'square-check'),
-    new NavItem('date-picker', 'Date Picker', 'calendar-days'),
-    new NavItem('field', 'Field', 'text-align-start'),
-    new NavItem('input', 'Input & Label', 'type'),
-    new NavItem('input-group', 'Input Group', 'search'),
-    new NavItem('number-field', 'Number Field', 'plus'),
-    new NavItem('pin-input', 'Pin Input', 'key'),
-    new NavItem('progress', 'Progress', 'loader'),
-    new NavItem('radio-group', 'Radio Group', 'circle'),
-    new NavItem('slider', 'Slider', 'sliders-horizontal'),
-    new NavItem('switch', 'Switch', 'toggle-right'),
-    new NavItem('tags-input', 'Tags Input', 'tag'),
-    new NavItem('textarea', 'Textarea', 'text-align-start')
+  new SparkShellNavGroup('Forms', [
+    new SparkShellNavItem('calendar', 'Calendar', 'calendar'),
+    new SparkShellNavItem('checkbox', 'Checkbox', 'square-check'),
+    new SparkShellNavItem('date-picker', 'Date Picker', 'calendar-days'),
+    new SparkShellNavItem('field', 'Field', 'text-align-start'),
+    new SparkShellNavItem('input', 'Input & Label', 'type'),
+    new SparkShellNavItem('input-group', 'Input Group', 'search'),
+    new SparkShellNavItem('number-field', 'Number Field', 'plus'),
+    new SparkShellNavItem('pin-input', 'Pin Input', 'key'),
+    new SparkShellNavItem('progress', 'Progress', 'loader'),
+    new SparkShellNavItem('radio-group', 'Radio Group', 'circle'),
+    new SparkShellNavItem('slider', 'Slider', 'sliders-horizontal'),
+    new SparkShellNavItem('switch', 'Switch', 'toggle-right'),
+    new SparkShellNavItem('tags-input', 'Tags Input', 'tag'),
+    new SparkShellNavItem('textarea', 'Textarea', 'text-align-start')
   ]),
-  new NavGroup('Overlays', [
-    new NavItem('alert-dialog', 'Alert Dialog', 'triangle-alert'),
-    new NavItem('combobox', 'Combobox', 'chevrons-up-down'),
-    new NavItem('command', 'Command', 'command'),
-    new NavItem('context-menu', 'Context Menu', 'ellipsis-vertical'),
-    new NavItem('dialog', 'Dialog', 'square-check'),
-    new NavItem('drawer', 'Drawer', 'panel-left-open'),
-    new NavItem('dropdown-menu', 'Dropdown Menu', 'menu'),
-    new NavItem('hover-card', 'Hover Card', 'user-round'),
-    new NavItem('menubar', 'Menubar', 'menu'),
-    new NavItem('popover', 'Popover', 'message-square'),
-    new NavItem('select', 'Select', 'chevrons-up-down'),
-    new NavItem('sheet', 'Sheet', 'panel-left'),
-    new NavItem('toast', 'Toast', 'bell'),
-    new NavItem('tooltip', 'Tooltip', 'info')
+  new SparkShellNavGroup('Overlays', [
+    new SparkShellNavItem('alert-dialog', 'Alert Dialog', 'triangle-alert'),
+    new SparkShellNavItem('combobox', 'Combobox', 'chevrons-up-down'),
+    new SparkShellNavItem('command', 'Command', 'command'),
+    new SparkShellNavItem('context-menu', 'Context Menu', 'ellipsis-vertical'),
+    new SparkShellNavItem('dialog', 'Dialog', 'square-check'),
+    new SparkShellNavItem('drawer', 'Drawer', 'panel-left-open'),
+    new SparkShellNavItem('dropdown-menu', 'Dropdown Menu', 'menu'),
+    new SparkShellNavItem('hover-card', 'Hover Card', 'user-round'),
+    new SparkShellNavItem('menubar', 'Menubar', 'menu'),
+    new SparkShellNavItem('popover', 'Popover', 'message-square'),
+    new SparkShellNavItem('select', 'Select', 'chevrons-up-down'),
+    new SparkShellNavItem('sheet', 'Sheet', 'panel-left'),
+    new SparkShellNavItem('toast', 'Toast', 'bell'),
+    new SparkShellNavItem('tooltip', 'Tooltip', 'info')
   ])
 ];
 
+/** Title of a page id ('' when unknown). */
 export function navTitle(id: string): string {
+  return sparkShellNavTitle(NAV, id);
+}
+
+/** Group title of a page id ('' when unknown). */
+export function navGroupTitle(id: string): string {
   for (const g of NAV) {
     for (const i of g.items) {
       if (i.id === id) {
-        return i.title;
+        return g.title;
       }
     }
   }
   return '';
 }
 
-@ComponentV2
-struct NavLink {
-  @Param item: NavItem = new NavItem('', '', '');
-  @Param active: boolean = false;
-  @Event onSelect: (id: string) => void = () => {
-  };
-  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-  @Local ix: SparkInteraction = new SparkInteraction();
-
-  @Styles
-  normalStyle() {
-    .backgroundColor(this.active || this.ix.hovered ? this.theme.colors.sidebarAccent : Color.Transparent)
-    .opacity(1)
-  }
-
-  @Styles
-  pressedStyle() {
-    .opacity(0.6)
-  }
-
-  build() {
-    Row({ space: 10 }) {
-      SIcon({
-        name: this.item.icon,
-        sizing: 16,
-        color: this.active ? this.theme.colors.sidebarAccentForeground : this.theme.colors.sidebarForeground
-      })
-      Text(this.item.title)
-        .fontSize(this.theme.text.sm)
-        .fontWeight(this.active ? this.theme.text.weightMedium : this.theme.text.weightNormal)
-        .fontColor(this.active ? this.theme.colors.sidebarAccentForeground : this.theme.colors.sidebarForeground)
-    }
-    .width('100%')
-    .height(34)
-    .padding({ left: 10, right: 10 })
-    .borderRadius(this.theme.radiusMd)
-    // pressed comes from the system pressed state, never from onTouch (no lingering highlight)
-    .stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })
-    .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
-    .onClick(() => this.onSelect(this.item.id))
-    .accessibilityText(this.item.title)
-    .accessibilitySelected(this.active)
-  }
+/** Whether `id` is a known page (e.g. a persisted page id that may have been removed since). */
+export function navHas(id: string): boolean {
+  return navTitle(id).length > 0;
 }
 
-/** Docs navigation (rendered in the fixed sidebar on wide screens and inside a Sheet on compact ones). */
-@ComponentV2
-export struct GalleryNav {
-  @Param current: string = 'intro';
-  @Event onSelect: (id: string) => void = () => {
-  };
-  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-
-  build() {
-    Column({ space: 20 }) {
-      ForEach(NAV, (g: NavGroup) => {
-        Column({ space: 2 }) {
-          Text(g.title)
-            .fontSize(this.theme.text.xs)
-            .fontWeight(this.theme.text.weightMedium)
-            .fontColor(this.theme.colors.mutedForeground)
-            .padding({ left: 10, bottom: 6 })
-          ForEach(g.items, (item: NavItem) => {
-            NavLink({ item: item, active: item.id === this.current, onSelect: (id: string) => this.onSelect(id) })
-          }, (item: NavItem) => item.id)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .width('100%')
-      }, (g: NavGroup) => g.title)
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-  }
+function flattenIds(nav: SparkShellNavGroup[]): string[] {
+  const ids: string[] = [];
+  nav.forEach((g: SparkShellNavGroup) => g.items.forEach((i: SparkShellNavItem) => ids.push(i.id)));
+  return ids;
 }
+
+/** Page ids in sidebar order (SPageTransition `order`: moving down the list = forward, up = back). */
+export const NAV_ORDER: string[] = flattenIds(NAV);

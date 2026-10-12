@@ -1,11 +1,30 @@
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkShadow, SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 
 export type ToggleVariant = 'default' | 'outline';
 export type ToggleSize = 'default' | 'sm' | 'lg';
 
 /** Which corners / edges of a toggle are joined to neighbours inside a toggle group. */
 export type ToggleJoin = 'none' | 'first' | 'middle' | 'last' | 'only';
+
+/**
+ * Per-instance token overrides of a toggle (ADR D13): `SToggle({ icon: 'bold', tokens: { onBackground: '#0ea5e9' } })`.
+ * Instance → theme `--toggle-*` → recipe.
+ */
+export interface ToggleTokens {
+  onBackground?: string;
+  onForeground?: string;
+  hoverBackground?: string;
+  hoverForeground?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  radius?: number;
+  height?: number;
+  shadow?: string;
+}
+
+const NO_TOGGLE_TOKENS: ToggleTokens = {};
 
 /** Resolved style values of a toggle (output of the variant recipe). */
 export class ToggleStyle {
@@ -33,46 +52,47 @@ export class ToggleStyle {
  * hover:text-muted-foreground data-[state=on]:bg-accent data-[state=on]:text-accent-foreground`.
  */
 export class ToggleVariants {
-  static resolve(t: SparkTheme, variant: ToggleVariant, size: ToggleSize, on: boolean, hovered: boolean): ToggleStyle {
+  static resolve(t: SparkTheme, variant: ToggleVariant, size: ToggleSize, on: boolean, hovered: boolean,
+    tokens?: ToggleTokens): ToggleStyle {
     const c = t.colors;
+    const k = tokens ?? NO_TOGGLE_TOKENS;
+    const r = new SparkTokenReader(t, 'toggle');
     const s = new ToggleStyle();
-    s.radius = t.radiusMd;
+    s.radius = r.len('radius', k.radius, t.radiusMd);
     s.fontSize = t.text.sm;
     s.fontWeight = t.text.weightMedium;
     s.foreground = c.foreground;
     if (variant === 'outline') {
-      s.borderColor = c.input;
-      s.borderWidth = 1;
-      s.shadow = t.shadows.xs;
+      s.borderColor = r.color('border-color', k.borderColor, c.input);
+      s.borderWidth = r.len('border-width', k.borderWidth, t.borderWidth);
+      s.shadow = r.shadow('shadow', k.shadow, t.shadows.xs);
       if (hovered) {
-        s.background = c.accent;
-        s.foreground = c.accentForeground;
+        s.background = r.color('hover-background', k.hoverBackground, c.accent);
+        s.foreground = r.color('hover-foreground', k.hoverForeground, c.accentForeground);
       }
     } else if (hovered) {
-      s.background = c.muted;
-      s.foreground = c.mutedForeground;
+      s.background = r.color('hover-background', k.hoverBackground, c.muted);
+      s.foreground = r.color('hover-foreground', k.hoverForeground, c.mutedForeground);
     }
     if (on) {
-      s.background = c.accent;
-      s.foreground = c.accentForeground;
+      s.background = r.color('on-background', k.onBackground, c.accent);
+      s.foreground = r.color('on-foreground', k.onForeground, c.accentForeground);
     }
     s.pressedBackground = SparkColor.mix(on || hovered ? s.background : c.muted, c.foreground, 0.06);
     switch (size) {
       case 'sm':
-        s.height = 32;
-        s.minWidth = 32;
+        s.height = r.len('height-sm', k.height, 32);
         s.paddingX = 6;
         break;
       case 'lg':
-        s.height = 40;
-        s.minWidth = 40;
+        s.height = r.len('height-lg', k.height, 40);
         s.paddingX = 10;
         break;
       default:
-        s.height = 36;
-        s.minWidth = 36;
+        s.height = r.len('height', k.height, 36);
         s.paddingX = 8;
     }
+    s.minWidth = s.height;
     return s;
   }
 

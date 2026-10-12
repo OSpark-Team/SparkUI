@@ -4,7 +4,9 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { ToggleSize, ToggleStyle, ToggleStyleModifier, ToggleVariant, ToggleVariants } from './ToggleVariants';
+import {
+  ToggleSize, ToggleStyle, ToggleStyleModifier, ToggleTokens, ToggleVariant, ToggleVariants
+} from './ToggleVariants';
 
 /**
  * shadcn-vue `Toggle`: a two-state button that can be either on or off.
@@ -36,6 +38,8 @@ export struct SToggle {
   @Param label: string | undefined = undefined;
   @Param disabled: boolean = false;
   @BuilderParam content: () => void = sparkEmptyBuilder;
+  /** Per-instance token overrides (instance → theme `--toggle-*` → recipe), see {@link ToggleTokens}. */
+  @Param tokens: ToggleTokens = {};
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ix: SparkInteraction = new SparkInteraction();
   @Local current: boolean = false;
@@ -70,7 +74,7 @@ export struct SToggle {
 
   @Computed
   get styles(): ToggleStyle {
-    return ToggleVariants.resolve(this.theme, this.variant, this.sizing, this.current, this.ix.hovered);
+    return ToggleVariants.resolve(this.theme, this.variant, this.sizing, this.current, this.ix.hovered, this.tokens);
   }
 
   @Computed

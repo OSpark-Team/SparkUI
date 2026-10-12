@@ -5,7 +5,9 @@ import { SIcon } from '../../icons/SIcon';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/SparkOverlayHost';
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle } from '../../theme/tokens/SparkTokenReader';
 import { SButton } from '../button/SButton';
 import { SSpinner } from '../spinner/SSpinner';
 
@@ -288,6 +290,24 @@ struct SparkToastCard {
   @Param item: SparkToastItem = new SparkToastItem(0, '', 0);
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
+  /** `bg-popover border rounded-lg p-4 shadow-lg` → `--toast-*` tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'toast', sparkSurfaceDefaults(t.colors.popover, t.colors.border, t.borderWidth, t.radiusLg,
+      16, t.shadows.lg));
+  }
+
+  @Computed
+  get foreground(): string {
+    return this.theme.comp.color('toast', 'foreground', this.theme.colors.popoverForeground);
+  }
+
+  @Computed
+  get descriptionColor(): string {
+    return this.theme.comp.color('toast', 'description-color', this.theme.colors.mutedForeground);
+  }
+
   private iconName(): string {
     switch (this.item.variant) {
       case 'success':
@@ -310,20 +330,20 @@ struct SparkToastCard {
       // The spinner is its own node: when the toast turns loading → success it is removed together with
       // its infinite rotation (a rotating SIcon kept spinning after the variant changed).
       if (this.item.variant === 'loading') {
-        SSpinner({ sizing: 18, color: this.theme.colors.foreground })
+        SSpinner({ sizing: 18, color: this.foreground })
       } else if (this.iconName().length > 0) {
-        SIcon({ name: this.iconName(), sizing: 18, color: this.theme.colors.foreground })
+        SIcon({ name: this.iconName(), sizing: 18, color: this.foreground })
           .transition(SparkAnim.enter(this.theme, 'toast', 'fast', 0.6))
       }
       Column({ space: 2 }) {
         Text(this.item.title)
           .fontSize(this.theme.text.sm)
           .fontWeight(this.theme.text.weightMedium)
-          .fontColor(this.theme.colors.popoverForeground)
+          .fontColor(this.foreground)
         if (this.item.description.length > 0) {
           Text(this.item.description)
             .fontSize(this.theme.text.sm)
-            .fontColor(this.theme.colors.mutedForeground)
+            .fontColor(this.descriptionColor)
         }
       }
       .layoutWeight(1)
@@ -338,10 +358,10 @@ struct SparkToastCard {
       }
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor(this.theme.colors.popover)
-    .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
-    .shadow(this.theme.shadows.lg.toOptions())
+    .padding(this.surface.padding)
+    .backgroundColor(this.surface.background)
+    .border({ width: this.surface.borderWidth, color: this.surface.borderColor, radius: this.surface.radius })
+    .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
     .translate({ x: this.item.dragX, y: this.item.shift })
     .opacity(1 - Math.min(Math.abs(this.item.dragX) / 240, 0.8))
     .gesture(

@@ -7,6 +7,7 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkItemRect, SparkSelection } from '../../primitives/SparkSelection';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import {
   ToggleJoin, ToggleSize, ToggleStyle, ToggleStyleModifier, ToggleVariant, ToggleVariants
@@ -119,14 +120,28 @@ export struct SToggleGroup {
     return s.rectOf(s.values[0]);
   }
 
+  /** item radius (`--toggle-radius`) */
+  @Computed
+  get radius(): number {
+    return this.theme.comp.length('toggle', 'radius', this.theme.radiusMd);
+  }
+
+  /** `--toggle-group-indicator-background` → `--toggle-on-background` → accent */
+  @Computed
+  get indicatorColor(): string {
+    const comp = this.theme.comp;
+    return comp.color('toggle-group', 'indicator-background',
+      comp.color('toggle', 'on-background', this.theme.colors.accent));
+  }
+
   @Computed
   get indicatorRadius(): BorderRadiuses {
     const s = this.state;
     if (s.geoVersion < 0) {
       // geoVersion: joins are recorded together with the item rectangles
-      return ToggleVariants.radii(this.theme.radiusMd, 'none');
+      return ToggleVariants.radii(this.radius, 'none');
     }
-    return ToggleVariants.radii(this.theme.radiusMd, s.values.length > 0 ? s.joinOf(s.values[0]) : 'none');
+    return ToggleVariants.radii(this.radius, s.values.length > 0 ? s.joinOf(s.values[0]) : 'none');
   }
 
   build() {
@@ -137,7 +152,7 @@ export struct SToggleGroup {
           .position({ x: this.activeRect.x, y: this.activeRect.y })
           .width(this.activeRect.w)
           .height(this.activeRect.h)
-          .backgroundColor(this.theme.colors.accent)
+          .backgroundColor(this.indicatorColor)
           .borderRadius(this.indicatorRadius)
           .animation(this.state.interacted ? SparkAnim.attr(this.theme, 'toggle-group', 'normal') :
             { duration: 0 })
@@ -157,8 +172,9 @@ export struct SToggleGroup {
         .alignItems(VerticalAlign.Center)
       }
     }
-    .border({ width: 0, radius: this.theme.radiusMd })
-    .shadow(this.variant === 'outline' && this.spacing === 0 ? this.theme.shadows.xs.toOptions() :
+    .border({ width: 0, radius: this.radius })
+    .shadow(this.variant === 'outline' && this.spacing === 0 ?
+      SparkTokenOverride.shadowOptions(this.theme.comp.shadow('toggle', 'shadow', this.theme.shadows.xs)) :
       { radius: 0, color: Color.Transparent })
     .accessibilityGroup(false)
   }

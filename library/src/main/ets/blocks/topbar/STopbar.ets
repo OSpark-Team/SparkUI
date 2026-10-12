@@ -6,7 +6,7 @@ import { SInput } from '../../components/input/SInput';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { sparkTopbarCondensed, sparkTopbarHeight } from '../BlocksLogic';
+import { sparkTopbarCondensed, sparkTopbarHeight, TOPBAR_CONDENSED_BELOW } from '../BlocksLogic';
 import { resolveSparkSidebar, SparkSidebarState, SSidebarTrigger } from '../sidebar/SSidebar';
 
 /**
@@ -48,6 +48,11 @@ export class SparkTopbarAction {
  * `translucent` the background is translucent + backdrop-blurred, for content that scrolls underneath (SAppShell
  * does that). `safeArea` adds the status-bar inset for immersive pages (skipped automatically inside a framed
  * 'inset' sidebar layout, whose card already clears it).
+ *
+ * Extension points: `leadingBuilder` / `titleBuilder` / trailing slot (additive; set `leading: 'none'` or an
+ * empty `title` to replace the built-ins), `condenseBelow` and `barHeight` instead of fixed metrics, `onBack`
+ * for any back handling (no routing built in). Inside an SSidebarProvider, `leading: 'auto'` follows the
+ * sidebar controller (`toggleable`).
  */
 @ComponentV2
 export struct STopbar {
@@ -71,9 +76,20 @@ export struct STopbar {
   @Param bordered: boolean = true;
   /** add the top safe-area inset (immersive pages) */
   @Param safeArea: boolean = false;
+  /** condense below this width of the bar itself (vp) */
+  @Param condenseBelow: number = TOPBAR_CONDENSED_BELOW;
+  /** bar height without the safe-area inset (vp, 0 = 56 / 48 condensed) */
+  @Param barHeight: number = 0;
+  /** extra leading content, after the built-in `leading` control (use `leading: 'none'` to replace it) */
+  @BuilderParam leadingBuilder: () => void = sparkEmptyBuilder;
+  /** extra title content under / instead of `title` (breadcrumbs, a switcher…; leave `title` empty to replace) */
+  @BuilderParam titleBuilder: () => void = sparkEmptyBuilder;
+  /** trailing slot (after `actions`) */
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
+  /** drive the leading trigger from this controller (e.g. a bar outside the SSidebarProvider) */
+  @Param sidebarController: SparkSidebarState | undefined = undefined;
   @Local ctx: SparkSidebarState | undefined = undefined;
   @Local measuredWidth: number = 0;
   @Local searchOpen: boolean = false;
@@ -88,9 +104,13 @@ export struct STopbar {
     }
   }
 
+  get sidebar(): SparkSidebarState | undefined {
+    return this.sidebarController ?? this.ctx;
+  }
+
   @Computed
   get condensed(): boolean {
-    return sparkTopbarCondensed(this.measuredWidth);
+    return sparkTopbarCondensed(this.measuredWidth, this.condenseBelow);
   }
 
   @Computed
@@ -98,12 +118,17 @@ export struct STopbar {
     if (this.leading === 'trigger') {
       return true;
     }
-    return this.leading === 'auto' && (this.ctx?.toggleable ?? false);
+    return this.leading === 'auto' && (this.sidebar?.toggleable ?? false);
+  }
+
+  @Computed
+  get titleEmpty(): boolean {
+    return typeof this.title === 'string' && this.title.length === 0;
   }
 
   @Computed
   get topInset(): number {
-    if (!this.safeArea || (this.ctx?.insetFramed ?? false)) {
+    if (!this.safeArea || (this.sidebar?.insetFramed ?? false)) {
       return 0;
     }
     return this.layout.env.safeArea.top;
@@ -143,11 +168,12 @@ export struct STopbar {
           })
       } else {
         if (this.showTrigger) {
-          SSidebarTrigger()
+          SSidebarTrigger({ controller: this.sidebarController })
         } else if (this.leading === 'back') {
           SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: 'Back' })
             .onClick(() => this.onBack())
         }
+        this.leadingBuilder()
         if ((this.showTrigger || this.leading === 'back') && !this.condensed) {
           Column()
             .width(1)
@@ -156,12 +182,14 @@ export struct STopbar {
             .backgroundColor(this.theme.colors.border)
         }
         Column({ space: 2 }) {
-          Text(this.title)
-            .fontSize(this.condensed ? this.theme.text.sm : this.theme.text.base)
-            .fontWeight(this.theme.text.weightSemibold)
-            .fontColor(this.theme.colors.foreground)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (!this.titleEmpty) {
+            Text(this.title)
+              .fontSize(this.condensed ? this.theme.text.sm : this.theme.text.base)
+              .fontWeight(this.theme.text.weightSemibold)
+              .fontColor(this.theme.colors.foreground)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
           if (this.subtitle !== undefined && !this.condensed) {
             Text(this.subtitle)
               .fontSize(this.theme.text.xs)
@@ -169,6 +197,7 @@ export struct STopbar {
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
+          this.titleBuilder()
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
@@ -194,7 +223,7 @@ export struct STopbar {
       }
     }
     .width('100%')
-    .height(sparkTopbarHeight(this.condensed) + this.topInset)
+    .height((this.barHeight > 0 ? this.barHeight : sparkTopbarHeight(this.condensed)) + this.topInset)
     .padding({ left: this.condensed ? 8 : 16, right: this.condensed ? 8 : 16, top: this.topInset })
     .alignItems(VerticalAlign.Center)
     .backgroundColor(this.translucent ? SparkColor.alpha(this.theme.colors.background, 0.8) :

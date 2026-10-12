@@ -4,16 +4,40 @@ import { SparkTone, SparkToneColors, SparkTones } from '../../core/SparkTone';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
+import { sparkVariantProp } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 
 export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info';
 export type BadgeSize = 'sm' | 'default' | 'lg';
+
+/**
+ * Per-instance token overrides of a badge (ADR D13): `SBadge({ text: 'Beta', tokens: { radius: 4 } })`.
+ * Instance → theme `--badge-*` → variant recipe.
+ */
+export interface BadgeTokens {
+  background?: string;
+  foreground?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  /** corner radius when not a pill / count badge */
+  radius?: number;
+  paddingX?: number;
+  fontWeight?: number;
+}
+
+const NO_BADGE_TOKENS: BadgeTokens = {};
 
 /** Resolved colours of a badge (the output of the variant recipe). */
 export class BadgeStyle {
   background: string = '#00000000';
   foreground: string = '#FF000000';
   borderColor: string = '#00000000';
+  borderWidth: number = 1;
+  radius: number = 8;
+  /** undefined: size preset */
+  paddingX: number | undefined = undefined;
+  fontWeight: number = 500;
   /** colour of the `dot` indicator */
   dot: string = '#FF000000';
 }
@@ -41,7 +65,34 @@ function toneOf(variant: BadgeVariant): SparkTone {
 
 /** shadcn-vue `badgeVariants`, plus status tones and a `soft` (tinted) look. */
 export class BadgeVariants {
-  static resolve(t: SparkTheme, variant: BadgeVariant, soft?: boolean): BadgeStyle {
+  /**
+   * Instance `tokens` → `--badge-<variant>-<prop>` (solid look only; `soft` badges derive from the tone tokens)
+   * → `--badge-<prop>` → recipe.
+   */
+  static resolve(t: SparkTheme, variant: BadgeVariant, soft?: boolean, tokens?: BadgeTokens): BadgeStyle {
+    const s = BadgeVariants.recipe(t, variant, soft);
+    const k = tokens ?? NO_BADGE_TOKENS;
+    const r = new SparkTokenReader(t, 'badge');
+    const vp = (p: string): string => sparkVariantProp(variant, p);
+    const none: string[] = [];
+    const fgBefore = s.foreground;
+    s.background = r.color(soft === true ? none : vp('background'), k.background, s.background);
+    s.foreground = r.color(soft === true ? none : vp('foreground'), k.foreground, s.foreground);
+    if (s.dot === fgBefore) {
+      s.dot = s.foreground;
+    }
+    s.borderColor = r.color(soft === true ? none : vp('border-color'), k.borderColor, s.borderColor);
+    s.borderWidth = r.len('border-width', k.borderWidth, t.borderWidth);
+    s.radius = r.len('radius', k.radius, t.radiusMd);
+    if (k.paddingX !== undefined || r.has('padding-x')) {
+      s.paddingX = r.len('padding-x', k.paddingX, 8);
+    }
+    s.fontWeight = r.num('font-weight', k.fontWeight, t.text.weightMedium);
+    return s;
+  }
+
+  /** The plain recipe (no tokens). */
+  static recipe(t: SparkTheme, variant: BadgeVariant, soft?: boolean): BadgeStyle {
     const c = t.colors;
     const s = new BadgeStyle();
     switch (variant) {
@@ -122,12 +173,14 @@ export struct SBadge {
   @Event onRemove: () => void = () => {
   };
   @Param modifier: AttributeModifier<RowAttribute> = new SparkNoopModifier<RowAttribute>();
+  /** Per-instance token overrides (instance → theme `--badge-*` → recipe), see {@link BadgeTokens}. */
+  @Param tokens: BadgeTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   @Computed
   get styles(): BadgeStyle {
-    return BadgeVariants.resolve(this.theme, this.variant, this.soft);
+    return BadgeVariants.resolve(this.theme, this.variant, this.soft, this.tokens);
   }
 
   @Computed
@@ -162,6 +215,9 @@ export struct SBadge {
 
   @Computed
   get paddingX(): number {
+    if (this.styles.paddingX !== undefined) {
+      return this.styles.paddingX;
+    }
     if (this.count !== undefined) {
       return this.sizing === 'lg' ? 6 : 4;
     }
@@ -173,16 +229,16 @@ export struct SBadge {
     return this.sizing === 'lg' ? 3 : (this.sizing === 'sm' ? 0 : 2);
   }
 
-  /** text line + padding + 1px border on both sides */
+  /** text line + padding + border on both sides */
   @Computed
   get minHeight(): number {
     const line = this.sizing === 'lg' ? this.theme.text.leadingSm : (this.sizing === 'sm' ? 14 : this.theme.text.leadingXs);
-    return line + this.paddingY * 2 + 2;
+    return line + this.paddingY * 2 + this.styles.borderWidth * 2;
   }
 
   @Computed
   get radius(): number {
-    return this.pill || this.count !== undefined ? 9999 : this.theme.radiusMd;
+    return this.pill || this.count !== undefined ? 9999 : this.styles.radius;
   }
 
   @Computed
@@ -214,7 +270,7 @@ export struct SBadge {
         if (this.label !== undefined) {
           Text(this.label)
             .fontSize(this.fontSize)
-            .fontWeight(this.theme.text.weightMedium)
+            .fontWeight(this.styles.fontWeight)
             .fontColor(this.styles.foreground)
             .fontFeature('"tnum" on')
             .maxLines(1)
@@ -241,7 +297,7 @@ export struct SBadge {
       .constraintSize({ minWidth: this.count !== undefined ? this.minHeight : 0, minHeight: this.minHeight })
       .padding({ left: this.paddingX, right: this.paddingX, top: this.paddingY, bottom: this.paddingY })
       .backgroundColor(this.styles.background)
-      .border({ width: 1, color: this.styles.borderColor, radius: this.radius })
+      .border({ width: this.styles.borderWidth, color: this.styles.borderColor, radius: this.radius })
       .visibility(this.hidden ? Visibility.None : Visibility.Visible)
       .attributeModifier(this.modifier)
     }

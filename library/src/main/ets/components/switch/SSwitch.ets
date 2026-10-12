@@ -3,7 +3,9 @@ import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkPressModifier } from '../../core/SparkPress';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 
 /** Size of a choice control (Switch / Checkbox / Radio): sm · default · lg. */
 export type ChoiceSize = 'sm' | 'default' | 'lg';
@@ -24,6 +26,17 @@ export function sparkSwitchMetrics(sizing: ChoiceSize): number[] {
 export class ChoiceCardStyle {
   background: string = '#00000000';
   borderColor: string = '#00000000';
+}
+
+/**
+ * Per-instance token overrides of a switch (ADR D13): `SSwitch({ tokens: { checkedBackground: '#16a34a' } })`.
+ * Instance → theme `--switch-*` → recipe.
+ */
+export interface SwitchTokens {
+  background?: string;
+  checkedBackground?: string;
+  thumb?: string;
+  checkedThumb?: string;
 }
 
 export function sparkChoiceCard(t: SparkTheme, selected: boolean, invalid: boolean): ChoiceCardStyle {
@@ -68,6 +81,8 @@ export struct SSwitch {
   @Param card: boolean = false;
   @Event onCheckedChange: (v: boolean) => void = () => {
   };
+  /** Per-instance token overrides (instance → theme `--switch-*` → recipe), see {@link SwitchTokens}. */
+  @Param tokens: SwitchTokens = {};
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local current: boolean = false;
 
@@ -107,19 +122,27 @@ export struct SSwitch {
   @Computed
   get trackColor(): string {
     const c = this.theme.colors;
+    const r = new SparkTokenReader(this.theme, 'switch');
     if (this.current) {
-      return c.primary;
+      return r.color('checked-background', this.tokens.checkedBackground, c.primary);
     }
-    return this.theme.isDark ? SparkColor.alpha(c.input, 0.8) : c.input;
+    return r.color('background', this.tokens.background, this.theme.isDark ? SparkColor.alpha(c.input, 0.8) : c.input);
   }
 
   @Computed
   get thumbColor(): string {
     const c = this.theme.colors;
-    if (!this.theme.isDark) {
-      return c.background;
+    const r = new SparkTokenReader(this.theme, 'switch');
+    const dark = this.theme.isDark;
+    if (this.current) {
+      return r.color('checked-thumb', this.tokens.checkedThumb, dark ? c.primaryForeground : c.background);
     }
-    return this.current ? c.primaryForeground : c.foreground;
+    return r.color('thumb', this.tokens.thumb, dark ? c.foreground : c.background);
+  }
+
+  @Computed
+  get trackShadow(): ShadowOptions {
+    return SparkTokenOverride.shadowOptions(this.theme.comp.shadow('switch', 'shadow', this.theme.shadows.xs));
   }
 
   @Computed
@@ -171,7 +194,7 @@ export struct SSwitch {
     .padding(this.card ? 16 : 0)
     .backgroundColor(this.card ? this.cardStyle.background : '#00000000')
     .border({
-      width: this.card ? 1 : 0,
+      width: this.card ? this.theme.borderWidth : 0,
       color: this.cardStyle.borderColor,
       radius: this.card ? this.theme.radiusLg : 0
     })
@@ -204,7 +227,7 @@ export struct SSwitch {
     .margin({ top: this.description !== undefined && !this.card ? 1 : 0 })
     .backgroundColor(this.trackColor)
     .border({ width: 0, radius: this.metrics[1] / 2 })
-    .shadow(this.theme.shadows.xs.toOptions())
+    .shadow(this.trackShadow)
     .animation(SparkAnim.attr(this.theme, 'switch', 'normal'))
   }
 }

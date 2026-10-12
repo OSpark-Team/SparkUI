@@ -7,7 +7,11 @@ import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { SparkAlign, SparkSide } from '../../primitives/overlay/Placement';
 import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import {
+  sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle, SparkSurfaceTokens
+} from '../../theme/tokens/SparkTokenReader';
 
 const KEY: string = 'spark.dropdown';
 const RADIO_KEY: string = 'spark.dropdown.radio';
@@ -111,6 +115,8 @@ export struct SDropdownMenuContent {
   @Param adaptive: SparkAdaptive = 'auto';
   /** panel width in vp (shadcn examples use w-56 = 224); children size against it */
   @Param panelWidth: number = 224;
+  /** Per-instance surface token overrides (instance → theme tokens → recipe), see {@link SparkSurfaceTokens}. */
+  @Param tokens: SparkSurfaceTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -151,6 +157,14 @@ export struct SDropdownMenuContent {
     this.binding.dispose();
   }
 
+  /** `bg-popover rounded-md border p-1 shadow-md` → `--menu-*` tokens → instance tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'menu', sparkSurfaceDefaults(t.colors.popover, t.colors.border, t.borderWidth,
+      this.sheet ? t.radiusXl : t.radiusMd, this.sheet ? 8 : 4, t.shadows.md), this.tokens);
+  }
+
   @LocalBuilder
   panel() {
     Column() {
@@ -166,14 +180,19 @@ export struct SDropdownMenuContent {
     }
     // a definite width: with an auto-width panel, '100%' rows resolve against the overlay layer
     .width(this.sheet ? '100%' : this.panelWidth)
-    .padding(this.sheet ? { left: 8, right: 8, top: 8, bottom: 8 + this.layout.env.safeArea.bottom } : 4)
-    .backgroundColor(this.theme.colors.popover)
+    .padding(this.sheet ? {
+      left: this.surface.padding,
+      right: this.surface.padding,
+      top: this.surface.padding,
+      bottom: this.surface.padding + this.layout.env.safeArea.bottom
+    } : this.surface.padding)
+    .backgroundColor(this.surface.background)
     .border({
-      width: this.sheet ? { top: 1 } : 1,
-      color: this.theme.colors.border,
-      radius: this.sheet ? { topLeft: this.theme.radiusXl, topRight: this.theme.radiusXl } : this.theme.radiusMd
+      width: this.sheet ? { top: this.surface.borderWidth } : this.surface.borderWidth,
+      color: this.surface.borderColor,
+      radius: this.sheet ? { topLeft: this.surface.radius, topRight: this.surface.radius } : this.surface.radius
     })
-    .shadow(this.theme.shadows.md.toOptions())
+    .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .alignItems(HorizontalAlign.Start)
   }

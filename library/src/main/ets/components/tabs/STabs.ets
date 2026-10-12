@@ -7,7 +7,9 @@ import { SIcon } from '../../icons/SIcon';
 import { SparkRowPressModifier } from '../../primitives/SparkPressModifier';
 import { SparkItemRect, SparkSelection } from '../../primitives/SparkSelection';
 import { SparkColor } from '../../theme/color/SparkColor';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { SparkAnim } from '../../core/SparkAnim';
 
 const KEY: string = 'spark.tabs';
@@ -84,13 +86,74 @@ export struct STabs {
 }
 
 /**
+ * Per-instance token overrides of the tab strip (ADR D13), e.g. an underline-free transparent strip:
+ * `STabsList({ tokens: { listBackground: 'transparent', indicatorShadow: 'none' } })`.
+ * Instance → theme `--tabs-*` → recipe. (Strip height / trigger colours are theme-level: `--tabs-height`,
+ * `--tabs-trigger-foreground`, `--tabs-trigger-active-foreground`.)
+ */
+export interface TabsTokens {
+  listBackground?: string;
+  listRadius?: number;
+  indicatorBackground?: string;
+  indicatorBorderColor?: string;
+  indicatorBorderWidth?: number;
+  indicatorRadius?: number;
+  indicatorShadow?: string;
+}
+
+/** Resolved strip / indicator style of STabsList. */
+export class TabsListStyle {
+  height: number = 36;
+  padding: number = 3;
+  listBackground: string = '#00000000';
+  listRadius: number = 10;
+  indicatorBackground: string = '#00000000';
+  indicatorBorderColor: string = '#00000000';
+  indicatorBorderWidth: number = 0;
+  indicatorRadius: number = 8;
+  indicatorShadow: ShadowOptions = { radius: 0, color: Color.Transparent };
+}
+
+/** Strip height (`--tabs-height`, 36) and inner padding (`--tabs-list-padding`, 3): triggers are height − 2·padding. */
+export function sparkTabsMetrics(t: SparkTheme): number[] {
+  return [t.comp.length('tabs', 'height', 36), t.comp.length('tabs', 'list-padding', 3)];
+}
+
+/** shadcn tabs recipe (`bg-muted rounded-lg p-[3px]`, active `bg-background shadow-sm` / dark `bg-input/30 border-input`) → tokens. */
+export function sparkTabsListStyle(t: SparkTheme, tokens?: TabsTokens): TabsListStyle {
+  const c = t.colors;
+  const r = new SparkTokenReader(t, 'tabs');
+  const s = new TabsListStyle();
+  const m = sparkTabsMetrics(t);
+  s.height = m[0];
+  s.padding = m[1];
+  s.listBackground = r.color('list-background', tokens?.listBackground, c.muted);
+  s.listRadius = r.len('list-radius', tokens?.listRadius, t.radiusLg);
+  s.indicatorBackground = r.color('indicator-background', tokens?.indicatorBackground,
+    t.isDark ? SparkColor.alpha(c.input, 0.3) : c.background);
+  s.indicatorBorderColor = r.color('indicator-border-color', tokens?.indicatorBorderColor, c.input);
+  s.indicatorBorderWidth = r.len('indicator-border-width', tokens?.indicatorBorderWidth, t.isDark ? t.borderWidth : 0);
+  s.indicatorRadius = r.len('indicator-radius', tokens?.indicatorRadius, t.radiusMd);
+  s.indicatorShadow = SparkTokenOverride.shadowOptions(r.shadow('indicator-shadow', tokens?.indicatorShadow,
+    t.shadows.sm));
+  return s;
+}
+
+/**
  * The tab strip: `bg-muted text-muted-foreground inline-flex h-9 w-fit rounded-lg p-[3px]`.
  * Responsive: when the triggers are wider than the space the list gets, the strip scrolls horizontally.
  */
 @ComponentV2
 export struct STabsList {
+  /** Per-instance token overrides (instance → theme `--tabs-*` → recipe), see {@link TabsTokens}. */
+  @Param tokens: TabsTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+
+  @Computed
+  get look(): TabsListStyle {
+    return sparkTabsListStyle(this.theme, this.tokens);
+  }
   @Local available: number = 0;
   @Local contentWidth: number = 0;
   @Local ctx: SparkTabsState | undefined = undefined;
@@ -136,30 +199,29 @@ export struct STabsList {
           if (this.activeRect !== undefined) {
             Column()
               .width(this.activeRect.w)
-              .height(30)
-              .position({ x: this.activeRect.x, y: 3 })
-              .backgroundColor(this.theme.isDark ? SparkColor.alpha(this.theme.colors.input, 0.3) :
-                this.theme.colors.background)
+              .height(this.look.height - this.look.padding * 2)
+              .position({ x: this.activeRect.x, y: this.look.padding })
+              .backgroundColor(this.look.indicatorBackground)
               .border({
-                width: this.theme.isDark ? 1 : 0,
-                color: this.theme.colors.input,
-                radius: this.theme.radiusMd
+                width: this.look.indicatorBorderWidth,
+                color: this.look.indicatorBorderColor,
+                radius: this.look.indicatorRadius
               })
-              .shadow(this.theme.shadows.sm.toOptions())
+              .shadow(this.look.indicatorShadow)
               .animation(this.ctx?.interacted === true ? SparkAnim.attr(this.theme, 'tabs', 'normal') : { duration: 0 })
           }
           Row() {
             this.content()
           }
-          .height(36)
-          .padding(3)
+          .height(this.look.height)
+          .padding(this.look.padding)
           .alignItems(VerticalAlign.Center)
           .onAreaChange((_: Area, n: Area) => {
             this.contentWidth = Number(n.width);
           })
         }
-        .backgroundColor(this.theme.colors.muted)
-        .border({ width: 0, radius: this.theme.radiusLg })
+        .backgroundColor(this.look.listBackground)
+        .border({ width: 0, radius: this.look.listRadius })
       }
       .width(this.viewportWidth)
       .scrollable(ScrollDirection.Horizontal)
@@ -167,7 +229,7 @@ export struct STabsList {
       .scrollBar(BarState.Off)
       .edgeEffect(this.overflow ? EdgeEffect.Spring : EdgeEffect.None)
       .align(Alignment.Start)
-      .border({ width: 0, radius: this.theme.radiusLg })
+      .border({ width: 0, radius: this.look.listRadius })
       .clip(true)
     }
     .width('100%')
@@ -221,13 +283,24 @@ export struct STabsTrigger {
   @Computed
   get foreground(): string {
     const c = this.theme.colors;
-    if (this.active) {
-      return c.foreground;
+    const comp = this.theme.comp;
+    const active = comp.color('tabs', 'trigger-active-foreground', c.foreground);
+    if (this.active || this.ix.hovered) {
+      return active;
     }
-    if (this.theme.isDark) {
-      return this.ix.hovered ? c.foreground : c.mutedForeground;
-    }
-    return this.ix.hovered ? c.foreground : SparkColor.alpha(c.foreground, 0.85);
+    return comp.color('tabs', 'trigger-foreground', this.theme.isDark ? c.mutedForeground :
+      SparkColor.alpha(c.foreground, 0.85));
+  }
+
+  @Computed
+  get triggerHeight(): number {
+    const m = sparkTabsMetrics(this.theme);
+    return m[0] - m[1] * 2;
+  }
+
+  @Computed
+  get triggerRadius(): number {
+    return this.theme.comp.length('tabs', 'indicator-radius', this.theme.radiusMd);
   }
 
   build() {
@@ -244,12 +317,12 @@ export struct STabsTrigger {
       }
       this.content()
     }
-    .height(30)
+    .height(this.triggerHeight)
     .padding({ left: 8, right: 8 })
     .justifyContent(FlexAlign.Center)
     .alignItems(VerticalAlign.Center)
     .attributeModifier(this.press)
-    .border({ width: 0, radius: this.theme.radiusMd })
+    .border({ width: 0, radius: this.triggerRadius })
     .onAreaChange((_: Area, n: Area) => {
       this.ctx?.report(this.value, Number(n.position.x ?? 0), Number(n.position.y ?? 0), Number(n.width),
         Number(n.height));

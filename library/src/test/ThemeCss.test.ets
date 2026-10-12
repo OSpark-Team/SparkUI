@@ -4,6 +4,13 @@ import { ThemeResolver } from '../main/ets/theme/css/ThemeResolver';
 import { ThemeDiagnostic, ThemeSource } from '../main/ets/theme/css/ThemeSource';
 import { presetCss, SPARK_PRESETS } from '../main/ets/theme/presets/Presets';
 import { SparkTheme } from '../main/ets/theme/tokens/SparkTheme';
+import { SparkComponentTokenRegistry } from '../main/ets/theme/tokens/SparkComponentTokens';
+import { SparkTokenReader } from '../main/ets/theme/tokens/SparkTokenReader';
+import { SparkColor } from '../main/ets/theme/color/SparkColor';
+import { ThemeValues } from '../main/ets/theme/css/ThemeValues';
+import { ButtonVariants } from '../main/ets/components/button/ButtonVariants';
+import { CardVariants } from '../main/ets/components/card/SCard';
+import { SparkTones } from '../main/ets/core/SparkTone';
 
 const SHADCN_EXPORT = `
 @import "tailwindcss";
@@ -189,6 +196,147 @@ export default function themeCssTest() {
         expect(light.colors.background).assertEqual('#FFFFFFFF');
         expect(dark.colors.border).assertEqual('#1AFFFFFF');
       });
+    });
+  });
+
+  describe('ThemeTokens', () => {
+    it('status_tokens_in_presets', 0, () => {
+      SPARK_PRESETS.forEach((name: string) => {
+        const src = ThemeCssParser.parse(presetCss(name) as string);
+        const light = new SparkTheme();
+        ThemeResolver.apply(src, false, 'compact', light);
+        const dark = new SparkTheme();
+        ThemeResolver.apply(src, true, 'compact', dark);
+        expect(SparkColor.fromArgbHex(light.colors.success).g > 0.5).assertTrue();
+        expect(light.colors.warningForeground).assertEqual(dark.colors.warningForeground);
+        expect(light.colors.info !== dark.colors.info).assertTrue();
+        expect(SparkTones.resolve(dark, 'success').solid).assertEqual(dark.colors.success);
+        expect(SparkTones.resolve(light, 'warning').onSolid).assertEqual(light.colors.warningForeground);
+      });
+    });
+
+    it('status_tokens_fallback_for_shadcn_exports', 0, () => {
+      // the controller layers a tweakcn export over the preset: tokens it omits keep the preset value
+      const preset = ThemeCssParser.parse(presetCss('neutral') as string);
+      const base = new SparkTheme();
+      ThemeResolver.apply(preset, false, 'compact', base);
+      const t = new SparkTheme();
+      ThemeResolver.apply(preset.merge(ThemeCssParser.parse(SHADCN_EXPORT)), false, 'compact', t);
+      expect(t.colors.primary).assertEqual('#FF171717');
+      expect(t.colors.success).assertEqual(base.colors.success);
+      const custom = new SparkTheme();
+      ThemeResolver.apply(preset.merge(ThemeCssParser.parse(':root { --success: #16a34a; }')), false, 'compact',
+        custom);
+      expect(custom.colors.success).assertEqual('#FF16A34A');
+    });
+
+    it('component_tokens_resolve', 0, () => {
+      const css = [':root {', '--radius: 0.625rem;', '--muted: #f5f5f5;', '--card-background: transparent;',
+        '--card-border-width: 0;', '--button-radius: calc(var(--radius) - 2px);', '--popover-shadow: none;',
+        '--dialog-overlay: oklch(0 0 0 / 30%);', '--input-background: var(--muted);',
+        '--button-outline-border-color: color-mix(in oklab, #ff0000 50%, transparent);',
+        '--tabs-indicator-shadow: 0 2px 4px rgb(0 0 0 / 0.2);', '--badge-font-weight: 600;',
+        '--border-width: 2px;', '}', '.dark {', '--card-background: #111;', '}'];
+      const src = ThemeCssParser.parse(css.join('\n'));
+      const t = new SparkTheme();
+      const diags = ThemeResolver.apply(src, false, 'compact', t);
+      expect(diags.length).assertEqual(0);
+      expect(t.comp.color('card', 'background', '#FFFFFFFF')).assertEqual('#00000000');
+      expect(t.comp.length('card', 'border-width', 1)).assertEqual(0);
+      expect(t.comp.length('button', 'radius', 0)).assertEqual(8);
+      expect(t.comp.shadow('popover', 'shadow', undefined)?.isNone).assertTrue();
+      expect(t.comp.color('dialog', 'overlay', '')).assertEqual('#4D000000');
+      expect(t.comp.color('input', 'background', '')).assertEqual('#FFF5F5F5');
+      expect(t.comp.color('button', 'outline-border-color', '')).assertEqual('#80FF0000');
+      expect(t.comp.shadow('tabs', 'indicator-shadow', undefined)?.offsetY).assertEqual(2);
+      expect(t.comp.number('badge', 'font-weight', 500)).assertEqual(600);
+      expect(t.borderWidth).assertEqual(2);
+      // unset tokens fall back
+      expect(t.comp.color('card', 'border-color', '#FF123456')).assertEqual('#FF123456');
+      expect(t.comp.has('menu', 'radius')).assertFalse();
+      const dark = new SparkTheme();
+      ThemeResolver.apply(src, true, 'compact', dark);
+      expect(dark.comp.color('card', 'background', '')).assertEqual('#FF111111');
+    });
+
+    it('component_token_diagnostics', 0, () => {
+      const t = new SparkTheme();
+      const src = ThemeCssParser.parse(':root {\n --card-radius: red;\n --card-glow: 4px;\n --button-shadow: wobbly;\n' +
+        ' --card-background: notacolor;\n --tabs-height: var(--missing);\n}');
+      const diags = ThemeResolver.apply(src, false, 'compact', t);
+      expect(diags.some((d: ThemeDiagnostic) => d.variable === '--card-radius' && d.severity === 'error' && d.line === 2))
+        .assertTrue();
+      expect(t.comp.has('card', 'radius')).assertFalse();
+      // unknown property of a known component: warning, but stored and readable
+      expect(diags.some((d: ThemeDiagnostic) => d.variable === '--card-glow' && d.severity === 'warning')).assertTrue();
+      expect(t.comp.length('card', 'glow', 0)).assertEqual(4);
+      expect(diags.some((d: ThemeDiagnostic) => d.variable === '--button-shadow' && d.severity === 'error')).assertTrue();
+      expect(diags.some((d: ThemeDiagnostic) => d.variable === '--card-background' && d.severity === 'error'))
+        .assertTrue();
+      expect(diags.some((d: ThemeDiagnostic) => d.variable === '--tabs-height' && d.severity === 'error')).assertTrue();
+      expect(SparkComponentTokenRegistry.match('toggle-group-indicator-background')?.component)
+        .assertEqual('toggle-group');
+      expect(SparkComponentTokenRegistry.match('code-keyword')?.kind).assertEqual('color');
+      expect(SparkComponentTokenRegistry.match('sidebar-accent')).assertUndefined();
+      // semantic tokens keep precedence over component prefixes
+      const s = new SparkTheme();
+      const d2 = ThemeResolver.apply(ThemeCssParser.parse(':root { --card-foreground: #123456; }'), false, 'compact', s);
+      expect(d2.length).assertEqual(0);
+      expect(s.colors.cardForeground).assertEqual('#FF123456');
+    });
+
+    it('values_and_var_fallbacks', 0, () => {
+      expect(ThemeValues.len('calc(0.625rem + 4px)')).assertEqual(14);
+      expect(ThemeValues.len('calc((10px - 2px) * 2)')).assertEqual(16);
+      expect(isNaN(ThemeValues.len('calc(1fr)'))).assertTrue();
+      expect(ThemeValues.len('none')).assertEqual(0);
+      expect(ThemeValues.num('50%')).assertEqual(0.5);
+      expect(SparkColor.parse('color-mix(in srgb, #000 25%, #fff)').value).assertEqual('#FFBFBFBF');
+      expect(SparkColor.parse('color-mix(in oklab, #ff0000 10%, transparent)').value).assertEqual('#1AFF0000');
+      expect(SparkColor.parse('color-mix(in srgb, red)').ok).assertFalse();
+      const t = new SparkTheme();
+      ThemeResolver.apply(ThemeCssParser.parse(':root { --card-background: var(--nope, oklch(1 0 0 / 50%)); }'), false,
+        'compact', t);
+      expect(t.comp.color('card', 'background', '')).assertEqual('#80FFFFFF');
+    });
+
+    it('version_bumps_only_on_change', 0, () => {
+      const a = new SparkTheme();
+      ThemeResolver.apply(ThemeCssParser.parse(':root { --card-radius: 4px; }'), false, 'compact', a);
+      const live = new SparkTheme();
+      live.copyFrom(a);
+      const v = live.comp.version;
+      expect(live.comp.length('card', 'radius', 0)).assertEqual(4);
+      live.copyFrom(a);
+      expect(live.comp.version).assertEqual(v);
+      live.copyFrom(new SparkTheme());
+      expect(live.comp.version > v).assertTrue();
+      expect(live.comp.has('card', 'radius')).assertFalse();
+    });
+
+    it('cascade_instance_theme_recipe', 0, () => {
+      const t = new SparkTheme();
+      const plain = ButtonVariants.resolve(t, 'default', 'default');
+      expect(plain.radius).assertEqual(t.radiusMd);
+      expect(plain.background).assertEqual(t.colors.primary);
+      ThemeResolver.apply(ThemeCssParser.parse(':root { --button-radius: 999px; --button-height-sm: 28px; ' +
+        '--button-background: #0ea5e9; --card-ghost-background: #eee; }'), false, 'compact', t);
+      const themed = ButtonVariants.resolve(t, 'default', 'sm');
+      expect(themed.radius).assertEqual(999);
+      expect(themed.height).assertEqual(28);
+      expect(themed.background).assertEqual('#FF0EA5E9');
+      expect(themed.hoverBackground).assertEqual(SparkColor.alpha('#FF0EA5E9', 0.9));
+      const inst = ButtonVariants.resolve(t, 'default', 'sm', { radius: 0, background: 'transparent' });
+      expect(inst.radius).assertEqual(0);
+      expect(inst.background).assertEqual('#00000000');
+      // only the default variant reads --button-background
+      expect(ButtonVariants.resolve(t, 'outline', 'default').background).assertEqual(t.colors.background);
+      expect(ButtonVariants.resolve(t, 'outline', 'default').borderWidth).assertEqual(1);
+      expect(CardVariants.resolve(t, 'ghost').background).assertEqual('#FFEEEEEE');
+      expect(CardVariants.resolve(t, 'default', { borderWidth: 0 }).borderWidth).assertEqual(0);
+      const r = new SparkTokenReader(t, 'button');
+      expect(r.len(['height-lg', 'height-sm'], undefined, 1)).assertEqual(28);
+      expect(r.color('nope', 'not a colour', '#FF000000')).assertEqual('#FF000000');
     });
   });
 }

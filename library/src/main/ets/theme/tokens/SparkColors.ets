@@ -21,6 +21,12 @@ export class SparkColors {
   @Trace accentForeground: string = '#FF000000';
   @Trace destructive: string = '#FF000000';
   @Trace destructiveForeground: string = '#FF000000';
+  @Trace success: string = '#FF059669';
+  @Trace successForeground: string = '#FFFFFFFF';
+  @Trace warning: string = '#FFD97706';
+  @Trace warningForeground: string = '#FF1C1917';
+  @Trace info: string = '#FF0284C7';
+  @Trace infoForeground: string = '#FFFFFFFF';
   @Trace border: string = '#FF000000';
   @Trace input: string = '#FF000000';
   @Trace ring: string = '#FF000000';
@@ -56,6 +62,12 @@ export class SparkColors {
     this.accentForeground = other.accentForeground;
     this.destructive = other.destructive;
     this.destructiveForeground = other.destructiveForeground;
+    this.success = other.success;
+    this.successForeground = other.successForeground;
+    this.warning = other.warning;
+    this.warningForeground = other.warningForeground;
+    this.info = other.info;
+    this.infoForeground = other.infoForeground;
     this.border = other.border;
     this.input = other.input;
     this.ring = other.ring;
@@ -109,6 +121,18 @@ export class SparkColors {
         return this.destructive;
       case 'destructive-foreground':
         return this.destructiveForeground;
+      case 'success':
+        return this.success;
+      case 'success-foreground':
+        return this.successForeground;
+      case 'warning':
+        return this.warning;
+      case 'warning-foreground':
+        return this.warningForeground;
+      case 'info':
+        return this.info;
+      case 'info-foreground':
+        return this.infoForeground;
       case 'border':
         return this.border;
       case 'input':
@@ -197,6 +221,24 @@ export class SparkColors {
       case 'destructive-foreground':
         this.destructiveForeground = value;
         return true;
+      case 'success':
+        this.success = value;
+        return true;
+      case 'success-foreground':
+        this.successForeground = value;
+        return true;
+      case 'warning':
+        this.warning = value;
+        return true;
+      case 'warning-foreground':
+        this.warningForeground = value;
+        return true;
+      case 'info':
+        this.info = value;
+        return true;
+      case 'info-foreground':
+        this.infoForeground = value;
+        return true;
       case 'border':
         this.border = value;
         return true;
@@ -269,6 +311,12 @@ export const SPARK_COLOR_TOKENS: string[] = [
   'accent-foreground',
   'destructive',
   'destructive-foreground',
+  'success',
+  'success-foreground',
+  'warning',
+  'warning-foreground',
+  'info',
+  'info-foreground',
   'border',
   'input',
   'ring',

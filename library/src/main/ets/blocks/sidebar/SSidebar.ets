@@ -12,12 +12,15 @@ import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay
 import { SparkRowPressModifier } from '../../primitives/SparkPressModifier';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import {
-  SIDEBAR_FRAME_GAP, SIDEBAR_WIDTH, SIDEBAR_WIDTH_MOBILE, SidebarCollapsible, SidebarSide, SidebarVariant,
-  sparkSidebarDockWidth, sparkSidebarIsMobile, sparkSidebarSheetWidth
+  SIDEBAR_FRAME_GAP, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON, SIDEBAR_WIDTH_MOBILE, SidebarCollapsible,
+  SidebarPresentation, SidebarSide, SidebarVariant, sparkSidebarDefaultPolicy, SparkSidebarLayoutInput,
+  SparkSidebarLayoutPolicy, sparkSidebarRowWidth, sparkSidebarSheetWidth
 } from '../BlocksLogic';
 
 /** SparkContext key of the sidebar state (SSidebarProvider → every sidebar part, STopbar, SAppShell). */
 export const SPARK_SIDEBAR_KEY: string = 'spark.sidebar';
+/** SparkContext key marking content rendered inside the sidebar's overlay sheet. */
+const SPARK_SIDEBAR_SHEET_KEY: string = 'spark.sidebar.sheet';
 
 const TRANSPARENT: string = '#00000000';
 
@@ -25,17 +28,22 @@ export type SidebarMenuButtonSize = 'default' | 'sm' | 'lg';
 export type SidebarMenuButtonVariant = 'default' | 'outline';
 
 /**
- * Shared state of a sidebar layout (shadcn `useSidebar()`): docked open/collapsed, the mobile sheet, the
- * active menu value and the configuration. Read it from any descendant with {@link resolveSparkSidebar}.
+ * Shared state and controller of a sidebar layout (shadcn `useSidebar()`): presentation (docked / rail /
+ * sheet), docked open/collapsed, the sheet, the active value and the configuration.
+ *
+ * Headless use: create one yourself and pass it as `SSidebarProvider({ controller })` to drive the sidebar
+ * from anywhere (keyboard shortcuts, a router, a custom trigger outside the provider) and to read the
+ * reactive `@Trace` fields in your own components. Inside a provider, descendants can also get it with
+ * {@link resolveSparkSidebar}. Configuration (variant, widths, policy…) still comes from provider props.
  */
 @ObservedV2
 export class SparkSidebarState {
   /** docked sidebar expanded (shadcn `open`) */
   @Trace open: boolean = true;
-  /** overlay sheet shown while the container is narrow (shadcn `openMobile`) */
+  /** overlay sheet shown (shadcn `openMobile`; also the expanded sidebar over a rail) */
   @Trace openMobile: boolean = false;
-  /** the container is too narrow for a docked sidebar: the sidebar is an overlay sheet */
-  @Trace mobile: boolean = false;
+  /** current presentation, decided by the provider's `layoutPolicy` */
+  @Trace presentation: SidebarPresentation = 'docked';
   @Trace variant: SidebarVariant = 'sidebar';
   @Trace collapsible: SidebarCollapsible = 'offcanvas';
   @Trace side: SidebarSide = 'left';
@@ -49,30 +57,57 @@ export class SparkSidebarState {
   @Trace width: number = 0;
   minInsetWidth: number = 360;
   closeOnSelect: boolean = true;
+  /** motion key of the collapse animation and the sheet (`--motion-<key>-*`) */
+  motionKey: string = 'sidebar';
+  policy: SparkSidebarLayoutPolicy = sparkSidebarDefaultPolicy;
   controlledOpen: boolean = false;
   controlledValue: boolean = false;
   emitOpen: (open: boolean) => void = () => {
   };
   emitValue: (value: string) => void = () => {
   };
+  emitNavigate: (value: string) => void = () => {
+  };
+  emitOpenMobile: (open: boolean) => void = () => {
+  };
+  emitPresentation: (presentation: SidebarPresentation) => void = () => {
+  };
+  private uiContext: UIContext | undefined = undefined;
+  private theme: SparkTheme = SparkUI.theme;
   private listeners: ((open: boolean) => void)[] = [];
 
-  /** Width the docked sidebar takes in the row (0 while it is an overlay). */
+  /** Bind the UI context / theme used for animations (the provider does this). */
+  attach(uiContext: UIContext, theme: SparkTheme): void {
+    this.uiContext = uiContext;
+    this.theme = theme;
+  }
+
+  /** The sidebar is out of the row and only reachable as a sheet (shadcn `isMobile`). */
+  get mobile(): boolean {
+    return this.presentation === 'sheet';
+  }
+
+  /** The sidebar is forced to the icon rail by the layout policy. */
+  get rail(): boolean {
+    return this.presentation === 'rail';
+  }
+
+  /** Width the sidebar takes in the row (0 while it is a sheet). */
   get dockWidth(): number {
-    if (this.mobile) {
-      return 0;
-    }
-    return sparkSidebarDockWidth(this.open, this.collapsible, this.variant, this.sidebarWidth);
+    return sparkSidebarRowWidth(this.presentation, this.open, this.collapsible, this.variant, this.sidebarWidth);
   }
 
-  /** Docked and collapsed. */
+  /** In the row but not expanded (collapsed by the user, or a rail). */
   get collapsed(): boolean {
-    return !this.mobile && !this.open && this.collapsible !== 'none';
+    if (this.presentation === 'rail') {
+      return true;
+    }
+    return this.presentation === 'docked' && !this.open && this.collapsible !== 'none';
   }
 
-  /** Collapsed to the icon rail: labels, badges and group labels hide. */
+  /** Showing the icon rail: labels, badges and group labels hide (except inside the sheet). */
   get iconOnly(): boolean {
-    return this.collapsed && this.collapsible === 'icon';
+    return this.presentation === 'rail' || (this.collapsed && this.collapsible === 'icon');
   }
 
   /** shadcn `state`: 'expanded' | 'collapsed'. */
@@ -80,79 +115,126 @@ export class SparkSidebarState {
     return this.collapsed ? 'collapsed' : 'expanded';
   }
 
-  /** The main area is a framed card (variant 'inset' while docked). */
+  /** The main area is a framed card (variant 'inset' while in the row). */
   get insetFramed(): boolean {
-    return !this.mobile && this.variant === 'inset';
+    return this.presentation !== 'sheet' && this.variant === 'inset';
   }
 
-  /** A trigger is useful (the sidebar can collapse or is an overlay). */
+  /** A trigger is useful (the sidebar can collapse, is a rail or a sheet). */
   get toggleable(): boolean {
-    return this.mobile || this.collapsible !== 'none';
+    return this.presentation !== 'docked' || this.collapsible !== 'none';
   }
 
-  /** Update from the provider's measured width. Mode switches are instant (not animated). */
+  /** Update from the provider's measured width and re-run the layout policy. */
   measure(width: number): void {
     if (width !== this.width) {
       this.width = width;
     }
-    const m = sparkSidebarIsMobile(width, this.sidebarWidth, this.minInsetWidth, this.collapsible);
-    if (m !== this.mobile) {
-      this.mobile = m;
-      if (!m) {
+    this.relayout();
+  }
+
+  /** Re-run the layout policy (e.g. after changing something it reads). Presentation switches are instant. */
+  relayout(): void {
+    const input: SparkSidebarLayoutInput = {
+      containerWidth: this.width,
+      sidebarWidth: this.sidebarWidth,
+      railWidth: SIDEBAR_WIDTH_ICON,
+      minInsetWidth: this.minInsetWidth,
+      collapsible: this.collapsible
+    };
+    const p = this.policy(input);
+    if (p !== this.presentation) {
+      this.presentation = p;
+      if (p === 'docked') {
         this.setOpenMobile(false);
       }
+      this.emitPresentation(p);
     }
   }
 
-  /** shadcn `toggleSidebar()`: the sheet when narrow, the docked state otherwise. */
-  toggle(ctx: UIContext, theme: SparkTheme): void {
-    if (this.mobile) {
+  /** shadcn `toggleSidebar()`: the sheet when it is a sheet / rail, the docked collapse otherwise. */
+  toggle(): void {
+    if (this.presentation !== 'docked') {
       this.setOpenMobile(!this.openMobile);
     } else {
-      this.setOpen(ctx, theme, !this.open);
+      this.setOpen(!this.open);
     }
   }
 
-  /** Request a docked open state (owner decides when controlled). */
-  setOpen(ctx: UIContext, theme: SparkTheme, open: boolean): void {
+  /** Request a docked open state (the owner decides when `open` is controlled). */
+  setOpen(open: boolean): void {
     if (open === this.open || this.collapsible === 'none') {
       return;
     }
     if (!this.controlledOpen) {
-      this.apply(ctx, theme, open);
+      this.apply(open);
     }
     this.emitOpen(open);
   }
 
-  /** Set the docked state with the width animation (motion key 'sidebar'). */
-  apply(ctx: UIContext, theme: SparkTheme, open: boolean): void {
+  /** Set the docked state with the width animation (motion key `motionKey`), without events. */
+  apply(open: boolean): void {
     if (open === this.open) {
       return;
     }
-    SparkAnim.run(ctx, theme, 'sidebar', 'normal', () => {
+    const ctx = this.uiContext;
+    if (ctx === undefined) {
+      this.open = open;
+      return;
+    }
+    SparkAnim.run(ctx, this.theme, this.motionKey, 'normal', () => {
       this.open = open;
     });
   }
 
+  /** Show / hide the overlay sheet (sheet and rail presentations). */
   setOpenMobile(open: boolean): void {
     if (open === this.openMobile) {
       return;
     }
     this.openMobile = open;
     this.listeners.forEach((l: (o: boolean) => void) => l(open));
+    this.emitOpenMobile(open);
   }
 
-  /** Activate a menu value. The highlight switches instantly (no cross-fade between two items). */
+  /**
+   * User activation of a menu value (what SSidebarMenuButton calls). Fires `onNavigate` on every activation
+   * and `onValueChange` when the value changes; the highlight switches instantly. Closes the sheet when
+   * `closeOnSelect`.
+   */
   select(value: string): void {
     if (value.length > 0) {
-      if (!this.controlledValue) {
+      const changed = value !== this.value;
+      if (changed && !this.controlledValue) {
         this.value = value;
       }
-      this.emitValue(value);
+      this.emitNavigate(value);
+      if (changed) {
+        this.emitValue(value);
+      }
     }
-    if (this.mobile && this.closeOnSelect) {
+    if (this.presentation !== 'docked' && this.closeOnSelect) {
       this.setOpenMobile(false);
     }
+  }
+
+  /** Programmatic active value (e.g. from a router), without events. */
+  setValue(value: string): void {
+    if (value !== this.value) {
+      this.value = value;
+    }
+  }
+
+  /**
+   * Back handling for a page's `onBackPress`: closes the sheet and returns true when it was open.
+   * (The sheet itself already handles the back gesture while it has focus.)
+   */
+  back(): boolean {
+    if (this.openMobile) {
+      this.setOpenMobile(false);
+      return true;
+    }
+    return false;
   }
 
   /** Listen to `openMobile` changes; returns the unsubscribe function. */
@@ -169,17 +251,55 @@ export function resolveSparkSidebar(uiContext: UIContext, componentId: number): 
   return SparkContext.resolve<SparkSidebarState>(uiContext, componentId, SPARK_SIDEBAR_KEY);
 }
 
+class SidebarSheetMark {
+  sheet: boolean = true;
+}
+
+const SHEET_MARK: SidebarSheetMark = new SidebarSheetMark();
+
+/**
+ * Whether a component renders inside the sidebar's overlay sheet (rather than the docked panel / rail).
+ * Custom menu items use it to keep labels visible in the sheet while the docked sidebar is an icon rail.
+ */
+export function sparkSidebarInSheet(uiContext: UIContext, componentId: number): boolean {
+  return SparkContext.resolve<SidebarSheetMark>(uiContext, componentId, SPARK_SIDEBAR_SHEET_KEY) !== undefined;
+}
+
 const FALLBACK: SparkSidebarState = new SparkSidebarState();
+
+/** Marks its content as rendered in the sidebar sheet (see sparkSidebarInSheet). */
+@ComponentV2
+struct SidebarSheetSurface {
+  @BuilderParam content: () => void = sparkEmptyBuilder;
+
+  aboutToAppear(): void {
+    SparkContext.provide(this.getUIContext(), this.getUniqueId(), SPARK_SIDEBAR_SHEET_KEY, SHEET_MARK);
+  }
+
+  aboutToDisappear(): void {
+    SparkContext.revoke(this.getUniqueId());
+  }
+
+  build() {
+    Column() {
+      this.content()
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+}
 
 // ------------------------------------------------------------------------------------------------ provider
 
 /**
  * shadcn-vue `SidebarProvider`: lays out an `SSidebar` and an `SSidebarInset` side by side and owns the
- * sidebar state. Responsive without breakpoints: when the provider is too narrow to dock the sidebar next to
- * `minInsetWidth` of content, the sidebar becomes an overlay sheet opened by `SSidebarTrigger`.
+ * sidebar state. Responsive without breakpoints: `layoutPolicy` decides from the provider's own width whether
+ * the sidebar is docked, an icon rail or an overlay sheet (default: a sheet when the expanded sidebar does not
+ * fit next to `minInsetWidth` of content; `sparkSidebarRailPolicy()` adds the rail step).
  *
  * ```
- * SSidebarProvider({ collapsible: 'icon', value: this.page!! }) {
+ * SSidebarProvider({ collapsible: 'icon', value: this.page!!, onNavigate: (v: string) => router.go(v) }) {
  *   SSidebar() {
  *     SSidebarHeader() { ... }
  *     SSidebarContent() {
@@ -198,13 +318,16 @@ const FALLBACK: SparkSidebarState = new SparkSidebarState();
  *   }
  * }
  * ```
- * Props (on the provider, which owns the state): `variant` 'sidebar' | 'floating' | 'inset',
- * `collapsible` 'offcanvas' | 'icon' | 'none', `side` 'left' | 'right' (render order is flipped for you).
- * `open` / `defaultOpen` / `onOpenChange` control the docked state; `value` / `defaultValue` /
- * `onValueChange` the active menu button (an addition to shadcn's per-button `isActive`).
+ * Props: `variant` 'sidebar' | 'floating' | 'inset', `collapsible` 'offcanvas' | 'icon' | 'none', `side`
+ * 'left' | 'right' (render order is flipped for you). `open` / `defaultOpen` / `onOpenChange` control the
+ * docked state (persist it by feeding a stored value to `defaultOpen` and saving in `onOpenChange`);
+ * `value` / `defaultValue` / `onValueChange` / `onNavigate` the active menu value (no routing built in: wire
+ * any router to `value` + `onNavigate`). `controller` lets you own the state object.
  */
 @ComponentV2
 export struct SSidebarProvider {
+  /** your own state object (headless control); one is created when omitted */
+  @Param controller: SparkSidebarState | undefined = undefined;
   @Param open: boolean | undefined = undefined;
   @Event $open: (open: boolean) => void = () => {
   };
@@ -217,30 +340,55 @@ export struct SSidebarProvider {
   @Param defaultValue: string = '';
   @Event onValueChange: (value: string) => void = () => {
   };
+  /** every activation of a menu value, even the current one (router hook: re-tap = pop to root) */
+  @Event onNavigate: (value: string) => void = () => {
+  };
+  /** the overlay sheet opened / closed */
+  @Event onOpenMobileChange: (open: boolean) => void = () => {
+  };
+  /** the layout policy switched between docked / rail / sheet */
+  @Event onPresentationChange: (presentation: SidebarPresentation) => void = () => {
+  };
+  /** decides docked / rail / sheet from the measured width (replaceable) */
+  @Event layoutPolicy: SparkSidebarLayoutPolicy = sparkSidebarDefaultPolicy;
   @Param variant: SidebarVariant = 'sidebar';
   @Param collapsible: SidebarCollapsible = 'offcanvas';
   @Param side: SidebarSide = 'left';
   /** docked width (vp), shadcn `--sidebar-width` */
   @Param sidebarWidth: number = SIDEBAR_WIDTH;
-  /** sheet width when narrow (vp), shadcn `--sidebar-width-mobile` */
+  /** sheet width (vp), shadcn `--sidebar-width-mobile` */
   @Param sidebarWidthMobile: number = SIDEBAR_WIDTH_MOBILE;
-  /** the sidebar docks only when the main area keeps at least this width (vp) */
+  /** the main area should keep at least this width (vp); input of `layoutPolicy` */
   @Param minInsetWidth: number = 360;
   /** pad the window safe area (immersive pages, see SparkProvider `immersive`) */
   @Param safeArea: boolean = false;
-  /** close the mobile sheet when a menu button is activated */
+  /** close the sheet when a menu button is activated */
   @Param closeOnSelect: boolean = true;
+  /** motion key of the collapse animation and the sheet */
+  @Param motionKey: string = 'sidebar';
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkSidebarState = new SparkSidebarState();
 
   aboutToAppear(): void {
+    if (this.controller !== undefined) {
+      this.state = this.controller;
+    }
     const s = this.state;
+    s.attach(this.getUIContext(), this.theme);
     s.controlledOpen = this.open !== undefined;
-    s.open = this.open ?? this.defaultOpen;
+    if (this.open !== undefined) {
+      s.open = this.open;
+    } else if (this.controller === undefined) {
+      s.open = this.defaultOpen;
+    }
     s.controlledValue = this.value !== undefined;
-    s.value = this.value ?? this.defaultValue;
-    this.syncConfig();
+    if (this.value !== undefined) {
+      s.value = this.value;
+    } else if (this.controller === undefined) {
+      s.value = this.defaultValue;
+    }
+    s.policy = (input: SparkSidebarLayoutInput): SidebarPresentation => this.layoutPolicy(input);
     s.emitOpen = (v: boolean) => {
       this.$open(v);
       this.onOpenChange(v);
@@ -249,8 +397,14 @@ export struct SSidebarProvider {
       this.$value(v);
       this.onValueChange(v);
     };
+    s.emitNavigate = (v: string) => this.onNavigate(v);
+    s.emitOpenMobile = (v: boolean) => this.onOpenMobileChange(v);
+    s.emitPresentation = (p: SidebarPresentation) => this.onPresentationChange(p);
+    this.syncConfig();
     // first-frame guess from the window; replaced by the provider's own width after layout
-    s.measure(SparkUI.layout.root.width);
+    if (s.width <= 0) {
+      s.measure(SparkUI.layout.root.width);
+    }
     SparkContext.provide(this.getUIContext(), this.getUniqueId(), SPARK_SIDEBAR_KEY, s);
   }
 
@@ -260,7 +414,7 @@ export struct SSidebarProvider {
   }
 
   @Monitor('variant', 'collapsible', 'side', 'sidebarWidth', 'sidebarWidthMobile', 'minInsetWidth', 'safeArea',
-    'closeOnSelect')
+    'closeOnSelect', 'motionKey')
   syncConfig(): void {
     const s = this.state;
     s.variant = this.variant;
@@ -271,22 +425,23 @@ export struct SSidebarProvider {
     s.minInsetWidth = this.minInsetWidth;
     s.safeArea = this.safeArea;
     s.closeOnSelect = this.closeOnSelect;
+    s.motionKey = this.motionKey;
     if (s.width > 0) {
-      s.measure(s.width);
+      s.relayout();
     }
   }
 
   @Monitor('open')
   syncOpen(): void {
     if (this.open !== undefined) {
-      this.state.apply(this.getUIContext(), this.theme, this.open);
+      this.state.apply(this.open);
     }
   }
 
   @Monitor('value')
   syncValue(): void {
     if (this.value !== undefined) {
-      this.state.value = this.value;
+      this.state.setValue(this.value);
     }
   }
 
@@ -309,7 +464,8 @@ export struct SSidebarProvider {
 
 /**
  * shadcn-vue `Sidebar`. Docked: a column whose width animates between expanded / icon rail / hidden
- * (motion key 'sidebar'). Narrow container: an overlay sheet from `side` (the SparkUI overlay base, so back
+ * (provider `motionKey`, default 'sidebar'). Rail: the icon rail, plus the full sidebar as a sheet when
+ * toggled. Sheet: an overlay sheet from `side` (the SparkUI overlay base, so back
  * gesture, backdrop tap and focus work like SSheet).
  */
 @ComponentV2
@@ -353,12 +509,12 @@ export struct SSidebar {
       return;
     }
     const ctx = this.ctx;
-    if (ctx === undefined) {
+    if (ctx === undefined || ctx.presentation === 'docked') {
       return;
     }
     const scope = SparkOverlayService.createScope();
     scope.presentation = ctx.side === 'right' ? 'sheet-right' : 'sheet-left';
-    scope.motionKey = 'sidebar';
+    scope.motionKey = ctx.motionKey;
     scope.modal = true;
     scope.dismissOnOutside = true;
     scope.content = this.panel;
@@ -382,7 +538,10 @@ export struct SSidebar {
   @LocalBuilder
   panel() {
     Column() {
-      this.content()
+      // marks the sheet so menu parts keep their labels while the docked sidebar is an icon rail
+      SidebarSheetSurface() {
+        this.content()
+      }
     }
     .width(sparkSidebarSheetWidth(SparkUI.layout.root.width, this.s.mobileWidth))
     .height('100%')
@@ -450,7 +609,7 @@ export struct SSidebar {
             { radius: 0, color: TRANSPARENT })
           .clip(true)
         }
-        .width(this.s.collapsible === 'offcanvas' ? this.s.sidebarWidth : '100%')
+        .width(this.s.collapsible === 'offcanvas' && this.s.presentation === 'docked' ? this.s.sidebarWidth : '100%')
         .height('100%')
         .padding(this.framed() ? this.safePadding(SIDEBAR_FRAME_GAP) : { top: 0 })
       }
@@ -546,6 +705,7 @@ export struct SSidebarGroupLabel {
   @Param text: ResourceStr = '';
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ctx: SparkSidebarState | undefined = undefined;
+  @Local inSheet: boolean = false;
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -554,12 +714,13 @@ export struct SSidebarGroupLabel {
   private sparkResolve(): void {
     if (this.ctx === undefined) {
       this.ctx = resolveSparkSidebar(this.getUIContext(), this.getUniqueId());
+      this.inSheet = sparkSidebarInSheet(this.getUIContext(), this.getUniqueId());
     }
   }
 
   @Computed
   get hidden(): boolean {
-    return this.ctx?.iconOnly ?? false;
+    return !this.inSheet && (this.ctx?.iconOnly ?? false);
   }
 
   build() {
@@ -635,6 +796,7 @@ export struct SSidebarMenuButton {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ctx: SparkSidebarState | undefined = undefined;
   @Local ix: SparkInteraction = new SparkInteraction();
+  @Local inSheet: boolean = false;
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -643,6 +805,7 @@ export struct SSidebarMenuButton {
   private sparkResolve(): void {
     if (this.ctx === undefined) {
       this.ctx = resolveSparkSidebar(this.getUIContext(), this.getUniqueId());
+      this.inSheet = sparkSidebarInSheet(this.getUIContext(), this.getUniqueId());
     }
   }
 
@@ -657,7 +820,7 @@ export struct SSidebarMenuButton {
 
   @Computed
   get iconOnly(): boolean {
-    return this.ctx?.iconOnly ?? false;
+    return !this.inSheet && (this.ctx?.iconOnly ?? false);
   }
 
   @Computed
@@ -759,6 +922,8 @@ export struct SSidebarTrigger {
   @Param label: string = 'Toggle Sidebar';
   /** lucide icon; defaults to panel-left / panel-right by side */
   @Param icon: string | undefined = undefined;
+  /** toggle this controller instead of the nearest provider (a trigger outside the provider) */
+  @Param controller: SparkSidebarState | undefined = undefined;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ctx: SparkSidebarState | undefined = undefined;
 
@@ -777,10 +942,10 @@ export struct SSidebarTrigger {
       SButton({
         variant: 'ghost',
         sizing: 'icon-sm',
-        icon: this.icon ?? (this.ctx?.side === 'right' ? 'panel-right' : 'panel-left'),
+        icon: this.icon ?? ((this.controller ?? this.ctx)?.side === 'right' ? 'panel-right' : 'panel-left'),
         label: this.label
       })
-        .onClick(() => this.ctx?.toggle(this.getUIContext(), this.theme))
+        .onClick(() => (this.controller ?? this.ctx)?.toggle())
     }
   }
 }

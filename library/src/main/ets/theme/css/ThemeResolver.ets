@@ -1,10 +1,12 @@
 import { SparkColor, ColorParseResult } from '../color/SparkColor';
 import { SPARK_COLOR_TOKENS } from '../tokens/SparkColors';
+import { SparkComponentTokenRegistry, SparkTokenMatch, SparkTokenValue } from '../tokens/SparkComponentTokens';
 import { SparkShadow, SparkTheme } from '../tokens/SparkTheme';
+import { THEME_REM_VP, ThemeValues } from './ThemeValues';
 import { ThemeDiagnostic, ThemeSource, ThemeVar } from './ThemeSource';
 
 /** CSS `rem` → vp. */
-export const REM_VP: number = 16;
+export const REM_VP: number = THEME_REM_VP;
 
 /**
  * Turns a raw {@link ThemeSource} into concrete token values on a {@link SparkTheme}.
@@ -50,29 +52,54 @@ export class ThemeResolver {
     return diags;
   }
 
-  /** Resolve `var(--x, fallback)` references. Returns undefined on cycles / missing vars without fallback. */
+  /**
+   * Resolve `var(--x, fallback)` references (fallbacks may contain nested functions, e.g.
+   * `var(--x, oklch(1 0 0 / 50%))`). Returns undefined on cycles / missing vars without fallback.
+   */
   static substitute(value: string, vars: Map<string, ThemeVar>, depth: number): string | undefined {
-    if (value.indexOf('var(') < 0) {
+    const start = value.indexOf('var(');
+    if (start < 0) {
       return value;
     }
     if (depth > 8) {
       return undefined;
     }
-    const m = /var\(\s*(--[a-zA-Z0-9_-]+)\s*(?:,\s*([^)]*))?\)/.exec(value);
-    if (m === null) {
+    let level = 0;
+    let comma = -1;
+    let end = -1;
+    for (let i = start + 4; i < value.length; i++) {
+      const ch = value[i];
+      if (ch === '(') {
+        level++;
+      } else if (ch === ')') {
+        if (level === 0) {
+          end = i;
+          break;
+        }
+        level--;
+      } else if (ch === ',' && level === 0 && comma < 0) {
+        comma = i;
+      }
+    }
+    if (end < 0) {
       return undefined;
     }
-    const ref = vars.get(m[1]);
+    const name = value.substring(start + 4, comma < 0 ? end : comma).trim();
+    if (!/^--[a-zA-Z0-9_-]+$/.test(name)) {
+      return undefined;
+    }
+    const ref = vars.get(name);
     let replacement: string | undefined = undefined;
     if (ref !== undefined) {
       replacement = ThemeResolver.substitute(ref.value, vars, depth + 1);
-    } else if (m[2] !== undefined) {
-      replacement = m[2].trim();
+    }
+    if (replacement === undefined && comma >= 0) {
+      replacement = ThemeResolver.substitute(value.substring(comma + 1, end).trim(), vars, depth + 1);
     }
     if (replacement === undefined) {
       return undefined;
     }
-    const next = value.substring(0, m.index) + replacement + value.substring(m.index + m[0].length);
+    const next = value.substring(0, start) + replacement + value.substring(end + 1);
     return ThemeResolver.substitute(next, vars, depth + 1);
   }
 
@@ -97,6 +124,14 @@ export class ThemeResolver {
       } else {
         t.spacing = len;
       }
+      return undefined;
+    }
+    if (key === 'border-width') {
+      const w = ThemeValues.len(value);
+      if (isNaN(w) || w < 0) {
+        return new ThemeDiagnostic('error', line, name, `invalid length "${value}"; keeping default`);
+      }
+      t.borderWidth = w;
       return undefined;
     }
     if (key.startsWith('shadow-')) {
@@ -205,24 +240,38 @@ export class ThemeResolver {
       }
       return undefined;
     }
+    const ct: SparkTokenMatch | undefined = SparkComponentTokenRegistry.match(key);
+    if (ct !== undefined) {
+      return ThemeResolver.applyComponentToken(t, ct, name, value, line);
+    }
     if (key.startsWith('font-') || key.startsWith('tracking') || key === 'letter-spacing') {
       return new ThemeDiagnostic('info', line, name, 'typography family/tracking not supported yet; skipped');
     }
     return new ThemeDiagnostic('warning', line, name, 'unknown variable; ignored');
   }
 
+  /**
+   * `--<component>-<property>` (ADR D13). A catalogued token must parse as its kind (otherwise error, the
+   * component keeps its built-in value); an uncatalogued property of a known component is stored with a warning.
+   */
+  private static applyComponentToken(t: SparkTheme, ct: SparkTokenMatch, name: string, value: string,
+    line: number): ThemeDiagnostic | undefined {
+    if (ct.kind === undefined) {
+      t.comp.set(ct.component, ct.property, value);
+      return new ThemeDiagnostic('warning', line, name,
+        `unknown ${ct.component} token "${ct.property}"; stored (readable via theme.comp) but unused by SparkUI`);
+    }
+    const parsed = SparkTokenValue.parse(value);
+    if (!parsed.supports(ct.kind)) {
+      return new ThemeDiagnostic('error', line, name, `expected a ${ct.kind}, got "${value}"; keeping default`);
+    }
+    t.comp.set(ct.component, ct.property, value);
+    return undefined;
+  }
+
   /** `0.625rem` → 10, `12px` / `12vp` / `12` → 12. CSS px are logical pixels, i.e. vp. NaN on failure. */
   static parseLength(value: string): number {
-    const m = /^(-?\d*\.?\d+)(rem|px|vp|em)?$/.exec(value.trim().toLowerCase());
-    if (m === null) {
-      return NaN;
-    }
-    const n = parseFloat(m[1]);
-    const unit = m[2];
-    if (unit === 'rem' || unit === 'em') {
-      return n * REM_VP;
-    }
-    return n;
+    return ThemeValues.plainLength(value);
   }
 
   /** `150ms` / `0.15s` → milliseconds. */
@@ -274,67 +323,6 @@ export class ThemeResolver {
 
   /** First layer of a CSS box-shadow → SparkShadow. `none` → transparent shadow. */
   static parseShadow(value: string): SparkShadow | undefined {
-    const v = value.trim();
-    if (v.toLowerCase() === 'none') {
-      return new SparkShadow(0, 0, 0, '#00000000');
-    }
-    // split top-level by comma, take first layer
-    let depth = 0;
-    let first = v;
-    for (let i = 0; i < v.length; i++) {
-      const ch = v[i];
-      if (ch === '(') {
-        depth++;
-      } else if (ch === ')') {
-        depth--;
-      } else if (ch === ',' && depth === 0) {
-        first = v.substring(0, i);
-        break;
-      }
-    }
-    // tokenise by whitespace outside parentheses
-    const tokens: string[] = [];
-    let cur = '';
-    depth = 0;
-    for (let i = 0; i < first.length; i++) {
-      const ch = first[i];
-      if (ch === '(') {
-        depth++;
-      } else if (ch === ')') {
-        depth--;
-      }
-      if (/\s/.test(ch) && depth === 0) {
-        if (cur.length > 0) {
-          tokens.push(cur);
-        }
-        cur = '';
-      } else {
-        cur += ch;
-      }
-    }
-    if (cur.length > 0) {
-      tokens.push(cur);
-    }
-    const lengths: number[] = [];
-    let color = '#1A000000';
-    for (const tok of tokens) {
-      if (tok === 'inset') {
-        continue;
-      }
-      const len = ThemeResolver.parseLength(tok);
-      if (!isNaN(len)) {
-        lengths.push(len);
-        continue;
-      }
-      const c = SparkColor.parse(tok);
-      if (!c.ok) {
-        return undefined;
-      }
-      color = c.value;
-    }
-    if (lengths.length < 2) {
-      return undefined;
-    }
-    return new SparkShadow(lengths[0], lengths[1], lengths.length > 2 ? lengths[2] : 0, color);
+    return ThemeValues.shadow(value);
   }
 }

@@ -29,24 +29,32 @@ export struct SDashboardGrid {
   @Param gap: number = 16;
   /** upper bound on columns (0 = unlimited) */
   @Param maxColumns: number = 0;
+  /** trailing content of the heading row (filters, a date range, actions); needs a `title` */
+  @BuilderParam actionsBuilder: () => void = sparkEmptyBuilder;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   build() {
     Column({ space: 12 }) {
       if (this.title !== undefined) {
-        Column({ space: 4 }) {
-          Text(this.title)
-            .fontSize(this.theme.text.lg)
-            .fontWeight(this.theme.text.weightSemibold)
-            .fontColor(this.theme.colors.foreground)
-          if (this.description !== undefined) {
-            Text(this.description)
-              .fontSize(this.theme.text.sm)
-              .fontColor(this.theme.colors.mutedForeground)
+        Row({ space: 12 }) {
+          Column({ space: 4 }) {
+            Text(this.title)
+              .fontSize(this.theme.text.lg)
+              .fontWeight(this.theme.text.weightSemibold)
+              .fontColor(this.theme.colors.foreground)
+            if (this.description !== undefined) {
+              Text(this.description)
+                .fontSize(this.theme.text.sm)
+                .fontColor(this.theme.colors.mutedForeground)
+            }
           }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          this.actionsBuilder()
         }
-        .alignItems(HorizontalAlign.Start)
+        .width('100%')
       }
       SGrid({ minItemWidth: this.minTileWidth, gap: this.gap, maxColumns: this.maxColumns }) {
         this.content()

@@ -5,7 +5,11 @@ import { SparkAdaptive, SparkLayoutContext } from '../../layout/SparkLayoutConte
 import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import {
+  sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle, SparkSurfaceTokens
+} from '../../theme/tokens/SparkTokenReader';
 import { SButton } from '../button/SButton';
 
 /** SparkContext key shared by Dialog and AlertDialog parts. */
@@ -138,12 +142,27 @@ export struct SDialogContent {
   @Param dismissOnOutside: boolean = true;
   /** 'auto': Drawer on compact touch screens, centred dialog otherwise. */
   @Param adaptive: SparkAdaptive = 'auto';
+  /** Per-instance surface token overrides (instance → theme tokens → recipe), see {@link SparkSurfaceTokens}. */
+  @Param tokens: SparkSurfaceTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
   @Local ctx: SparkDisclosure | undefined = undefined;
   /** current presentation is the bottom drawer */
   @Local drawer: boolean = false;
+
+  /** `bg-background border rounded-lg p-6 shadow-lg` → `--dialog-*` tokens → instance tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'dialog', sparkSurfaceDefaults(t.colors.background, t.colors.border, t.borderWidth,
+      this.drawer ? t.radiusXl : t.radiusLg, 24, t.shadows.lg), this.tokens);
+  }
+
+  @Computed
+  get maxWidth(): number {
+    return this.theme.comp.length('dialog', 'max-width', 512);
+  }
   private binding: OverlayBinding = new OverlayBinding();
 
   onDidBuild(): void {
@@ -198,10 +217,10 @@ export struct SDialogContent {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
         .padding({
-          left: 24,
-          right: 24,
-          top: this.drawer ? 12 : 24,
-          bottom: 24 + (this.drawer ? this.layout.env.safeArea.bottom : 0)
+          left: this.surface.padding,
+          right: this.surface.padding,
+          top: this.drawer ? this.surface.padding / 2 : this.surface.padding,
+          bottom: this.surface.padding + (this.drawer ? this.layout.env.safeArea.bottom : 0)
         })
 
         if (this.showCloseButton && !this.drawer) {
@@ -212,14 +231,14 @@ export struct SDialogContent {
         }
       }
       .width('100%')
-      .constraintSize({ maxWidth: this.drawer ? undefined : 512 })
-      .backgroundColor(this.theme.colors.background)
+      .constraintSize({ maxWidth: this.drawer ? undefined : this.maxWidth })
+      .backgroundColor(this.surface.background)
       .border({
-        width: this.drawer ? { top: 1 } : 1,
-        color: this.theme.colors.border,
-        radius: this.drawer ? { topLeft: this.theme.radiusXl, topRight: this.theme.radiusXl } : this.theme.radiusLg
+        width: this.drawer ? { top: this.surface.borderWidth } : this.surface.borderWidth,
+        color: this.surface.borderColor,
+        radius: this.drawer ? { topLeft: this.surface.radius, topRight: this.surface.radius } : this.surface.radius
       })
-      .shadow(this.theme.shadows.lg.toOptions())
+      .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
       // only takes effect when the panel touches the bottom edge (drawer mode)
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }

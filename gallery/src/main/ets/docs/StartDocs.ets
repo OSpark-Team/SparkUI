@@ -3,9 +3,142 @@ import {
   SButton, SCodeBlock, SIcon, SparkAccentName, SparkColor, SparkLayoutContext, SparkPresetName, SparkTheme, SparkUI,
   SPARK_ACCENTS, SPARK_PRESETS, accentCss, SparkContainer, ThemeCssParser, ThemeResolver, resolveSparkLayout,
   SparkContext, STabs, STabsList, STabsTrigger, STabsContent, SAccordion, SAccordionItem, SAccordionTrigger,
-  SAccordionContent, SToggleGroup, SToggleGroupItem, SparkThemeMode
+  SAccordionContent, SToggleGroup, SToggleGroupItem, SparkThemeMode, SCard, SCardHeader, SCardTitle,
+  SCardDescription, SCardContent, SCardFooter, SSwitch, SSlider, SBadge
 } from '@sparkui/core';
-import { DemoBlock, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoCaption, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
+
+const TOKENS_CSS = `:root {
+  /* global knob */
+  --border-width: 1px;
+  /* status tokens (every preset defines them) */
+  --success: oklch(0.596 0.145 163.225);
+  --warning: oklch(0.666 0.179 58.318);
+  /* component tokens: --<component>-<property> */
+  --card-background: transparent;
+  --card-border-width: 0;
+  --card-shadow: none;
+  --button-radius: 9999px;
+  --button-outline-border-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  --input-radius: calc(var(--radius) + 2px);
+  --dialog-overlay: oklch(0 0 0 / 30%);
+  --tabs-indicator-background: var(--primary);
+}`;
+
+const TOKENS_CODE = `// runtime, like any other variable (exported with the theme)
+SparkUI.themes.setVariable('--card-border-width', '0');
+SparkUI.themes.removeVariable('--card-border-width');     // back to the recipe
+
+// one instance: tokens param (instance → theme token → recipe)
+SCard({ tokens: { background: 'transparent', borderWidth: 0, shadow: 'none' } }) { ... }
+SButton({ text: 'Pill', tokens: { radius: 999 } })
+
+// custom components read the same store, reactively
+const bg = this.theme.comp.color('card', 'background', this.theme.colors.card);`;
+
+/** Live "Component tokens" playground of the Theming page. */
+@ComponentV2
+struct ComponentTokensDemo {
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local cardBorder: boolean = SparkUI.themes.variable('--card-border-width') === undefined;
+  @Local clear: boolean = SparkUI.themes.variable('--card-background') !== undefined;
+  @Local cardShadow: boolean = SparkUI.themes.variable('--card-shadow') === undefined;
+  @Local buttonRadius: number = -1;
+
+  private set(name: string, value: string | undefined): void {
+    if (value === undefined) {
+      SparkUI.themes.removeVariable(name);
+    } else {
+      SparkUI.themes.setVariable(name, value);
+    }
+  }
+
+  @Computed
+  get css(): string {
+    const lines: string[] = [];
+    if (!this.cardBorder) {
+      lines.push('--card-border-width: 0;');
+    }
+    if (this.clear) {
+      lines.push('--card-background: transparent;');
+    }
+    if (!this.cardShadow) {
+      lines.push('--card-shadow: none;');
+    }
+    if (this.buttonRadius >= 0) {
+      lines.push(`--button-radius: ${this.buttonRadius}px;`);
+    }
+    return lines.length === 0 ? 'no component tokens set — every component uses its built-in recipe' :
+      lines.join('  ');
+  }
+
+  @Computed
+  get shownRadius(): number {
+    return this.buttonRadius >= 0 ? this.buttonRadius : this.theme.radiusMd;
+  }
+
+  build() {
+    Column({ space: 12 }) {
+      SSwitch({ label: 'Card border', checked: this.cardBorder, onCheckedChange: (v: boolean) => {
+        this.cardBorder = v;
+        this.set('--card-border-width', v ? undefined : '0');
+      } })
+      SSwitch({ label: 'Transparent card background', checked: this.clear, onCheckedChange: (v: boolean) => {
+        this.clear = v;
+        this.set('--card-background', v ? 'transparent' : undefined);
+      } })
+      SSwitch({ label: 'Card shadow', checked: this.cardShadow, onCheckedChange: (v: boolean) => {
+        this.cardShadow = v;
+        this.set('--card-shadow', v ? undefined : 'none');
+      } })
+      Row({ space: 12 }) {
+        Text('Button radius')
+          .fontSize(this.theme.text.sm)
+          .fontColor(this.theme.colors.foreground)
+        SSlider({ value: this.shownRadius, min: 0, max: 20, step: 1, length: 180, label: 'Button radius',
+          onValueChange: (v: number) => {
+            if (v !== this.buttonRadius) {
+              this.buttonRadius = v;
+              this.set('--button-radius', `${v}px`);
+            }
+          } })
+        SButton({ text: 'Reset', variant: 'ghost', sizing: 'sm' })
+          .onClick(() => {
+            this.cardBorder = true;
+            this.clear = false;
+            this.cardShadow = true;
+            this.buttonRadius = -1;
+            ['--card-border-width', '--card-background', '--card-shadow', '--button-radius']
+              .forEach((n: string) => SparkUI.themes.removeVariable(n));
+          })
+      }
+      .alignItems(VerticalAlign.Center)
+
+      SCard() {
+        SCardHeader() {
+          SCardTitle({ text: 'Deploy preview' })
+          SCardDescription({ text: 'Toggles above write --card-* / --button-* variables into the live theme.' })
+        }
+        SCardContent() {
+          Row({ space: 8 }) {
+            SBadge({ text: 'Ready', variant: 'success', soft: true, dot: true })
+            SBadge({ text: 'Queued', variant: 'warning', soft: true })
+            SBadge({ text: 'Info', variant: 'info' })
+          }
+        }
+        SCardFooter() {
+          SButton({ text: 'Deploy' })
+          SButton({ text: 'Cancel', variant: 'outline' })
+          SButton({ text: 'Pill (instance)', variant: 'secondary', tokens: { radius: 999 } })
+        }
+      }
+      DemoCaption({ text: this.css })
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .constraintSize({ maxWidth: 480 })
+  }
+}
 
 const INSTALL = `ohpm install @sparkui/core`;
 
@@ -242,6 +375,16 @@ export struct ThemingDoc {
       }
       .width('100%')
       .constraintSize({ maxWidth: 420 })
+
+      DocSection({
+        title: 'Component tokens',
+        description: 'Beyond the semantic colours, every component reads --<component>-<property> variables: ' +
+          'backgrounds (transparent and alpha allowed), borders on / off, radii, sizes, shadows, overlay backdrops. ' +
+          'Unset tokens keep the built-in shadcn recipe; a single instance can override them with its tokens param.'
+      })
+      ComponentTokensDemo()
+      SCodeBlock({ code: TOKENS_CSS, language: 'css', title: 'theme.css' })
+      SCodeBlock({ code: TOKENS_CODE, language: 'arkts' })
 
       DocSection({ title: 'Preview' })
       Column({ space: 12 }) {

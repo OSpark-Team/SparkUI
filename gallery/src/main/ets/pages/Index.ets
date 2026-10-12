@@ -1,10 +1,11 @@
 import {
-  SButton, SIcon, SparkLayoutContext, SparkProvider, SparkTheme, SparkUI, SSheet, SSheetContent, SSheetDescription,
-  SSheetHeader, SSheetTitle
+  SAppShell, SButton, SPageTransition, SparkProvider, SparkSidebarState, SparkTheme, SparkUI, SSidebarMenu, SSidebarMenuButton,
+  SSidebarMenuItem
 } from '@sparkui/core';
+import { PersistenceV2 } from '@kit.ArkUI';
 import { ButtonDoc, CardDoc, CodeDoc, DialogDoc, IconsDoc, PopoverDoc, SheetDoc } from '../docs/ComponentDocs';
 import { IntroDoc, LayoutDoc, ThemingDoc } from '../docs/StartDocs';
-import { GalleryNav, navTitle } from '../shell/Nav';
+import { NAV, NAV_ORDER, navGroupTitle, navHas } from '../shell/Nav';
 import { ResponsiveDoc } from '../docs/ResponsiveDoc';
 import {
   AccordionDoc, BreadcrumbDoc, ButtonGroupDoc, CollapsibleDoc, PaginationDoc, ScrollAreaDoc, TabsDoc, ToggleDoc
@@ -19,38 +20,44 @@ import { AreaChartDoc, BarChartDoc, ChartsOverviewDoc, LineChartDoc, PieChartDoc
 import { AppShellDoc, DashboardGridDoc, ListDetailDoc, SidebarDoc, SupportingPaneDoc, TopbarDoc } from '../docs/BlocksDocs';
 import { InputGroupDoc, NumberFieldDoc, PinInputDoc, StepperDoc, TableDoc, TagsInputDoc } from '../docs/DataDocs';
 import { ComboboxDoc, CommandDoc, ContextMenuDoc, DrawerDoc, HoverCardDoc, MenubarDoc } from '../docs/OverlayDocs2';
+import { TransitionDoc } from '../docs/TransitionDocs';
+import { GalleryTitleBar, TitleBarDoc } from '../docs/TitleBarDocs';
+
+/** Gallery preferences persisted across launches (PersistenceV2), fed to SAppShell through its hooks. */
+@ObservedV2
+class GalleryPrefs {
+  @Trace page: string = 'intro';
+  @Trace sidebarOpen: boolean = true;
+}
 
 @Entry
 @ComponentV2
 struct Index {
+  /** the gallery owns the sidebar controller, so the page can route the system back to it */
+  private sidebar: SparkSidebarState = new SparkSidebarState();
+
+  onBackPress(): boolean {
+    return this.sidebar.back();
+  }
+
   build() {
     Stack() {
       SparkProvider({ immersive: true }) {
-        GalleryShell()
+        GalleryShell({ sidebar: this.sidebar })
       }
     }
   }
 }
 
+/** Light / dark switch in the top bar (a component, so its icon follows the live theme). */
 @ComponentV2
-struct Brand {
+struct ThemeToggle {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   build() {
-    Row({ space: 8 }) {
-      Row() {
-        SIcon({ name: 'sparkles', sizing: 16, color: this.theme.colors.primaryForeground })
-      }
-      .width(28)
-      .height(28)
-      .justifyContent(FlexAlign.Center)
-      .borderRadius(this.theme.radiusMd)
-      .backgroundColor(this.theme.colors.primary)
-
-      Text('SparkUI')
-        .fontSize(this.theme.text.base)
-        .fontWeight(this.theme.text.weightBold)
-        .fontColor(this.theme.colors.foreground)
+    Stack() {
+      SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
+        .onClick(() => SparkUI.themes.toggleDark())
     }
   }
 }
@@ -60,7 +67,11 @@ struct DocContent {
   @Param page: string = 'intro';
 
   build() {
-    if (this.page === 'charts') {
+    if (this.page === 'transition') {
+      TransitionDoc()
+    } else if (this.page === 'title-bar') {
+      TitleBarDoc()
+    } else if (this.page === 'charts') {
       ChartsOverviewDoc()
     } else if (this.page === 'area-chart') {
       AreaChartDoc()
@@ -116,53 +127,53 @@ struct DocContent {
       MenubarDoc()
     } else if (this.page === 'accordion') {
       AccordionDoc()
-    } else     if (this.page === 'breadcrumb') {
+    } else if (this.page === 'breadcrumb') {
       BreadcrumbDoc()
-    } else     if (this.page === 'button-group') {
+    } else if (this.page === 'button-group') {
       ButtonGroupDoc()
-    } else     if (this.page === 'collapsible') {
+    } else if (this.page === 'collapsible') {
       CollapsibleDoc()
-    } else     if (this.page === 'pagination') {
+    } else if (this.page === 'pagination') {
       PaginationDoc()
-    } else     if (this.page === 'scroll-area') {
+    } else if (this.page === 'scroll-area') {
       ScrollAreaDoc()
-    } else     if (this.page === 'tabs') {
+    } else if (this.page === 'tabs') {
       TabsDoc()
-    } else     if (this.page === 'toggle') {
+    } else if (this.page === 'toggle') {
       ToggleDoc()
     } else if (this.page === 'checkbox') {
       CheckboxDoc()
-    } else     if (this.page === 'field') {
+    } else if (this.page === 'field') {
       FieldDoc()
-    } else     if (this.page === 'input') {
+    } else if (this.page === 'input') {
       InputDoc()
-    } else     if (this.page === 'progress') {
+    } else if (this.page === 'progress') {
       ProgressDoc()
-    } else     if (this.page === 'radio-group') {
+    } else if (this.page === 'radio-group') {
       RadioGroupDoc()
-    } else     if (this.page === 'slider') {
+    } else if (this.page === 'slider') {
       SliderDoc()
-    } else     if (this.page === 'switch') {
+    } else if (this.page === 'switch') {
       SwitchDoc()
-    } else     if (this.page === 'textarea') {
+    } else if (this.page === 'textarea') {
       TextareaDoc()
-    } else     if (this.page === 'alert') {
+    } else if (this.page === 'alert') {
       AlertDoc()
-    } else     if (this.page === 'aspect-ratio') {
+    } else if (this.page === 'aspect-ratio') {
       AspectRatioDoc()
-    } else     if (this.page === 'avatar') {
+    } else if (this.page === 'avatar') {
       AvatarDoc()
-    } else     if (this.page === 'badge') {
+    } else if (this.page === 'badge') {
       BadgeDoc()
-    } else     if (this.page === 'empty') {
+    } else if (this.page === 'empty') {
       EmptyDoc()
-    } else     if (this.page === 'item') {
+    } else if (this.page === 'item') {
       ItemDoc()
-    } else     if (this.page === 'separator') {
+    } else if (this.page === 'separator') {
       SeparatorDoc()
-    } else     if (this.page === 'skeleton') {
+    } else if (this.page === 'skeleton') {
       SkeletonDoc()
-    } else     if (this.page === 'typography') {
+    } else if (this.page === 'typography') {
       TypographyDoc()
     } else if (this.page === 'alert-dialog') {
       AlertDialogDoc()
@@ -200,125 +211,93 @@ struct DocContent {
   }
 }
 
+/**
+ * The gallery layout is the library's SAppShell (the showcase of the block): grouped sidebar from NAV (docked
+ * when it fits, an icon rail when collapsed, a sheet on narrow windows), top bar with the page title, its group
+ * and the theme toggle, immersive safe areas, content scrolling under the translucent bar.
+ *
+ * Extension points used here: an app-owned `controller` (system back closes the sheet), persistence through
+ * the `onValueChange` / `onOpenChange` hooks (PersistenceV2, no storage inside the block), slots for the top
+ * bar actions, the sidebar footer and the title-bar region (GalleryTitleBar for free-form windows); the page
+ * body is an SPageTransition keyed by the page id.
+ */
 @ComponentV2
 struct GalleryShell {
-  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-  @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
-  @Local page: string = 'intro';
-  @Local navOpen: boolean = false;
-  private scroller: Scroller = new Scroller();
+  @Param @Require sidebar: SparkSidebarState;
+  @Local prefs: GalleryPrefs = PersistenceV2.connect(GalleryPrefs, 'sparkui.gallery', () => new GalleryPrefs())!;
 
-  private go(id: string): void {
-    this.page = id;
-    this.navOpen = false;
-    this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
-  }
-
-  @Builder
-  modeToggle() {
-    SButton({ variant: 'ghost', sizing: 'icon', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
-      .onClick(() => SparkUI.themes.toggleDark())
-  }
-
-  @Builder
-  pageBody() {
-    Scroll(this.scroller) {
-      Column() {
-        Column() {
-          DocContent({ page: this.page })
-        }
-        .width('100%')
-        .constraintSize({ maxWidth: 880 })
-        .padding({ left: 24, right: 24, top: 24, bottom: 48 + this.layout.env.safeArea.bottom })
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Center)
+  aboutToAppear(): void {
+    if (!navHas(this.prefs.page)) {
+      this.prefs.page = 'intro';
     }
-    .width('100%')
-    .layoutWeight(1)
-    .align(Alignment.Top)
-    .edgeEffect(EdgeEffect.Spring)
+    // a controller keeps its own initial state: seed it with the persisted collapse state
+    this.sidebar.open = this.prefs.sidebarOpen;
+  }
+
+  /** One page of the transition (SPageTransition keeps the leaving page mounted while it animates out). */
+  @LocalBuilder
+  renderPage(key: string) {
+    DocContent({ page: key })
+  }
+
+  /** Page body: a direction-aware transition (down the sidebar = forward, up = back). */
+  @LocalBuilder
+  body() {
+    SPageTransition({
+      current: this.prefs.page,
+      pageBuilder: this.renderPage,
+      order: NAV_ORDER,
+      name: 'fade-through'
+    })
+  }
+
+  @LocalBuilder
+  titleBar() {
+    // free-window / PC chrome (renders nothing unless the window is a free-form window)
+    GalleryTitleBar()
+  }
+
+  @LocalBuilder
+  topbarActions() {
+    ThemeToggle()
+  }
+
+  @LocalBuilder
+  sidebarFooter() {
+    SSidebarMenu() {
+      SSidebarMenuItem() {
+        SSidebarMenuButton({ icon: 'info', text: 'SparkUI · API 22 · V2', sizing: 'sm' })
+      }
+    }
   }
 
   build() {
-    if (this.layout.atLeast('medium')) {
-      Row() {
-        // fixed sidebar (shadcn sidebar tokens)
-        Column({ space: 16 }) {
-          Brand()
-          Scroll() {
-            GalleryNav({ current: this.page, onSelect: (id: string) => this.go(id) })
-          }
-          .layoutWeight(1)
-          .align(Alignment.Top)
-          .scrollBar(BarState.Off)
-        }
-        .width(248)
-        .height('100%')
-        .padding({ left: 12, right: 12, top: 20 + this.layout.env.safeArea.top,
-          bottom: this.layout.env.safeArea.bottom })
-        .alignItems(HorizontalAlign.Start)
-        .backgroundColor(this.theme.colors.sidebar)
-        .border({ width: { right: 1 }, color: this.theme.colors.sidebarBorder })
-
-        Column() {
-          Row() {
-            Text(navTitle(this.page))
-              .fontSize(this.theme.text.sm)
-              .fontColor(this.theme.colors.mutedForeground)
-            this.modeToggle()
-          }
-          .width('100%')
-          .height(56 + this.layout.env.safeArea.top)
-          .padding({ left: 24, right: 12, top: this.layout.env.safeArea.top })
-          .justifyContent(FlexAlign.SpaceBetween)
-          .border({ width: { bottom: 1 }, color: this.theme.colors.border })
-
-          this.pageBody()
-        }
-        .layoutWeight(1)
-        .height('100%')
-      }
-      .width('100%')
-      .height('100%')
-    } else {
-      Column() {
-        Row() {
-          Row({ space: 4 }) {
-            SButton({ variant: 'ghost', sizing: 'icon', icon: 'menu', label: 'Open navigation' })
-              .onClick(() => {
-                this.navOpen = true;
-              })
-            Brand()
-          }
-
-          this.modeToggle()
-        }
-        .width('100%')
-        .height(56 + this.layout.env.safeArea.top)
-        .padding({ left: 8, right: 8, top: this.layout.env.safeArea.top })
-        .justifyContent(FlexAlign.SpaceBetween)
-        .border({ width: { bottom: 1 }, color: this.theme.colors.border })
-
-        this.pageBody()
-
-        SSheet({ open: this.navOpen!! }) {
-          SSheetContent({ side: 'left', panelWidth: 288 }) {
-            SSheetHeader() {
-              SSheetTitle({ text: 'SparkUI' })
-              SSheetDescription({ text: 'Components & foundations' })
-            }
-            Scroll() {
-              GalleryNav({ current: this.page, onSelect: (id: string) => this.go(id) })
-            }
-            .layoutWeight(1)
-            .align(Alignment.Top)
-            .scrollBar(BarState.Off)
-          }
-        }
-      }
-      .width('100%')
-      .height('100%')
-    }
+    SAppShell({
+      brand: 'SparkUI',
+      brandDetail: 'Components & foundations',
+      nav: NAV,
+      controller: this.sidebar,
+      value: this.prefs.page,
+      onValueChange: (id: string) => {
+        this.prefs.page = id;
+      },
+      onOpenChange: (open: boolean) => {
+        this.prefs.sidebarOpen = open;
+      },
+      subtitle: navGroupTitle(this.prefs.page),
+      collapsible: 'icon',
+      maxContentWidth: 880,
+      titleBarBuilder: (): void => {
+        this.titleBar()
+      },
+      topbarActionsBuilder: (): void => {
+        this.topbarActions()
+      },
+      sidebarFooterBuilder: (): void => {
+        this.sidebarFooter()
+      },
+      // with other slots passed, the content goes by name too (ArkTS: no trailing closure alongside slot args)
+      content: this.body
+    })
   }
 }

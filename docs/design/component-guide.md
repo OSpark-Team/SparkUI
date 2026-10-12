@@ -27,6 +27,7 @@
 - **禁止**写死颜色，也不要用 `$r('app.color…')`。
 - 透明度派生用 `SparkColor.alpha(hex, 0.5)`（等价于 Tailwind 的 `bg-primary/50`），混色用 `SparkColor.mix(a, b, t)`。
 - 圆角必须写在 `border({ width, color, radius })` 里：单独写 `.borderRadius()` 之后再调用 `border()` 会把圆角重置为 0。
+- **组件 Token（D13）**：可定制的视觉值一律通过 `SparkTokenReader(theme, '<component>')` 读取，优先级为"实例 `tokens` → `--<component>-<prop>` → 配方"。边框宽度默认取 `theme.borderWidth`，不要写死 1。新组件要提供 `@Param tokens: XxxTokens = {}`，并在 `SparkComponentTokenRegistry` 中登记。
 - 焦点环：`.focusBox(sparkFocusRing(this.theme))`，只在键盘走焦时显示，等价于 `:focus-visible`。
 
 ## 3. 交互态

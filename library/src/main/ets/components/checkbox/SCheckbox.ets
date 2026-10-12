@@ -5,11 +5,26 @@ import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { ChoiceCardStyle, ChoiceSize, sparkChoiceCard } from '../switch/SSwitch';
 
 /** Checkbox box / mark size per `sizing`: [box, icon] in vp. */
 export function sparkCheckboxMetrics(sizing: ChoiceSize): number[] {
   return sizing === 'sm' ? [14, 12] : (sizing === 'lg' ? [20, 16] : [16, 14]);
+}
+
+/**
+ * Per-instance token overrides of a checkbox (ADR D13): `SCheckbox({ tokens: { radius: 999 } })`.
+ * Instance → theme `--checkbox-*` → recipe.
+ */
+export interface CheckboxTokens {
+  background?: string;
+  borderColor?: string;
+  checkedBackground?: string;
+  checkedBorderColor?: string;
+  checkedForeground?: string;
+  radius?: number;
+  borderWidth?: number;
 }
 
 /**
@@ -50,6 +65,8 @@ export struct SCheckbox {
   @Param card: boolean = false;
   @Event onCheckedChange: (v: boolean) => void = () => {
   };
+  /** Per-instance token overrides (instance → theme `--checkbox-*` → recipe), see {@link CheckboxTokens}. */
+  @Param tokens: CheckboxTokens = {};
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local current: boolean = false;
 
@@ -89,12 +106,17 @@ export struct SCheckbox {
     return new SparkPressModifier(this.disabled);
   }
 
+  private get tok(): SparkTokenReader {
+    return new SparkTokenReader(this.theme, 'checkbox');
+  }
+
   @Computed
   get boxBackground(): string {
     if (this.on) {
-      return this.theme.colors.primary;
+      return this.tok.color('checked-background', this.tokens.checkedBackground, this.theme.colors.primary);
     }
-    return this.theme.isDark ? SparkColor.alpha(this.theme.colors.input, 0.3) : '#00000000';
+    return this.tok.color('background', this.tokens.background,
+      this.theme.isDark ? SparkColor.alpha(this.theme.colors.input, 0.3) : '#00000000');
   }
 
   @Computed
@@ -102,7 +124,24 @@ export struct SCheckbox {
     if (this.invalid) {
       return this.theme.colors.destructive;
     }
-    return this.on ? this.theme.colors.primary : this.theme.colors.input;
+    return this.on ? this.tok.color('checked-border-color', this.tokens.checkedBorderColor, this.boxBackground) :
+      this.tok.color('border-color', this.tokens.borderColor, this.theme.colors.input);
+  }
+
+  @Computed
+  get checkColor(): string {
+    return this.tok.color('checked-foreground', this.tokens.checkedForeground, this.theme.colors.primaryForeground);
+  }
+
+  /** shadcn uses a literal rounded-[4px] here (not a radius token); `--checkbox-radius` overrides it */
+  @Computed
+  get boxRadius(): number {
+    return this.tok.len('radius', this.tokens.radius, this.sizing === 'lg' ? 5 : 4);
+  }
+
+  @Computed
+  get boxBorderWidth(): number {
+    return this.tok.len('border-width', this.tokens.borderWidth, this.theme.borderWidth);
   }
 
   @Computed
@@ -124,10 +163,10 @@ export struct SCheckbox {
     Row({ space: 12 }) {
       Row() {
         if (this.indeterminate) {
-          SIcon({ name: 'minus', sizing: this.metrics[1], color: this.theme.colors.primaryForeground, strokeWidth: 2.5 })
+          SIcon({ name: 'minus', sizing: this.metrics[1], color: this.checkColor, strokeWidth: 2.5 })
             .transition(SparkAnim.enter(this.theme, 'checkbox', 'fast', 0.5))
         } else if (this.current) {
-          SIcon({ name: 'check', sizing: this.metrics[1], color: this.theme.colors.primaryForeground, strokeWidth: 2.5 })
+          SIcon({ name: 'check', sizing: this.metrics[1], color: this.checkColor, strokeWidth: 2.5 })
             .transition(SparkAnim.enter(this.theme, 'checkbox', 'fast', 0.5))
         }
       }
@@ -138,8 +177,7 @@ export struct SCheckbox {
       .justifyContent(FlexAlign.Center)
       .alignItems(VerticalAlign.Center)
       .backgroundColor(this.boxBackground)
-      // shadcn uses a literal rounded-[4px] here (not a radius token)
-      .border({ width: 1, color: this.boxBorder, radius: this.sizing === 'lg' ? 5 : 4 })
+      .border({ width: this.boxBorderWidth, color: this.boxBorder, radius: this.boxRadius })
       // the box is not the pressed-style node (that is the outer Row), so it may animate its fill
       .animation(SparkAnim.attr(this.theme, 'checkbox', 'fast'))
 
@@ -169,7 +207,7 @@ export struct SCheckbox {
     .padding(this.card ? 12 : 0)
     .backgroundColor(this.card ? this.cardStyle.background : '#00000000')
     .border({
-      width: this.card ? 1 : 0,
+      width: this.card ? this.theme.borderWidth : 0,
       color: this.cardStyle.borderColor,
       radius: this.card ? this.theme.radiusLg : 0
     })

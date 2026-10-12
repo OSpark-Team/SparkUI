@@ -23,7 +23,12 @@ export class SparkToneColors {
   track: string = '#00000000';
 }
 
-/** Status palette (light, dark) for the tones shadcn has no token for. Tailwind emerald / amber / sky. */
+/**
+ * @deprecated Status colours are theme tokens now (`--success`, `--warning`, `--info` and their
+ * `-foreground`, ADR D13), defined by every preset in light and dark. Brand them in the theme file or with
+ * `SparkUI.themes.setVariable('--success', 'oklch(0.6 0.17 150)')`. Kept for source compatibility; its values
+ * are the preset defaults and are no longer read.
+ */
 export class SparkStatusPalette {
   successLight: string = '#FF059669';
   successDark: string = '#FF10B981';
@@ -36,27 +41,44 @@ export class SparkStatusPalette {
 }
 
 /**
- * Tone recipe. `default` / `destructive` follow the theme tokens; success / warning / info come from
- * {@link SparkTones.palette} (shadcn has no such tokens). Replace the palette at start-up to brand them:
- * `SparkTones.palette.successLight = '#FF16A34A'`.
+ * Tone recipe. Every tone reads semantic theme tokens: `default` → primary, `destructive` → destructive,
+ * `success` / `warning` / `info` → the status tokens of the same name (with their `-foreground`).
  */
 export class SparkTones {
+  /** @deprecated see {@link SparkStatusPalette}; no longer read. */
   static palette: SparkStatusPalette = new SparkStatusPalette();
 
   /** Base colour of `tone` for the current theme. */
   static base(t: SparkTheme, tone: SparkTone): string {
-    const p = SparkTones.palette;
+    const c = t.colors;
     switch (tone) {
       case 'success':
-        return t.isDark ? p.successDark : p.successLight;
+        return c.success;
       case 'warning':
-        return t.isDark ? p.warningDark : p.warningLight;
+        return c.warning;
       case 'info':
-        return t.isDark ? p.infoDark : p.infoLight;
+        return c.info;
       case 'destructive':
-        return t.colors.destructive;
+        return c.destructive;
       default:
-        return t.colors.primary;
+        return c.primary;
+    }
+  }
+
+  /** Text / icon colour on a solid `tone` surface. */
+  static foreground(t: SparkTheme, tone: SparkTone): string {
+    const c = t.colors;
+    switch (tone) {
+      case 'success':
+        return c.successForeground;
+      case 'warning':
+        return c.warningForeground;
+      case 'info':
+        return c.infoForeground;
+      case 'destructive':
+        return c.destructiveForeground;
+      default:
+        return c.primaryForeground;
     }
   }
 
@@ -65,19 +87,7 @@ export class SparkTones {
     const r = new SparkToneColors();
     const base = SparkTones.base(t, tone);
     r.solid = base;
-    switch (tone) {
-      case 'default':
-        r.onSolid = c.primaryForeground;
-        break;
-      case 'destructive':
-        r.onSolid = c.destructiveForeground;
-        break;
-      case 'warning':
-        r.onSolid = SparkTones.palette.onWarning;
-        break;
-      default:
-        r.onSolid = '#FFFFFFFF';
-    }
+    r.onSolid = SparkTones.foreground(t, tone);
     r.text = tone === 'default' ? c.foreground : base;
     r.soft = SparkColor.alpha(base, t.isDark ? 0.2 : 0.1);
     r.border = SparkColor.alpha(base, t.isDark ? 0.5 : 0.35);

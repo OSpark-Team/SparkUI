@@ -7,7 +7,7 @@ import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { Placement, PlacementRect, PlacementRequest, PlacementResult } from './Placement';
 import { SparkOverlayScope, SparkOverlayService } from './SparkOverlay';
 
-/** Backdrop colour: shadcn `bg-black/50`. */
+/** Default backdrop colour: shadcn `bg-black/50` (`--overlay-backdrop`, per component `--<key>-overlay`). */
 const BACKDROP: string = '#80000000';
 
 /**
@@ -41,6 +41,12 @@ export struct SparkOverlayHost {
 
   aboutToDisappear(): void {
     SparkContext.revoke(this.getUniqueId());
+  }
+
+  /** `--<motion key>-overlay` (e.g. --dialog-overlay, --sheet-overlay) → `--overlay-backdrop` → black/50 */
+  private backdrop(): string {
+    const comp = this.theme.comp;
+    return comp.color(this.scope.motionKey, 'overlay', comp.color('overlay', 'backdrop', BACKDROP));
   }
 
   private get anchored(): boolean {
@@ -169,7 +175,7 @@ export struct SparkOverlayHost {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor(BACKDROP)
+          .backgroundColor(this.backdrop())
           .opacity(this.scope.visible ? 1 : 0)
           .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
           .onClick(() => this.dismiss())

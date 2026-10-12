@@ -6,7 +6,11 @@ import { SparkAlign, SparkSide } from '../../primitives/overlay/Placement';
 import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/SparkOverlayHost';
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import {
+  sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle, SparkSurfaceTokens
+} from '../../theme/tokens/SparkTokenReader';
 
 const KEY: string = 'spark.popover';
 
@@ -121,6 +125,8 @@ export struct SPopoverContent {
   @Param alignOffset: number = 0;
   /** Panel width in vp (shadcn w-72 = 288). */
   @Param panelWidth: number = 288;
+  /** Per-instance surface token overrides (instance → theme tokens → recipe), see {@link SparkSurfaceTokens}. */
+  @Param tokens: SparkSurfaceTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -186,6 +192,14 @@ export struct SPopoverContent {
     }
   }
 
+  /** `bg-popover rounded-md border p-4 shadow-md` → `--popover-*` tokens → instance tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'popover', sparkSurfaceDefaults(t.colors.popover, t.colors.border, t.borderWidth,
+      t.radiusMd, 16, t.shadows.md), this.tokens);
+  }
+
   @LocalBuilder
   panel() {
     Column() {
@@ -193,10 +207,10 @@ export struct SPopoverContent {
     }
     .width(this.panelWidth)
     .alignItems(HorizontalAlign.Start)
-    .padding(16)
-    .backgroundColor(this.theme.colors.popover)
-    .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusMd })
-    .shadow(this.theme.shadows.md.toOptions())
+    .padding(this.surface.padding)
+    .backgroundColor(this.surface.background)
+    .border({ width: this.surface.borderWidth, color: this.surface.borderColor, radius: this.surface.radius })
+    .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
   }
 
   build() {

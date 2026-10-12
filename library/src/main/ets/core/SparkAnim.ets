@@ -75,6 +75,23 @@ export class SparkAnim {
   }
 
   /**
+   * `run` with an already-resolved duration / curve (e.g. a per-instance override that was resolved against the
+   * theme first, see `sparkTransitionTiming`). Duration ≤ 0 commits the change directly.
+   */
+  static runWith(ctx: UIContext, duration: number, curve: ICurve, change: () => void, onFinish?: () => void): void {
+    if (duration <= 0) {
+      SparkAnim.commit(change);
+      if (onFinish !== undefined) {
+        onFinish();
+      }
+      return;
+    }
+    ctx.animateTo({ duration: duration, curve: curve, onFinish: onFinish }, () => {
+      SparkAnim.commit(change);
+    });
+  }
+
+  /**
    * Infinite animation (indeterminate progress, skeleton pulse / shimmer, spin): `reset` is committed first
    * (synchronously, so it is never folded into the animation), then `change` repeats forever.
    *

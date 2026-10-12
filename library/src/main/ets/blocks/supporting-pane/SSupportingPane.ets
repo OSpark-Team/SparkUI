@@ -6,7 +6,7 @@ import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/SparkOverlayHost';
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { sparkSupportingWide } from '../BlocksLogic';
+import { sparkSupportingDefaultPolicy, SparkSplitInput, SparkSplitPolicy } from '../BlocksLogic';
 
 const KEY: string = 'spark.supporting-pane';
 
@@ -17,6 +17,10 @@ const KEY: string = 'spark.supporting-pane';
  */
 export type SupportingCompactMode = 'below' | 'sheet';
 
+/**
+ * Shared state and controller of an SSupportingPane. Pass your own as `SSupportingPane({ controller })` to open the
+ * sheet from anywhere, read `wide` / `inSheet`, or handle back (`controller.back()`).
+ */
 @ObservedV2
 export class SparkSupportingPaneState {
   @Trace width: number = 0;
@@ -27,8 +31,13 @@ export class SparkSupportingPaneState {
   @Trace paneWidth: number = 320;
   @Trace gap: number = 24;
   minMainWidth: number = 480;
+  /** motion key of the sheet */
+  motionKey: string = 'supporting-pane';
+  policy: SparkSplitPolicy = sparkSupportingDefaultPolicy;
   controlled: boolean = false;
   emit: (open: boolean) => void = () => {
+  };
+  emitWide: (wide: boolean) => void = () => {
   };
   private listeners: ((open: boolean) => void)[] = [];
 
@@ -44,13 +53,33 @@ export class SparkSupportingPaneState {
     if (width !== this.width) {
       this.width = width;
     }
-    const wide = sparkSupportingWide(width, this.paneWidth, this.minMainWidth);
+    this.relayout();
+  }
+
+  /** Re-run the split policy. */
+  relayout(): void {
+    const input: SparkSplitInput = {
+      containerWidth: this.width,
+      paneWidth: this.paneWidth,
+      minOtherWidth: this.minMainWidth
+    };
+    const wide = this.policy(input);
     if (wide !== this.wide) {
       this.wide = wide;
       if (wide) {
         this.apply(false);
       }
+      this.emitWide(wide);
     }
+  }
+
+  /** Back handling for a page's `onBackPress`: closes the sheet and returns true when it was open. */
+  back(): boolean {
+    if (this.open && this.inSheet) {
+      this.setOpen(false);
+      return true;
+    }
+    return false;
   }
 
   setOpen(open: boolean): void {
@@ -100,9 +129,12 @@ function resolveState(uiContext: UIContext, id: number): SparkSupportingPaneStat
  * }
  * ```
  * Panes take their natural height; put the block inside a scroller (SPage) for long content.
+ * Extension points: `controller`, `layoutPolicy`, `onWideChange`, `motionKey`, `compactMode`.
  */
 @ComponentV2
 export struct SSupportingPane {
+  /** your own state object (headless control); one is created when omitted */
+  @Param controller: SparkSupportingPaneState | undefined = undefined;
   @Param compactMode: SupportingCompactMode = 'below';
   /** supporting pane width when side by side (vp, includes the gap) */
   @Param paneWidth: number = 320;
@@ -115,13 +147,27 @@ export struct SSupportingPane {
   @Param defaultOpen: boolean = false;
   @Event onOpenChange: (open: boolean) => void = () => {
   };
+  @Param motionKey: string = 'supporting-pane';
+  /** side by side (true) or compact (false), from the measured width (replaceable) */
+  @Event layoutPolicy: SparkSplitPolicy = sparkSupportingDefaultPolicy;
+  @Event onWideChange: (wide: boolean) => void = () => {
+  };
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Local state: SparkSupportingPaneState = new SparkSupportingPaneState();
 
   aboutToAppear(): void {
+    if (this.controller !== undefined) {
+      this.state = this.controller;
+    }
     const s = this.state;
     s.controlled = this.open !== undefined;
-    s.open = this.open ?? this.defaultOpen;
+    if (this.open !== undefined) {
+      s.open = this.open;
+    } else if (this.controller === undefined) {
+      s.open = this.defaultOpen;
+    }
+    s.policy = (i: SparkSplitInput): boolean => this.layoutPolicy(i);
+    s.emitWide = (w: boolean) => this.onWideChange(w);
     s.emit = (v: boolean) => {
       this.$open(v);
       this.onOpenChange(v);
@@ -135,8 +181,9 @@ export struct SSupportingPane {
     SparkContext.revoke(this.getUniqueId());
   }
 
-  @Monitor('compactMode', 'paneWidth', 'minMainWidth')
+  @Monitor('compactMode', 'paneWidth', 'minMainWidth', 'motionKey')
   syncConfig(): void {
+    this.state.motionKey = this.motionKey;
     this.state.compactMode = this.compactMode;
     this.state.paneWidth = this.paneWidth;
     this.state.minMainWidth = this.minMainWidth;
@@ -240,7 +287,7 @@ export struct SSupportingPaneAside {
     }
     const scope = SparkOverlayService.createScope();
     scope.presentation = 'sheet-bottom';
-    scope.motionKey = 'supporting-pane';
+    scope.motionKey = ctx.motionKey;
     scope.modal = true;
     scope.dismissOnOutside = true;
     scope.content = this.panel;

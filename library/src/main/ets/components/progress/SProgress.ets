@@ -4,7 +4,20 @@ import { SparkTone, SparkToneColors, SparkTones } from '../../core/SparkTone';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { SparkProgressArc, sparkRingArcPath, sparkProgressLabel, sparkProgressPercent, sparkSegmentFills } from './ProgressLogic';
+
+/**
+ * Per-instance token overrides of a progress bar (ADR D13): `SProgress({ value: 40, tokens: { height: 4 } })`.
+ * Instance → theme `--progress-*` (default tone) → recipe.
+ */
+export interface ProgressTokens {
+  indicatorBackground?: string;
+  trackBackground?: string;
+  /** linear bar thickness of the default size (the `thickness` param still wins) */
+  height?: number;
+  radius?: number;
+}
 
 /** Form of an SProgress: a bar, a ring, or a 240° gauge (meter). */
 export type ProgressShape = 'linear' | 'circle' | 'gauge';
@@ -80,6 +93,8 @@ export struct SProgress {
   /** ring / gauge: small muted text under the value. */
   @Param caption: ResourceStr | undefined = undefined;
   /** ring / gauge: custom centre content. */
+  /** Per-instance token overrides, see {@link ProgressTokens}. */
+  @Param tokens: ProgressTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local trackWidth: number = 0;
@@ -94,9 +109,25 @@ export struct SProgress {
     return this.buffer === undefined ? 0 : sparkProgressPercent(this.buffer, this.max);
   }
 
+  /**
+   * Tone colours. `--progress-indicator-background` / `--progress-track-background` restyle the default tone
+   * (status tones follow --success / --warning / --info); instance `tokens` apply to any tone.
+   */
   @Computed
   get colors(): SparkToneColors {
-    return SparkTones.resolve(this.theme, this.tone);
+    const c = SparkTones.resolve(this.theme, this.tone);
+    const r = new SparkTokenReader(this.theme, 'progress');
+    const none: string[] = [];
+    const themed = this.tone === 'default';
+    c.solid = r.color(themed ? 'indicator-background' : none, this.tokens.indicatorBackground, c.solid);
+    c.track = r.color(themed ? 'track-background' : none, this.tokens.trackBackground, c.track);
+    return c;
+  }
+
+  /** bar radius (`--progress-radius`, default fully rounded) */
+  @Computed
+  get barRadius(): number {
+    return new SparkTokenReader(this.theme, 'progress').len('radius', this.tokens.radius, this.barThickness / 2);
   }
 
   @Computed
@@ -107,7 +138,10 @@ export struct SProgress {
     if (this.shape !== 'linear') {
       return this.sizing === 'sm' ? 4 : (this.sizing === 'lg' ? 8 : 6);
     }
-    return this.sizing === 'sm' ? 4 : (this.sizing === 'lg' ? 12 : 8);
+    if (this.sizing === 'default') {
+      return new SparkTokenReader(this.theme, 'progress').len('height', this.tokens.height, 8);
+    }
+    return this.sizing === 'sm' ? 4 : 12;
   }
 
   @Computed
@@ -217,7 +251,7 @@ export struct SProgress {
             .layoutWeight(1)
             .height('100%')
             .backgroundColor(this.colors.track)
-            .border({ width: 0, radius: this.barThickness / 2 })
+            .border({ width: 0, radius: this.barRadius })
             .clip(true)
           }, (i: number) => `${i}`)
         }
@@ -262,7 +296,7 @@ export struct SProgress {
         .layoutWeight(1)
         .height(this.barThickness)
         .backgroundColor(this.colors.track)
-        .border({ width: 0, radius: this.barThickness / 2 })
+        .border({ width: 0, radius: this.barRadius })
         .clip(true)
         .onAreaChange((_: Area, n: Area) => {
           this.trackWidth = Number(n.width);

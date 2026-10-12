@@ -300,6 +300,9 @@ export class SparkColor {
       if (raw.startsWith('#')) {
         return SparkColor.parseHex(raw.substring(1));
       }
+      if (raw.startsWith('color-mix(') && raw.endsWith(')')) {
+        return SparkColor.parseColorMix(raw.substring(10, raw.length - 1));
+      }
       const open = raw.indexOf('(');
       if (open > 0 && raw.endsWith(')')) {
         const fn = raw.substring(0, open).trim();
@@ -399,6 +402,80 @@ export class SparkColor {
     return SparkColor.num(token, 360);
   }
 
+  /**
+   * `color-mix(in <space>, <color> [p%], <color> [p%])`, interpolated with premultiplied alpha in sRGB whatever
+   * the named space (the space only changes hue paths, which theme tints do not depend on). Percentages
+   * summing below 100% scale the alpha, as in CSS: `color-mix(in oklab, var(--primary) 10%, transparent)`.
+   */
+  private static parseColorMix(body: string): ColorParseResult {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < body.length; i++) {
+      const ch = body[i];
+      if (ch === '(') {
+        depth++;
+      } else if (ch === ')') {
+        depth--;
+      } else if (ch === ',' && depth === 0) {
+        parts.push(body.substring(start, i).trim());
+        start = i + 1;
+      }
+    }
+    parts.push(body.substring(start).trim());
+    if (parts.length !== 3 || !parts[0].startsWith('in ')) {
+      return ColorParseResult.failure(`color-mix() expects "in <space>, <color> [p%], <color> [p%]"`);
+    }
+    const a = SparkColor.mixStop(parts[1]);
+    const b = SparkColor.mixStop(parts[2]);
+    if (a === undefined || b === undefined) {
+      return ColorParseResult.failure(`invalid color in color-mix(${body})`);
+    }
+    let pa = a.percent;
+    let pb = b.percent;
+    if (isNaN(pa) && isNaN(pb)) {
+      pa = 0.5;
+      pb = 0.5;
+    } else if (isNaN(pa)) {
+      pa = 1 - pb;
+    } else if (isNaN(pb)) {
+      pb = 1 - pa;
+    }
+    const sum = pa + pb;
+    if (sum <= 0) {
+      return ColorParseResult.failure(`color-mix() percentages must not both be 0`);
+    }
+    const wa = pa / sum;
+    const wb = pb / sum;
+    const x = SparkColor.fromArgbHex(a.color);
+    const y = SparkColor.fromArgbHex(b.color);
+    const alpha = x.a * wa + y.a * wb;
+    const out = alpha <= 0 ? new Rgba(0, 0, 0, 0) : new Rgba(
+      (x.r * x.a * wa + y.r * y.a * wb) / alpha,
+      (x.g * x.a * wa + y.g * y.a * wb) / alpha,
+      (x.b * x.a * wa + y.b * y.a * wb) / alpha,
+      alpha * Math.min(1, sum)
+    );
+    return ColorParseResult.success(SparkColor.toHex(out));
+  }
+
+  /** `<color> [p%]` of a color-mix() argument; percent is NaN when omitted. */
+  private static mixStop(arg: string): MixStop | undefined {
+    const m = /^(.*?)\s+(\d*\.?\d+)%$/.exec(arg);
+    const stop = new MixStop();
+    let colorText = arg;
+    if (m !== null) {
+      colorText = m[1];
+      stop.percent = parseFloat(m[2]) / 100;
+    }
+    const c = SparkColor.parse(colorText);
+    if (!c.ok) {
+      return undefined;
+    }
+    stop.color = c.value;
+    return stop;
+  }
+
   private static parseFunction(fn: string, body: string): ColorParseResult {
     const args = SparkColor.splitArgs(body);
     if (args === undefined || args.values.length !== 3) {
@@ -445,6 +522,11 @@ export class SparkColor {
     }
     return ColorParseResult.success(SparkColor.toHex(rgba));
   }
+}
+
+class MixStop {
+  color: string = '#00000000';
+  percent: number = NaN;
 }
 
 class SplitArgs {

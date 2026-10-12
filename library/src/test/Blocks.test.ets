@@ -2,8 +2,20 @@ import { describe, it, expect } from '@ohos/hypium';
 import {
   SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON, SIDEBAR_WIDTH_MOBILE, sparkListDetailWide, sparkListPaneWidth,
   sparkSidebarDockWidth, sparkSidebarIsMobile, sparkSidebarSheetWidth, sparkSupportingWide, sparkTopbarCondensed,
-  sparkTopbarHeight
+  sparkTopbarHeight, sparkSidebarDefaultPolicy, sparkSidebarRailPolicy, sparkSidebarRowWidth, SparkSidebarLayoutInput,
+  SparkSidebarLayoutPolicy, sparkListDetailDefaultPolicy, sparkSupportingDefaultPolicy, SparkSplitInput
 } from '../main/ets/blocks/BlocksLogic';
+
+function sidebarInput(width: number): SparkSidebarLayoutInput {
+  const i: SparkSidebarLayoutInput = {
+    containerWidth: width,
+    sidebarWidth: 256,
+    railWidth: SIDEBAR_WIDTH_ICON,
+    minInsetWidth: 360,
+    collapsible: 'icon'
+  };
+  return i;
+}
 
 export default function blocksTest() {
   describe('Blocks', () => {
@@ -55,6 +67,42 @@ export default function blocksTest() {
       expect(sparkTopbarCondensed(520)).assertFalse();
       expect(sparkTopbarHeight(true)).assertEqual(48);
       expect(sparkTopbarHeight(false)).assertEqual(56);
+    });
+    it('topbar_condensed_custom_threshold', 0, () => {
+      expect(sparkTopbarCondensed(600, 720)).assertTrue();
+      expect(sparkTopbarCondensed(720, 720)).assertFalse();
+    });
+    it('sidebar_default_policy', 0, () => {
+      expect(sparkSidebarDefaultPolicy(sidebarInput(0))).assertEqual('docked');
+      expect(sparkSidebarDefaultPolicy(sidebarInput(615))).assertEqual('sheet');
+      expect(sparkSidebarDefaultPolicy(sidebarInput(616))).assertEqual('docked');
+    });
+    it('sidebar_rail_policy', 0, () => {
+      const p: SparkSidebarLayoutPolicy = sparkSidebarRailPolicy(480);
+      expect(p(sidebarInput(0))).assertEqual('docked');
+      expect(p(sidebarInput(616))).assertEqual('docked');
+      expect(p(sidebarInput(528))).assertEqual('rail');
+      expect(p(sidebarInput(527))).assertEqual('sheet');
+      const fixed = sidebarInput(300);
+      fixed.collapsible = 'none';
+      expect(p(fixed)).assertEqual('docked');
+    });
+    it('sidebar_row_width', 0, () => {
+      expect(sparkSidebarRowWidth('sheet', true, 'icon', 'sidebar', 256)).assertEqual(0);
+      expect(sparkSidebarRowWidth('rail', true, 'offcanvas', 'sidebar', 256)).assertEqual(48);
+      expect(sparkSidebarRowWidth('rail', true, 'icon', 'inset', 256)).assertEqual(64);
+      expect(sparkSidebarRowWidth('docked', false, 'offcanvas', 'sidebar', 256)).assertEqual(0);
+      expect(sparkSidebarRowWidth('docked', true, 'icon', 'sidebar', 256)).assertEqual(256);
+    });
+    it('split_default_policies', 0, () => {
+      const ld: SparkSplitInput = { containerWidth: 681, paneWidth: 320, minOtherWidth: 360 };
+      expect(sparkListDetailDefaultPolicy(ld)).assertTrue();
+      ld.containerWidth = 680;
+      expect(sparkListDetailDefaultPolicy(ld)).assertFalse();
+      const sp: SparkSplitInput = { containerWidth: 800, paneWidth: 320, minOtherWidth: 480 };
+      expect(sparkSupportingDefaultPolicy(sp)).assertTrue();
+      sp.containerWidth = 0;
+      expect(sparkSupportingDefaultPolicy(sp)).assertFalse();
     });
   });
 }

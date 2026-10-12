@@ -208,10 +208,10 @@ export {
 } from './src/main/ets/primitives/menu/SparkMenuParts';
 
 // blocks (layout)
-export { SidebarVariant, SidebarCollapsible, SidebarSide, SIDEBAR_WIDTH, SIDEBAR_WIDTH_MOBILE, SIDEBAR_WIDTH_ICON, SIDEBAR_FRAME_GAP, sparkSidebarDockWidth, sparkSidebarIsMobile, sparkSidebarSheetWidth, sparkListDetailWide, sparkListPaneWidth, sparkSupportingWide, sparkTopbarCondensed, sparkTopbarHeight, TOPBAR_CONDENSED_BELOW } from './src/main/ets/blocks/BlocksLogic';
-export { SSidebarProvider, SSidebar, SSidebarHeader, SSidebarContent, SSidebarFooter, SSidebarGroup, SSidebarGroupLabel, SSidebarGroupContent, SSidebarMenu, SSidebarMenuItem, SSidebarMenuButton, SSidebarSeparator, SSidebarTrigger, SSidebarInset, SparkSidebarState, resolveSparkSidebar, SPARK_SIDEBAR_KEY, SidebarMenuButtonSize, SidebarMenuButtonVariant } from './src/main/ets/blocks/sidebar/SSidebar';
+export { SidebarVariant, SidebarCollapsible, SidebarSide, SIDEBAR_WIDTH, SIDEBAR_WIDTH_MOBILE, SIDEBAR_WIDTH_ICON, SIDEBAR_FRAME_GAP, sparkSidebarDockWidth, sparkSidebarIsMobile, sparkSidebarSheetWidth, sparkListDetailWide, sparkListPaneWidth, sparkSupportingWide, sparkTopbarCondensed, sparkTopbarHeight, TOPBAR_CONDENSED_BELOW, SidebarPresentation, SparkSidebarLayoutInput, SparkSidebarLayoutPolicy, sparkSidebarDefaultPolicy, sparkSidebarRailPolicy, sparkSidebarRowWidth, SparkSplitInput, SparkSplitPolicy, sparkListDetailDefaultPolicy, sparkSupportingDefaultPolicy } from './src/main/ets/blocks/BlocksLogic';
+export { SSidebarProvider, SSidebar, SSidebarHeader, SSidebarContent, SSidebarFooter, SSidebarGroup, SSidebarGroupLabel, SSidebarGroupContent, SSidebarMenu, SSidebarMenuItem, SSidebarMenuButton, SSidebarSeparator, SSidebarTrigger, SSidebarInset, SparkSidebarState, resolveSparkSidebar, sparkSidebarInSheet, SPARK_SIDEBAR_KEY, SidebarMenuButtonSize, SidebarMenuButtonVariant } from './src/main/ets/blocks/sidebar/SSidebar';
 export { STopbar, SparkTopbarAction, TopbarLeading } from './src/main/ets/blocks/topbar/STopbar';
-export { SAppShell, SparkShellNavGroup, SparkShellNavItem, SparkShellUser, sparkShellNavTitle } from './src/main/ets/blocks/app-shell/SAppShell';
+export { SAppShell, SparkShellNavGroup, SparkShellNavItem, SparkShellUser, sparkShellNavTitle, sparkShellNavGroupTitle, sparkShellNavItemBuilder, sparkShellNavGroupLabelBuilder } from './src/main/ets/blocks/app-shell/SAppShell';
 export { SListDetail, SListPane, SListDetailPane, SparkListDetailState } from './src/main/ets/blocks/list-detail/SListDetail';
 export { SSupportingPane, SSupportingPaneMain, SSupportingPaneAside, SSupportingPaneTrigger, SparkSupportingPaneState, SupportingCompactMode } from './src/main/ets/blocks/supporting-pane/SSupportingPane';
 export { SDashboardGrid, SDashboardTile, DashboardTrend } from './src/main/ets/blocks/dashboard/SDashboardGrid';
@@ -234,3 +234,40 @@ export { SSparkline } from './src/main/ets/components/chart/SSparkline';
 
 export { SparkTone, SparkToneColors, SparkTones, SparkStatusPalette } from './src/main/ets/core/SparkTone';
 export { SparkProgressArc, sparkRingArcPath, sparkProgressPercent, sparkSegmentFills, sparkProgressLabel } from './src/main/ets/components/progress/ProgressLogic';
+
+// transitions
+export { STransition } from './src/main/ets/components/transition/STransition';
+export { SSwitchTransition, SPageTransition, SparkTransitionSlot, sparkEmptyKeyBuilder } from './src/main/ets/components/transition/SSwitchTransition';
+export { STransitionGroup, SparkTransitionGroupAxis } from './src/main/ets/components/transition/STransitionGroup';
+export { SparkTransitionEnv, SparkTransitionEffectFactory, SparkTransitionTiming, sparkTransitionTiming, sparkTransitionEffect, sparkEffectFromSpec, sparkCustomEffect, sparkTransitionSideAnimates } from './src/main/ets/components/transition/SparkTransitionEffect';
+export { SparkTransitionName, SparkTransitionMode, SparkNavDirection, SparkEffectSpec, SparkTransitionSpec, sparkTransitionSpec, sparkResolveForward, SparkTransitionHistory, sparkNegateLength } from './src/main/ets/components/transition/TransitionSpec';
+
+// window chrome (free window / PC title bar)
+export { STitleBar } from './src/main/ets/blocks/titlebar/STitleBar';
+export { SparkWindowChrome, SparkWindowChromeOptions, SparkTitleButtonRect } from './src/main/ets/blocks/titlebar/SparkWindowChrome';
+export { SparkSystemButtons, SparkWindowStatus, SparkTitleBarShow, SparkCaptionAction, sparkTitleBarHeight, sparkTitleBarVisible, sparkCaptionReserve, sparkClampDecorHeight, sparkMaximizeAction, SPARK_DECOR_HEIGHT_MIN, SPARK_DECOR_HEIGHT_MAX, SPARK_TITLEBAR_HEIGHT_POINTER, SPARK_TITLEBAR_HEIGHT_TOUCH } from './src/main/ets/blocks/titlebar/TitleBarLogic';
+
+// code: custom grammars & themes
+export { SparkGrammar, SparkGrammarRule, SparkGrammarRef, SparkGrammarExtension } from './src/main/ets/components/code/SparkGrammar';
+export { SparkCodeTheme, SparkCodeStyle } from './src/main/ets/components/code/SparkCodeTheme';
+export { SPARK_BUILTIN_GRAMMARS } from './src/main/ets/components/code/CodeGrammars';
+
+// component tokens (ADR D13)
+export {
+  SparkComponentTokens, SparkComponentTokenRegistry, SparkTokenSpec, SparkTokenValue, SparkTokenMatch, SparkTokenKind,
+  SparkTokenOverride, sparkVariantProp
+} from './src/main/ets/theme/tokens/SparkComponentTokens';
+export {
+  SparkTokenReader, SparkSurfaceTokens, SparkSurfaceStyle, sparkSurface, sparkSurfaceDefaults
+} from './src/main/ets/theme/tokens/SparkTokenReader';
+export { ThemeValues, THEME_REM_VP } from './src/main/ets/theme/css/ThemeValues';
+export { ButtonTokens } from './src/main/ets/components/button/ButtonVariants';
+export { CardTokens } from './src/main/ets/components/card/SCard';
+export { InputTokens, sparkInputHeightOf } from './src/main/ets/components/input/SInput';
+export { BadgeTokens } from './src/main/ets/components/badge/SBadge';
+export { AlertTokens, sparkAlertDescriptionColor } from './src/main/ets/components/alert/SAlert';
+export { ToggleTokens } from './src/main/ets/components/toggle/ToggleVariants';
+export { SwitchTokens } from './src/main/ets/components/switch/SSwitch';
+export { CheckboxTokens } from './src/main/ets/components/checkbox/SCheckbox';
+export { ProgressTokens } from './src/main/ets/components/progress/SProgress';
+export { TabsTokens, TabsListStyle, sparkTabsListStyle, sparkTabsMetrics } from './src/main/ets/components/tabs/STabs';

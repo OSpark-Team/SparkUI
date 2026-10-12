@@ -5,7 +5,7 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { resolveSparkField, SparkFieldState, sparkFieldGrows } from '../field/SField';
-import { InputColors, sparkInputColors, sparkInputCounter, sparkNoFocusBox } from '../input/SInput';
+import { InputColors, InputTokens, sparkInputColors, sparkInputCounter, sparkNoFocusBox } from '../input/SInput';
 
 /**
  * shadcn-vue `Textarea`: `min-h-16 w-full rounded-md border px-3 py-2 text-sm field-sizing-content`
@@ -36,6 +36,8 @@ export struct STextarea {
   /** Accessible name when there is no visible label. */
   @Param label: string | undefined = undefined;
   @Param modifier: AttributeModifier<TextAreaAttribute> = new SparkNoopModifier<TextAreaAttribute>();
+  /** Per-instance token overrides (shares the `--input-*` theme tokens), see {@link InputTokens}. */
+  @Param tokens: InputTokens = {};
   @Event onValueChange: (v: string) => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -76,7 +78,7 @@ export struct STextarea {
   @Computed
   get colors(): InputColors {
     const invalid = this.invalid || (this.field !== undefined && this.field.isInvalid);
-    return sparkInputColors(this.theme, this.focused && !this.disabled, invalid);
+    return sparkInputColors(this.theme, this.focused && !this.disabled, invalid, this.tokens);
   }
 
   build() {
@@ -84,20 +86,20 @@ export struct STextarea {
       TextArea({ text: this.current, placeholder: this.placeholder })
         .width('100%')
         .constraintSize({ minHeight: 64, maxHeight: this.maxHeight ?? Infinity })
-        .padding({ left: 12, right: 12, top: 8, bottom: this.showCount ? 24 : 8 })
+        .padding({ left: this.colors.paddingX, right: this.colors.paddingX, top: 8, bottom: this.showCount ? 24 : 8 })
         .fontSize(this.theme.text.sm)
         .lineHeight(this.theme.text.leadingSm)
-        .fontColor(this.theme.colors.foreground)
-        .placeholderColor(this.theme.colors.mutedForeground)
+        .fontColor(this.colors.foreground)
+        .placeholderColor(this.colors.placeholder)
         .placeholderFont({ size: this.theme.text.sm })
-        .caretColor(this.theme.colors.foreground)
+        .caretColor(this.colors.foreground)
         .selectedBackgroundColor(SparkColor.alpha(this.theme.colors.primary, 0.25))
         .backgroundColor(this.colors.background)
-        .border({ width: 1, color: this.colors.borderColor, radius: this.theme.radiusMd })
+        .border({ width: this.colors.borderWidth, color: this.colors.borderColor, radius: this.colors.radius })
         .outline({
           width: this.colors.ringWidth,
           color: this.colors.ringColor,
-          radius: this.theme.radiusMd + 3,
+          radius: this.colors.radius + this.colors.ringWidth,
           style: OutlineStyle.SOLID
         })
         .maxLength(this.maxLength ?? Infinity)
@@ -121,7 +123,7 @@ export struct STextarea {
           .fontSize(this.theme.text.xs)
           .fontColor(this.theme.colors.mutedForeground)
           .fontFeature('"tnum" on')
-          .margin({ right: 12, bottom: 6 })
+          .margin({ right: this.colors.paddingX, bottom: 6 })
           .hitTestBehavior(HitTestMode.None)
       }
     }

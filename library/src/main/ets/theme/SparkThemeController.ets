@@ -311,6 +311,27 @@ export class SparkThemeController {
     return ThemeLoadResult.of(this.diagnostics);
   }
 
+  /**
+   * Remove a variable set with {@link setVariable} / a loaded theme file, so the preset (or, for component
+   * tokens, the component's built-in recipe) applies again: `removeVariable('--card-border-width')`.
+   */
+  removeVariable(name: string, block: 'root' | 'dark' = 'root'): ThemeLoadResult {
+    const varName = name.startsWith('--') ? name : '--' + name;
+    const m = block === 'dark' ? this.overrides.dark : this.overrides.root;
+    if (m.delete(varName)) {
+      this.rebuildSource();
+      this.refresh(false);
+    }
+    return ThemeLoadResult.of(this.diagnostics);
+  }
+
+  /** Current override value of a variable (from setVariable / a loaded file), undefined when not overridden. */
+  variable(name: string, block: 'root' | 'dark' = 'root'): string | undefined {
+    const varName = name.startsWith('--') ? name : '--' + name;
+    const v = (block === 'dark' ? this.overrides.dark : this.overrides.root).get(varName);
+    return v === undefined ? undefined : v.value;
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Internals
   // ---------------------------------------------------------------------------------------------

@@ -5,7 +5,11 @@ import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/SparkOverlayHost';
 import { SparkOverlayScope, SparkOverlayService, SparkPresentation } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import {
+  sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle, SparkSurfaceTokens
+} from '../../theme/tokens/SparkTokenReader';
 import { SButton } from '../button/SButton';
 
 const KEY: string = 'spark.sheet';
@@ -123,6 +127,8 @@ export struct SSheetContent {
   @Param dismissOnOutside: boolean = true;
   /** Width for left/right sheets in vp (default: 75% of the window, max 384). */
   @Param panelWidth: number = 0;
+  /** Per-instance surface token overrides (instance → theme tokens → recipe), see {@link SparkSurfaceTokens}. */
+  @Param tokens: SparkSurfaceTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -208,16 +214,40 @@ export struct SSheetContent {
     return Math.min(384, Math.max(240, SparkUI.layout.root.width * 0.75));
   }
 
+  /** `bg-background border p-4 shadow-lg` on the inner edge → `--sheet-*` tokens → instance tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'sheet', sparkSurfaceDefaults(t.colors.background, t.colors.border, t.borderWidth, 0, 16,
+      t.shadows.lg), this.tokens);
+  }
+
   private edgeBorder(): EdgeWidths {
+    const w = this.surface.borderWidth;
     switch (this.side) {
       case 'left':
-        return { right: 1 };
+        return { right: w };
       case 'right':
-        return { left: 1 };
+        return { left: w };
       case 'top':
-        return { bottom: 1 };
+        return { bottom: w };
       default:
-        return { top: 1 };
+        return { top: w };
+    }
+  }
+
+  /** corner radii on the edge facing the page (`--sheet-radius` / tokens.radius, default 0) */
+  private edgeRadius(): BorderRadiuses {
+    const r = this.surface.radius;
+    switch (this.side) {
+      case 'left':
+        return { topLeft: 0, bottomLeft: 0, topRight: r, bottomRight: r };
+      case 'right':
+        return { topLeft: r, bottomLeft: r, topRight: 0, bottomRight: 0 };
+      case 'top':
+        return { topLeft: 0, topRight: 0, bottomLeft: r, bottomRight: r };
+      default:
+        return { topLeft: r, topRight: r, bottomLeft: 0, bottomRight: 0 };
     }
   }
 
@@ -231,10 +261,10 @@ export struct SSheetContent {
       .height(this.vertical ? '100%' : undefined)
       .alignItems(HorizontalAlign.Start)
       .padding({
-        top: (this.side === 'bottom' ? 0 : this.layout.env.safeArea.top) + 16,
-        bottom: (this.side === 'top' ? 0 : this.layout.env.safeArea.bottom) + 16,
-        left: 16,
-        right: 16
+        top: (this.side === 'bottom' ? 0 : this.layout.env.safeArea.top) + this.surface.padding,
+        bottom: (this.side === 'top' ? 0 : this.layout.env.safeArea.bottom) + this.surface.padding,
+        left: this.surface.padding,
+        right: this.surface.padding
       })
 
       if (this.showCloseButton) {
@@ -246,9 +276,9 @@ export struct SSheetContent {
     }
     .width(this.vertical ? this.sideWidth() : '100%')
     .height(this.vertical ? '100%' : undefined)
-    .backgroundColor(this.theme.colors.background)
-    .border({ width: this.edgeBorder(), color: this.theme.colors.border })
-    .shadow(this.theme.shadows.lg.toOptions())
+    .backgroundColor(this.surface.background)
+    .border({ width: this.edgeBorder(), color: this.surface.borderColor, radius: this.edgeRadius() })
+    .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
     .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
   }
 

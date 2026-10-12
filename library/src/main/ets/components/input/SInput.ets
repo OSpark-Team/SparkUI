@@ -5,33 +5,81 @@ import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { LengthMetrics } from '@kit.ArkUI';
 import { resolveSparkField, SparkFieldState, sparkFieldGrows } from '../field/SField';
 
 /** `type` of an SInput (named `inputType` because of the native `InputType` enum). */
 export type InputKind = 'text' | 'password' | 'email' | 'number';
 
-/** Resolved colours shared by SInput and STextarea (shadcn input recipe). */
+/**
+ * Per-instance token overrides of a text field (SInput, STextarea; ADR D13), e.g. a filled, borderless field:
+ * `SInput({ tokens: { background: 'oklch(0.97 0 0)', borderWidth: 0 } })`. Instance → theme `--input-*` → recipe.
+ * Colours use the theme file syntax; lengths are vp.
+ */
+export interface InputTokens {
+  background?: string;
+  foreground?: string;
+  placeholderColor?: string;
+  borderColor?: string;
+  focusBorderColor?: string;
+  invalidBorderColor?: string;
+  ringColor?: string;
+  borderWidth?: number;
+  radius?: number;
+  ringWidth?: number;
+  height?: number;
+  paddingX?: number;
+}
+
+const NO_INPUT_TOKENS: InputTokens = {};
+
+/** Resolved style shared by SInput, STextarea and the other text-field-like controls (shadcn input recipe). */
 export class InputColors {
   background: string = '#00000000';
   borderColor: string = '#00000000';
   /** focus ring (`ring-[3px]`) colour; width is 0 unless focused */
   ringColor: string = '#00000000';
   ringWidth: number = 0;
+  foreground: string = '#FF000000';
+  placeholder: string = '#FF000000';
+  borderWidth: number = 1;
+  radius: number = 8;
+  paddingX: number = 12;
 }
 
 /**
  * shadcn input recipe: `border-input bg-transparent dark:bg-input/30`, focus `border-ring ring-ring/50 ring-[3px]`,
- * invalid `border-destructive ring-destructive/20 dark:ring-destructive/40`.
+ * invalid `border-destructive ring-destructive/20 dark:ring-destructive/40`; then the `--input-*` theme tokens and
+ * the instance `tokens`.
  */
-export function sparkInputColors(t: SparkTheme, focused: boolean, invalid: boolean): InputColors {
+export function sparkInputColors(t: SparkTheme, focused: boolean, invalid: boolean, tokens?: InputTokens): InputColors {
   const c = t.colors;
+  const k = tokens ?? NO_INPUT_TOKENS;
+  const tok = new SparkTokenReader(t, 'input');
   const r = new InputColors();
-  r.background = t.isDark ? SparkColor.alpha(c.input, 0.3) : '#00000000';
-  r.borderColor = invalid ? c.destructive : (focused ? c.ring : c.input);
-  r.ringColor = invalid ? SparkColor.alpha(c.destructive, t.isDark ? 0.4 : 0.2) : SparkColor.alpha(c.ring, 0.5);
-  r.ringWidth = focused ? 3 : 0;
+  r.background = tok.color('background', k.background, t.isDark ? SparkColor.alpha(c.input, 0.3) : '#00000000');
+  if (invalid) {
+    r.borderColor = tok.color('invalid-border-color', k.invalidBorderColor, c.destructive);
+    r.ringColor = tok.color('invalid-ring-color', undefined, SparkColor.alpha(c.destructive, t.isDark ? 0.4 : 0.2));
+  } else {
+    r.borderColor = focused ? tok.color('focus-border-color', k.focusBorderColor, c.ring) :
+      tok.color('border-color', k.borderColor, c.input);
+    r.ringColor = tok.color('ring-color', k.ringColor, SparkColor.alpha(c.ring, 0.5));
+  }
+  r.ringWidth = focused ? tok.len('ring-width', k.ringWidth, 3) : 0;
+  r.foreground = tok.color('foreground', k.foreground, c.foreground);
+  r.placeholder = tok.color('placeholder-color', k.placeholderColor, c.mutedForeground);
+  r.borderWidth = tok.len('border-width', k.borderWidth, t.borderWidth);
+  r.radius = tok.len('radius', k.radius, t.radiusMd);
+  r.paddingX = tok.len('padding-x', k.paddingX, 12);
   return r;
+}
+
+/** Field height with `--input-height[-sm|-lg]` / `tokens.height` applied. */
+export function sparkInputHeightOf(t: SparkTheme, sizing: InputSize, tokens?: InputTokens): number {
+  const key = sizing === 'sm' ? 'height-sm' : (sizing === 'lg' ? 'height-lg' : 'height');
+  return new SparkTokenReader(t, 'input').len(key, tokens?.height, sparkInputHeight(sizing));
 }
 
 /**
@@ -102,6 +150,8 @@ export struct SInput {
   @Param label: string | undefined = undefined;
   /** Extra styles applied after the recipe (wins on conflicts). */
   @Param modifier: AttributeModifier<TextInputAttribute> = new SparkNoopModifier<TextInputAttribute>();
+  /** Per-instance token overrides (instance → theme `--input-*` → recipe), see {@link InputTokens}. */
+  @Param tokens: InputTokens = {};
   @Event onValueChange: (v: string) => void = () => {
   };
   /** Enter / IME action pressed; receives the current value. */
@@ -147,7 +197,7 @@ export struct SInput {
   @Computed
   get colors(): InputColors {
     const invalid = this.invalid || (this.field !== undefined && this.field.isInvalid);
-    return sparkInputColors(this.theme, this.focused && !this.disabled, invalid);
+    return sparkInputColors(this.theme, this.focused && !this.disabled, invalid, this.tokens);
   }
 
   @Computed
@@ -166,7 +216,7 @@ export struct SInput {
 
   @Computed
   get boxHeight(): number {
-    return sparkInputHeight(this.sizing);
+    return sparkInputHeightOf(this.theme, this.sizing, this.tokens);
   }
 
   @Computed
@@ -186,12 +236,14 @@ export struct SInput {
 
   @Computed
   get paddingLeft(): number {
-    return this.icon !== undefined ? 12 + 16 + 8 : 12;
+    const px = this.colors.paddingX;
+    return this.icon !== undefined ? px + 16 + 8 : px;
   }
 
   @Computed
   get paddingRight(): number {
-    return this.hasTrailing ? 12 + this.trailingWidth + 8 : 12;
+    const px = this.colors.paddingX;
+    return this.hasTrailing ? px + this.trailingWidth + 8 : px;
   }
 
   build() {
@@ -202,18 +254,18 @@ export struct SInput {
         .height(this.boxHeight)
         .padding({ left: this.paddingLeft, right: this.paddingRight, top: 0, bottom: 0 })
         .fontSize(this.fontSize)
-        .fontColor(this.theme.colors.foreground)
-        .placeholderColor(this.theme.colors.mutedForeground)
+        .fontColor(this.colors.foreground)
+        .placeholderColor(this.colors.placeholder)
         .placeholderFont({ size: this.fontSize })
-        .caretColor(this.theme.colors.foreground)
+        .caretColor(this.colors.foreground)
         .selectedBackgroundColor(SparkColor.alpha(this.theme.colors.primary, 0.25))
         .backgroundColor(this.colors.background)
         // radius must live inside border(): a later border() without radius resets it to 0
-        .border({ width: 1, color: this.colors.borderColor, radius: this.theme.radiusMd })
+        .border({ width: this.colors.borderWidth, color: this.colors.borderColor, radius: this.colors.radius })
         .outline({
           width: this.colors.ringWidth,
           color: this.colors.ringColor,
-          radius: this.theme.radiusMd + 3,
+          radius: this.colors.radius + this.colors.ringWidth,
           style: OutlineStyle.SOLID
         })
         .maxLength(this.maxLength ?? Infinity)
@@ -272,7 +324,7 @@ export struct SInput {
         }
         .width('100%')
         .height(this.boxHeight)
-        .padding({ left: 12, right: 12 })
+        .padding({ left: this.colors.paddingX, right: this.colors.paddingX })
         .alignItems(VerticalAlign.Center)
         .hitTestBehavior(HitTestMode.Transparent)
       }

@@ -5,6 +5,8 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { sparkFocusRing, SparkNoopModifier } from '../../core/SparkModifier';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
+import { sparkVariantProp, SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { SparkShadow, SparkTheme } from '../../theme/tokens/SparkTheme';
 
 const KEY: string = 'spark.card';
@@ -15,12 +17,15 @@ export class SparkCardState {
   /** horizontal / vertical padding in vp (shadcn px-6 / py-6, 16 when the card is narrow) */
   @Trace padding: number = 24;
   @Trace width: number = 0;
-  /** `sizing: 'sm'`: always the compact 16vp padding */
+  /** `sizing: 'sm'`: always the compact padding */
   compact: boolean = false;
+  /** regular / compact padding (`--card-padding` / `--card-padding-sm`, `tokens.padding`) */
+  regularPadding: number = 24;
+  compactPadding: number = 16;
 
   update(width: number): void {
     this.width = width;
-    const p = this.compact || (width > 0 && width < 360) ? 16 : 24;
+    const p = this.compact || (width > 0 && width < 360) ? this.compactPadding : this.regularPadding;
     if (p !== this.padding) {
       this.padding = p;
     }
@@ -34,8 +39,32 @@ function resolveCard(uiContext: UIContext, id: number): SparkCardState | undefin
 export type CardVariant = 'default' | 'outline' | 'elevated' | 'ghost' | 'filled';
 export type CardSize = 'default' | 'sm';
 
+/**
+ * Per-instance token overrides of a card (ADR D13), e.g. a transparent, borderless card:
+ * `SCard({ tokens: { background: 'transparent', borderWidth: 0, shadow: 'none' } })`.
+ * Instance → theme `--card-*` → variant recipe. Colours / shadows use the theme file syntax; lengths are vp.
+ */
+export interface CardTokens {
+  background?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  radius?: number;
+  /** regular padding (narrow / `sm` cards use `--card-padding-sm`, default 16) */
+  padding?: number;
+  shadow?: string;
+  hoverShadow?: string;
+  hoverBackground?: string;
+  pressedBackground?: string;
+}
+
+const NO_CARD_TOKENS: CardTokens = {};
+
 /** Resolved surface of a card variant (normal / hover / pressed backgrounds, border, shadow). */
 export class CardStyle {
+  borderWidth: number = 1;
+  radius: number = 14;
+  padding: number = 24;
+  paddingSm: number = 16;
   background: string = '#00000000';
   hoverBackground: string = '#00000000';
   pressedBackground: string = '#00000000';
@@ -46,7 +75,40 @@ export class CardStyle {
 
 /** Card variant recipe: default (shadcn) | outline | elevated | ghost | filled. */
 export class CardVariants {
-  static resolve(t: SparkTheme, variant: CardVariant): CardStyle {
+  /** Instance `tokens` → `--card-<variant>-<prop>` (`--card-<prop>` for the default variant) → recipe. */
+  static resolve(t: SparkTheme, variant: CardVariant, tokens?: CardTokens): CardStyle {
+    const k = tokens ?? NO_CARD_TOKENS;
+    const r = new SparkTokenReader(t, 'card');
+    const vp = (p: string): string => sparkVariantProp(variant, p);
+    const s = CardVariants.recipe(t, variant);
+    const recipeBg = s.background;
+    const shadowSet = k.shadow !== undefined || r.has(vp('shadow'));
+    s.background = r.color(vp('background'), k.background, s.background);
+    s.borderColor = r.color(vp('border-color'), k.borderColor, s.borderColor);
+    s.shadow = r.shadow(vp('shadow'), k.shadow, s.shadow);
+    s.hoverShadow = r.shadow(vp('hover-shadow'), k.hoverShadow, shadowSet ? s.shadow : s.hoverShadow);
+    if (s.background !== recipeBg) {
+      CardVariants.feedback(t, s);
+    }
+    s.hoverBackground = r.color(vp('hover-background'), k.hoverBackground, s.hoverBackground);
+    s.pressedBackground = r.color(vp('pressed-background'), k.pressedBackground, s.pressedBackground);
+    s.borderWidth = r.len('border-width', k.borderWidth, t.borderWidth);
+    s.radius = r.len('radius', k.radius, t.radiusXl);
+    s.padding = r.len('padding', k.padding, 24);
+    s.paddingSm = r.len('padding-sm', undefined, Math.min(16, s.padding));
+    return s;
+  }
+
+  /** interactive feedback: an accent wash on hover, one step stronger while pressed */
+  private static feedback(t: SparkTheme, s: CardStyle): void {
+    const c = t.colors;
+    const transparent = SparkTokenOverride.isClear(s.background);
+    s.hoverBackground = transparent ? SparkColor.alpha(c.accent, 0.5) : SparkColor.mix(s.background, c.accent, 0.5);
+    s.pressedBackground = transparent ? c.accent : SparkColor.mix(s.background, c.foreground, t.isDark ? 0.08 : 0.04);
+  }
+
+  /** The plain variant recipe (no tokens). */
+  static recipe(t: SparkTheme, variant: CardVariant): CardStyle {
     const c = t.colors;
     const s = new CardStyle();
     switch (variant) {
@@ -72,10 +134,7 @@ export class CardVariants {
     if (s.hoverShadow === undefined) {
       s.hoverShadow = s.shadow;
     }
-    // interactive feedback: an accent wash on hover, one step stronger while pressed
-    const transparent = s.background === '#00000000';
-    s.hoverBackground = transparent ? SparkColor.alpha(c.accent, 0.5) : SparkColor.mix(s.background, c.accent, 0.5);
-    s.pressedBackground = transparent ? c.accent : SparkColor.mix(s.background, c.foreground, t.isDark ? 0.08 : 0.04);
+    CardVariants.feedback(t, s);
     return s;
   }
 }
@@ -86,13 +145,11 @@ export class CardVariants {
  */
 class CardStyleModifier implements AttributeModifier<ColumnAttribute> {
   style: CardStyle;
-  radius: number;
   interactive: boolean;
   hovered: boolean;
 
-  constructor(style: CardStyle, radius: number, interactive: boolean, hovered: boolean) {
+  constructor(style: CardStyle, interactive: boolean, hovered: boolean) {
     this.style = style;
-    this.radius = radius;
     this.interactive = interactive;
     this.hovered = hovered;
   }
@@ -103,7 +160,7 @@ class CardStyleModifier implements AttributeModifier<ColumnAttribute> {
     const shadow = hover ? s.hoverShadow : s.shadow;
     instance
       .backgroundColor(hover ? s.hoverBackground : s.background)
-      .border({ width: 1, color: s.borderColor, radius: this.radius })
+      .border({ width: s.borderWidth, color: s.borderColor, radius: s.radius })
       .shadow(shadow !== undefined ? shadow.toOptions() : { radius: 0, color: Color.Transparent })
       .scale({ x: 1, y: 1 })
   }
@@ -152,6 +209,8 @@ export struct SCard {
   /** Height of the media header in vp; defaults to a 16:9 box. */
   @Param imageHeight: number | undefined = undefined;
   @Param modifier: AttributeModifier<ColumnAttribute> = new SparkNoopModifier<ColumnAttribute>();
+  /** Per-instance token overrides (instance → theme `--card-*` → recipe), see {@link CardTokens}. */
+  @Param tokens: CardTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkCardState = new SparkCardState();
@@ -159,6 +218,7 @@ export struct SCard {
 
   aboutToAppear(): void {
     this.state.compact = this.sizing === 'sm';
+    this.syncPadding();
     SparkContext.provide(this.getUIContext(), this.getUniqueId(), KEY, this.state);
   }
 
@@ -173,9 +233,24 @@ export struct SCard {
   }
 
   @Computed
+  get styles(): CardStyle {
+    return CardVariants.resolve(this.theme, this.variant, this.tokens);
+  }
+
+  /** padding tokens feed the shared state the card parts (header, content, footer) read */
+  @Monitor('styles')
+  syncPadding(): void {
+    const s = this.styles;
+    if (s.padding !== this.state.regularPadding || s.paddingSm !== this.state.compactPadding) {
+      this.state.regularPadding = s.padding;
+      this.state.compactPadding = s.paddingSm;
+      this.state.update(this.state.width);
+    }
+  }
+
+  @Computed
   get recipe(): CardStyleModifier {
-    return new CardStyleModifier(CardVariants.resolve(this.theme, this.variant), this.theme.radiusXl,
-      this.interactive, this.ix.hovered);
+    return new CardStyleModifier(this.styles, this.interactive, this.ix.hovered);
   }
 
   build() {

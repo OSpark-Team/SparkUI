@@ -82,11 +82,100 @@ export function sparkSupportingWide(width: number, paneWidth: number, minMainWid
 /** The top bar condenses (smaller height, search behind an icon) below this width (vp). */
 export const TOPBAR_CONDENSED_BELOW: number = 520;
 
-export function sparkTopbarCondensed(width: number): boolean {
-  return width > 0 && width < TOPBAR_CONDENSED_BELOW;
+/** Whether the top bar condenses at `width`; `below` overrides the threshold (STopbar `condenseBelow`). */
+export function sparkTopbarCondensed(width: number, below: number = TOPBAR_CONDENSED_BELOW): boolean {
+  return width > 0 && width < below;
 }
 
 /** Top bar height without safe-area inset. */
 export function sparkTopbarHeight(condensed: boolean): number {
   return condensed ? 48 : 56;
+}
+
+// ------------------------------------------------------------------------------------------------ policies
+// Layout decisions are plain functions so apps can replace them (see docs/design/blocks-extensibility.md).
+// They receive measured container widths (never window breakpoints) and return a presentation.
+
+/**
+ * How a sidebar is presented:
+ * - 'docked': in the row, expanded or collapsed (`collapsible`)
+ * - 'rail': in the row, forced to the icon rail; the trigger opens the full sidebar as a sheet
+ * - 'sheet': out of the row; the trigger opens it as an overlay sheet
+ */
+export type SidebarPresentation = 'docked' | 'rail' | 'sheet';
+
+/** Input of a {@link SparkSidebarLayoutPolicy}. Widths in vp. */
+export interface SparkSidebarLayoutInput {
+  /** measured width of the SSidebarProvider (0 = not measured yet) */
+  containerWidth: number;
+  /** expanded sidebar width */
+  sidebarWidth: number;
+  /** width of the icon rail */
+  railWidth: number;
+  /** the main area should keep at least this width */
+  minInsetWidth: number;
+  collapsible: SidebarCollapsible;
+}
+
+/** Decides docked / rail / sheet from the measured container. Replace it to change when the sidebar moves. */
+export type SparkSidebarLayoutPolicy = (input: SparkSidebarLayoutInput) => SidebarPresentation;
+
+/** Default policy (shadcn behaviour): docked when the expanded sidebar fits next to `minInsetWidth`, else a sheet. */
+export function sparkSidebarDefaultPolicy(input: SparkSidebarLayoutInput): SidebarPresentation {
+  return sparkSidebarIsMobile(input.containerWidth, input.sidebarWidth, input.minInsetWidth, input.collapsible) ?
+    'sheet' : 'docked';
+}
+
+/**
+ * Material-style policy factory: docked when the expanded sidebar fits, an icon rail when only the rail fits
+ * next to `minRailInsetWidth` of content, a sheet below that. `collapsible: 'none'` always docks.
+ */
+export function sparkSidebarRailPolicy(minRailInsetWidth: number = 480): SparkSidebarLayoutPolicy {
+  return (input: SparkSidebarLayoutInput): SidebarPresentation => {
+    if (input.collapsible === 'none' || input.containerWidth <= 0) {
+      return 'docked';
+    }
+    if (input.containerWidth >= input.sidebarWidth + input.minInsetWidth) {
+      return 'docked';
+    }
+    return input.containerWidth >= input.railWidth + minRailInsetWidth ? 'rail' : 'sheet';
+  };
+}
+
+/**
+ * Width the sidebar occupies in the row for a presentation: 0 as a sheet, the icon rail (plus the frame for
+ * floating / inset) as a rail, {@link sparkSidebarDockWidth} when docked.
+ */
+export function sparkSidebarRowWidth(presentation: SidebarPresentation, open: boolean,
+  collapsible: SidebarCollapsible, variant: SidebarVariant, sidebarWidth: number): number {
+  if (presentation === 'sheet') {
+    return 0;
+  }
+  if (presentation === 'rail') {
+    return sparkSidebarDockWidth(false, 'icon', variant, sidebarWidth);
+  }
+  return sparkSidebarDockWidth(open, collapsible, variant, sidebarWidth);
+}
+
+/** Input of a {@link SparkSplitPolicy} (SListDetail, SSupportingPane). Widths in vp. */
+export interface SparkSplitInput {
+  /** measured container width (0 = not measured yet) */
+  containerWidth: number;
+  /** width of the fixed pane (list / supporting pane) */
+  paneWidth: number;
+  /** the other pane should keep at least this width */
+  minOtherWidth: number;
+}
+
+/** Decides whether two panes sit side by side (true) or collapse to one (false). */
+export type SparkSplitPolicy = (input: SparkSplitInput) => boolean;
+
+/** Default SListDetail policy: {@link sparkListDetailWide}. */
+export function sparkListDetailDefaultPolicy(input: SparkSplitInput): boolean {
+  return sparkListDetailWide(input.containerWidth, input.paneWidth, input.minOtherWidth);
+}
+
+/** Default SSupportingPane policy: {@link sparkSupportingWide}. */
+export function sparkSupportingDefaultPolicy(input: SparkSplitInput): boolean {
+  return sparkSupportingWide(input.containerWidth, input.paneWidth, input.minOtherWidth);
 }

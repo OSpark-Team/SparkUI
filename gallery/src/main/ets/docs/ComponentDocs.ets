@@ -4,7 +4,7 @@ import {
   SDialogHeader, SDialogTitle, SDialogTrigger, SIcon, SPopover, SPopoverContent, SPopoverTrigger, SSheet,
   SSheetContent, SSheetDescription, SSheetFooter, SSheetHeader, SSheetTitle, SSheetTrigger, SSheetClose, SheetSide,
   SparkIcons, SparkTheme, SparkUI, SparkSide, SCard, SCardHeader, SCardTitle, SCardDescription, SCardContent,
-  SCardFooter, SCardAction, SBadge
+  SCardFooter, SCardAction, SBadge, CodeHighlighter
 } from '@sparkui/core';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -176,6 +176,65 @@ const SAMPLE_CSS = `:root {
   --primary: oklch(0.922 0 0);
 }
 @size(compact) { --spacing: 0.22rem; }`;
+const SAMPLE_DIFF = `--- a/Index.ets
++++ b/Index.ets
+@@ -1,3 +1,3 @@
+ SCodeBlock({
+-  code: source, language: 'arkts'
++  code: source, language: 'arkts', highlightLines: [3]
+ })`;
+
+const SAMPLE_INI = `; gallery settings
+[server]
+host = "127.0.0.1"
+port = 5555
+verbose = true`;
+
+/** A user-defined grammar: registered by name (usable as `language: 'ini'`) and returned for `grammar:`. */
+const INI_GRAMMAR = CodeHighlighter.register({
+  name: 'ini',
+  aliases: ['conf'],
+  icon: 'settings',
+  rules: [
+    { pattern: /\s+/ },
+    { token: 'comment', pattern: /[;#][^\n]*/ },
+    { token: 'type', pattern: /\[[^\]\n]*\]/ },
+    { pattern: /([\w.-]+)([ \t]*)(=)/, captures: ['property', 'plain', 'punctuation'] },
+    { token: 'string', pattern: /"[^"\n]*"?/ },
+    { token: 'number', pattern: /\d+(?:\.\d+)?/ },
+    { token: 'keyword', words: ['true', 'false', 'on', 'off'] },
+    { pattern: /[^\s"]+/ }
+  ]
+});
+
+const INI_GRAMMAR_CODE = `const INI = CodeHighlighter.register({
+  name: 'ini',
+  aliases: ['conf'],
+  rules: [
+    { pattern: /\s+/ },
+    { token: 'comment', pattern: /[;#][^\n]*/ },
+    { token: 'type', pattern: /\[[^\]\n]*\]/ },
+    // capture groups that tile the match get one token each
+    { pattern: /([\w.-]+)([ \t]*)(=)/, captures: ['property', 'plain', 'punctuation'] },
+    { token: 'string', pattern: /"[^"\n]*"?/ },
+    { token: 'number', pattern: /\d+(?:\.\d+)?/ },
+    { token: 'keyword', words: ['true', 'false', 'on', 'off'] },
+    { pattern: /[^\s"]+/ }
+  ]
+});
+
+SCodeBlock({ code: source, grammar: INI })   // or language: 'ini' / 'conf'`;
+
+/** Derived from a built-in: extra keywords, PascalCase "type" heuristic switched off. */
+const MY_ARKTS = CodeHighlighter.extend('arkts', { name: 'arkts+', keywords: ['observe', 'emit'], exclude: ['type'] });
+
+const MY_ARKTS_CODE = `const MY_ARKTS = CodeHighlighter.extend('arkts', {
+  name: 'arkts+',
+  keywords: ['observe', 'emit'],
+  exclude: ['type']
+});
+
+observe Counter(() => emit('changed'))`;
 
 const SAMPLE_JSON = `{
   "root": { "--primary": "#171717", "--radius": "0.5rem" },
@@ -189,7 +248,8 @@ export struct CodeDoc {
     Column({ space: 16 }) {
       DocHeader({
         title: 'Code Block',
-        lead: 'Highlighted code with line numbers and a copy button. Languages: ArkTS / TypeScript, CSS, JSON, Bash.'
+        lead: 'Highlighted code with line numbers, highlighted lines and a copy button. Built-in languages: ' +
+          'ArkTS / TypeScript, CSS, JSON, Bash, HTML / XML, Python, Diff — and your own grammars.'
       })
       SCodeBlock({ code: `SCodeBlock({ code: source, language: 'arkts', title: 'ClickCounter.ets' })`, language: 'arkts',
         showLineNumbers: false })
@@ -202,6 +262,18 @@ export struct CodeDoc {
       DocSection({ title: 'Shell' })
       SCodeBlock({ code: '# build and run on a device\ndevecocli run --module gallery --device 127.0.0.1:5555',
         language: 'bash', showLineNumbers: false })
+      DocSection({ title: 'Highlighted lines', description: 'highlightLines takes line numbers as displayed.' })
+      SCodeBlock({ code: SAMPLE_TS, language: 'arkts', title: 'ClickCounter.ets', highlightLines: [3, 6] })
+      DocSection({ title: 'Diff' })
+      SCodeBlock({ code: SAMPLE_DIFF, language: 'diff', showLineNumbers: false })
+      DocSection({
+        title: 'Custom grammar',
+        description: 'Ordered regex rules → token types. Register by name, or pass the grammar object directly.'
+      })
+      SCodeBlock({ code: SAMPLE_INI, grammar: INI_GRAMMAR, title: 'app.ini' })
+      SCodeBlock({ code: INI_GRAMMAR_CODE, language: 'arkts', title: 'Register a grammar' })
+      DocSection({ title: 'Extend a built-in', description: 'CodeHighlighter.extend(base, { keywords, before, after, exclude })' })
+      SCodeBlock({ code: MY_ARKTS_CODE, grammar: MY_ARKTS, highlightLines: [6] })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

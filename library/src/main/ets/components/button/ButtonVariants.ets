@@ -1,4 +1,6 @@
 import { SparkColor } from '../../theme/color/SparkColor';
+import { sparkVariantProp, SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import { SparkTokenReader } from '../../theme/tokens/SparkTokenReader';
 import { SparkShadow, SparkTheme } from '../../theme/tokens/SparkTheme';
 
 export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -27,7 +29,34 @@ export class ButtonStyle {
   underlineOnHover: boolean = false;
   /** icon button: width = height */
   square: boolean = false;
+  /** scale while pressed (`--button-pressed-scale`) */
+  pressedScale: number = 0.97;
 }
+
+/**
+ * Per-instance token overrides of a button (ADR D13): `SButton({ text: 'Go', tokens: { radius: 999 } })`.
+ * They win over the theme's `--button-*` tokens, which win over the variant recipe. Colours / shadows use the
+ * theme file syntax (`transparent`, `#0ea5e9`, `oklch(0.6 0.2 250 / 50%)`, `none`); lengths are vp.
+ */
+export interface ButtonTokens {
+  background?: string;
+  foreground?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  hoverBackground?: string;
+  pressedBackground?: string;
+  radius?: number;
+  height?: number;
+  paddingX?: number;
+  gap?: number;
+  fontSize?: number;
+  fontWeight?: number;
+  iconSize?: number;
+  shadow?: string;
+  pressedScale?: number;
+}
+
+const NO_BUTTON_TOKENS: ButtonTokens = {};
 
 /**
  * Button variant recipe (the cva equivalent), 1:1 with shadcn-vue's `buttonVariants`.
@@ -35,7 +64,47 @@ export class ButtonStyle {
  * (Pagination links, AlertDialog actions …).
  */
 export class ButtonVariants {
-  static resolve(t: SparkTheme, variant: ButtonVariant, size: ButtonSize): ButtonStyle {
+  /**
+   * Resolution order per property: `tokens` (instance) → `--button-<variant>-<prop>` → `--button-<prop>` →
+   * global (`--border-width`) → shadcn recipe. With no tokens set the result is exactly the shadcn recipe.
+   */
+  static resolve(t: SparkTheme, variant: ButtonVariant, size: ButtonSize, tokens?: ButtonTokens): ButtonStyle {
+    const s = ButtonVariants.recipe(t, variant, size);
+    const k = tokens ?? NO_BUTTON_TOKENS;
+    const r = new SparkTokenReader(t, 'button');
+    const vp = (p: string): string => sparkVariantProp(variant, p);
+    const both = (p: string): string[] => variant === 'default' ? [p] : [vp(p), p];
+    const recipeBg = s.background;
+    s.background = r.color(vp('background'), k.background, s.background);
+    s.foreground = r.color(vp('foreground'), k.foreground, s.foreground);
+    if (s.background !== recipeBg) {
+      // a re-coloured surface derives its hover / pressed steps from the new colour
+      const clear = SparkTokenOverride.isClear(s.background);
+      s.hoverBackground = clear ? SparkColor.alpha(s.foreground, 0.08) : SparkColor.alpha(s.background, 0.9);
+      s.pressedBackground = clear ? SparkColor.alpha(s.foreground, 0.14) : SparkColor.alpha(s.background, 0.8);
+    }
+    s.hoverBackground = r.color(vp('hover-background'), k.hoverBackground, s.hoverBackground);
+    s.pressedBackground = r.color(vp('pressed-background'), k.pressedBackground, s.pressedBackground);
+    s.borderColor = r.color(vp('border-color'), k.borderColor, s.borderColor);
+    const bordered = s.borderWidth > 0 || !SparkTokenOverride.isClear(s.borderColor);
+    s.borderWidth = r.len(both('border-width'), k.borderWidth, bordered ? t.borderWidth : 0);
+    s.shadow = r.shadow(s.shadow !== undefined ? both('shadow') : [vp('shadow')], k.shadow, s.shadow);
+    s.radius = r.len('radius', k.radius, s.radius);
+    const sizeKey = size === 'sm' || size === 'icon-sm' ? '-sm' : (size === 'lg' || size === 'icon-lg' ? '-lg' : '');
+    s.height = r.len('height' + sizeKey, k.height, s.height);
+    if (!s.square) {
+      s.paddingX = r.len('padding-x' + sizeKey, k.paddingX, s.paddingX);
+    }
+    s.gap = r.len('gap', k.gap, s.gap);
+    s.fontSize = r.len('font-size', k.fontSize, s.fontSize);
+    s.fontWeight = r.num('font-weight', k.fontWeight, s.fontWeight);
+    s.iconSize = r.len('icon-size', k.iconSize, s.iconSize);
+    s.pressedScale = r.num('pressed-scale', k.pressedScale, s.pressedScale);
+    return s;
+  }
+
+  /** The plain shadcn-vue recipe (no tokens). */
+  static recipe(t: SparkTheme, variant: ButtonVariant, size: ButtonSize): ButtonStyle {
     const c = t.colors;
     const s = new ButtonStyle();
     s.radius = t.radiusMd;
@@ -55,7 +124,7 @@ export class ButtonVariants {
         s.pressedBackground = t.isDark ? SparkColor.alpha(c.input, 0.7) : SparkColor.mix(c.accent, c.foreground, 0.06);
         s.foreground = c.foreground;
         s.borderColor = t.isDark ? c.input : c.border;
-        s.borderWidth = 1;
+        s.borderWidth = t.borderWidth;
         s.shadow = t.shadows.xs;
         break;
       case 'secondary':
@@ -110,6 +179,7 @@ export class ButtonVariants {
     }
     if (s.square) {
       s.paddingX = 0;
+      s.pressedScale = 0.94;
     }
     return s;
   }

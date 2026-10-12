@@ -6,7 +6,10 @@ import { SIcon } from '../../icons/SIcon';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { sparkGutter } from '../../layout/SparkLayouts';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { SidebarCollapsible, SidebarSide, SidebarVariant } from '../BlocksLogic';
+import {
+  SIDEBAR_WIDTH, SidebarCollapsible, SidebarPresentation, SidebarSide, SidebarVariant, sparkSidebarDefaultPolicy,
+  SparkSidebarLayoutInput, SparkSidebarLayoutPolicy
+} from '../BlocksLogic';
 import {
   resolveSparkSidebar, SparkSidebarState, SSidebar, SSidebarContent, SSidebarFooter, SSidebarGroup,
   SSidebarGroupLabel, SSidebarHeader, SSidebarInset, SSidebarMenu, SSidebarMenuButton, SSidebarMenuItem,
@@ -21,12 +24,14 @@ export class SparkShellNavItem {
   /** lucide icon name */
   icon: string;
   badge: string | undefined;
+  disabled: boolean;
 
-  constructor(id: string, title: string, icon: string, badge?: string) {
+  constructor(id: string, title: string, icon: string, badge?: string, disabled?: boolean) {
     this.id = id;
     this.title = title;
     this.icon = icon;
     this.badge = badge;
+    this.disabled = disabled ?? false;
   }
 }
 
@@ -66,6 +71,18 @@ export function sparkShellNavTitle(nav: SparkShellNavGroup[], id: string): strin
   return '';
 }
 
+/** Title of the group containing the nav item `id` ('' when not found). */
+export function sparkShellNavGroupTitle(nav: SparkShellNavGroup[], id: string): string {
+  for (const g of nav) {
+    for (const i of g.items) {
+      if (i.id === id) {
+        return g.title;
+      }
+    }
+  }
+  return '';
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(' ').filter((p: string) => p.length > 0);
   if (parts.length === 0) {
@@ -74,6 +91,30 @@ function initials(name: string): string {
   const a = parts[0].charAt(0);
   const b = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
   return (a + b).toUpperCase();
+}
+
+/**
+ * Default `navItemBuilder` of SAppShell: an SSidebarMenuButton bound to the item id. Write your own with the
+ * same signature (a global `@Builder`, or an arrow that calls a `@LocalBuilder`) to render items differently;
+ * SSidebarMenuButton's trailing slot, `isActive` and `sparkSidebarInSheet` cover most needs.
+ */
+@Builder
+export function sparkShellNavItemBuilder(item: SparkShellNavItem) {
+  SSidebarMenuButton({
+    value: item.id,
+    icon: item.icon,
+    text: item.title,
+    badge: item.badge,
+    disabled: item.disabled
+  })
+}
+
+/** Default `navGroupLabelBuilder` of SAppShell: an SSidebarGroupLabel (nothing for an empty title). */
+@Builder
+export function sparkShellNavGroupLabelBuilder(group: SparkShellNavGroup) {
+  if (group.title.length > 0) {
+    SSidebarGroupLabel({ text: group.title })
+  }
 }
 
 @ComponentV2
@@ -148,7 +189,7 @@ struct ShellUser {
   }
 }
 
-/** Main column of the shell: top bar + scrolling content (+ footer), safe-area aware. */
+/** Main column of the shell: top bar + header slot + content (scrolling or fixed) + footer, safe-area aware. */
 @ComponentV2
 struct AppShellMain {
   @Param title: ResourceStr = '';
@@ -162,12 +203,19 @@ struct AppShellMain {
   };
   @Event onSearchChange: (value: string) => void = () => {
   };
+  @Param showTopbar: boolean = true;
   @Param translucent: boolean = true;
   @Param safeArea: boolean = true;
+  @Param scrollable: boolean = true;
   @Param footerText: ResourceStr | undefined = undefined;
   @Param maxContentWidth: number = 1200;
   /** scrolls back to the top when it changes (the active page) */
   @Param pageKey: string = '';
+  @BuilderParam topbarLeadingBuilder: () => void = sparkEmptyBuilder;
+  @BuilderParam topbarTitleBuilder: () => void = sparkEmptyBuilder;
+  @BuilderParam topbarActionsBuilder: () => void = sparkEmptyBuilder;
+  @BuilderParam headerBuilder: () => void = sparkEmptyBuilder;
+  @BuilderParam footerBuilder: () => void = sparkEmptyBuilder;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -188,7 +236,9 @@ struct AppShellMain {
 
   @Monitor('pageKey')
   onPageChange(): void {
-    this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+    if (this.scrollable) {
+      this.scroller.scrollTo({ xOffset: 0, yOffset: 0 });
+    }
   }
 
   @Computed
@@ -199,20 +249,53 @@ struct AppShellMain {
     return this.layout.env.safeArea.bottom;
   }
 
+  /** The top bar floats over scrolling content (translucent) only in the scrolling layout. */
+  @Computed
+  get overlayBar(): boolean {
+    return this.showTopbar && this.translucent && this.scrollable;
+  }
+
   @Builder
   topbar() {
-    STopbar({
-      title: this.title,
-      subtitle: this.subtitle,
-      actions: this.actions,
-      onAction: (id: string) => this.onAction(id),
-      search: this.search,
-      searchPlaceholder: this.searchPlaceholder,
-      onSearch: (v: string) => this.onSearch(v),
-      onSearchChange: (v: string) => this.onSearchChange(v),
-      translucent: this.translucent,
-      safeArea: this.safeArea
-    })
+    if (this.showTopbar) {
+      STopbar({
+        title: this.title,
+        subtitle: this.subtitle,
+        actions: this.actions,
+        onAction: (id: string) => this.onAction(id),
+        search: this.search,
+        searchPlaceholder: this.searchPlaceholder,
+        onSearch: (v: string) => this.onSearch(v),
+        onSearchChange: (v: string) => this.onSearchChange(v),
+        translucent: this.translucent,
+        safeArea: this.safeArea,
+        leadingBuilder: (): void => {
+          this.topbarLeadingBuilder()
+        },
+        titleBuilder: (): void => {
+          this.topbarTitleBuilder()
+        },
+        // named, not a trailing closure: ArkTS rejects a trailing closure when other slots are passed
+        content: (): void => {
+          this.topbarActionsBuilder()
+        }
+      })
+    }
+    this.headerBuilder()
+  }
+
+  @Builder
+  footer() {
+    if (this.footerText !== undefined) {
+      Text(this.footerText)
+        .width('100%')
+        .padding(16)
+        .textAlign(TextAlign.Center)
+        .fontSize(this.theme.text.xs)
+        .fontColor(this.theme.colors.mutedForeground)
+        .border({ width: { top: 1 }, color: this.theme.colors.border })
+    }
+    this.footerBuilder()
   }
 
   @Builder
@@ -232,19 +315,11 @@ struct AppShellMain {
           bottom: sparkGutter(this.measuredWidth) * 2
         })
 
-        if (this.footerText !== undefined) {
-          Text(this.footerText)
-            .width('100%')
-            .padding(16)
-            .textAlign(TextAlign.Center)
-            .fontSize(this.theme.text.xs)
-            .fontColor(this.theme.colors.mutedForeground)
-            .border({ width: { top: 1 }, color: this.theme.colors.border })
-        }
+        this.footer()
       }
       .width('100%')
       .alignItems(HorizontalAlign.Center)
-      .padding({ top: this.translucent ? this.barHeight : 0, bottom: this.bottomInset })
+      .padding({ top: this.overlayBar ? this.barHeight : 0, bottom: this.bottomInset })
     }
     .width('100%')
     .height('100%')
@@ -256,7 +331,7 @@ struct AppShellMain {
   }
 
   build() {
-    if (this.translucent) {
+    if (this.overlayBar) {
       // content scrolls underneath the translucent, blurred bar
       Stack({ alignContent: Alignment.Top }) {
         this.body()
@@ -274,10 +349,23 @@ struct AppShellMain {
       Column() {
         this.topbar()
         Column() {
-          this.body()
+          if (this.scrollable) {
+            this.body()
+          } else {
+            // the page manages its own scrolling / panes (SListDetail, maps, editors…)
+            this.content()
+          }
         }
         .width('100%')
         .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        if (!this.scrollable) {
+          this.footer()
+          Column()
+            .width('100%')
+            .height(this.bottomInset)
+        }
       }
       .width('100%')
       .height('100%')
@@ -286,22 +374,32 @@ struct AppShellMain {
 }
 
 /**
- * Ready-made application shell (the SparkUI gallery's own layout as a block): a data-driven sidebar
- * (brand, grouped nav with icons / badges, user footer), a top bar (sidebar trigger, title of the active
- * page, search, actions) and the scrolling page content, with an optional footer line.
+ * Ready-made application shell, and a thin data-driven layer over SSidebarProvider / SSidebar /
+ * SSidebarInset / STopbar: a sidebar (brand, grouped nav, user footer), a top bar (sidebar trigger, title of
+ * the active page, search, actions) and the page content, with an optional footer.
  *
- * Breakpoint-free: the sidebar docks when there is room and becomes a sheet otherwise; with
- * `collapsible: 'icon'` the trigger folds it to an icon rail (animated width, motion key 'sidebar').
+ * Breakpoint-free: `layoutPolicy` decides from the shell's own width whether the sidebar is docked, an icon
+ * rail or a sheet (default: docked when it fits, else a sheet; `sparkSidebarRailPolicy()` adds a rail step).
  * Immersive-ready (`safeArea`, default on): the sidebar, top bar and content pad the window insets themselves
  * (ADR D10 — expandSafeArea cannot cross custom components).
  *
  * ```
  * SAppShell({ brand: 'Acme Inc', nav: NAV, value: this.page!!, user: ME,
- *   actions: [new SparkTopbarAction('theme', 'moon', 'Toggle theme')], onAction: (id: string) => ... }) {
+ *   onNavigate: (id: string) => router.go(id) }) {      // every activation; no routing built in
  *   PageContent({ page: this.page })      // scrolls; padded and centred up to maxContentWidth
  * }
+ * // with slots: ArkTS forbids a trailing closure next to other  args, so pass `content` by name
+ * SAppShell({ nav: NAV, value: this.page!!, topbarActionsBuilder: this.themeToggle, content: this.page })
+ * // (this.themeToggle / this.page being @LocalBuilder methods)
  * ```
- * For anything custom, compose SSidebarProvider / SSidebar / SSidebarInset / STopbar directly.
+ * Extension points (docs/design/blocks-extensibility.md): `controller` (own the SparkSidebarState),
+ * `layoutPolicy`, every state change as an event, slots for each region (`titleBarBuilder`,
+ * `sidebarHeaderBuilder`, `sidebarContentBuilder`, `sidebarFooterBuilder`, `navItemBuilder`,
+ * `navGroupLabelBuilder`, `topbarLeadingBuilder`, `topbarTitleBuilder`, `topbarActionsBuilder`,
+ * `headerBuilder`, `footerBuilder`), `showTopbar` / `scrollable` to opt out of the built-in bar and scroller.
+ * Slots are additive to the data props (leave `brand` / `user` / `nav` empty to replace them). Pass slots as
+ * global `@Builder`s, `@LocalBuilder`s or arrows, so `this` stays your component.
+ * For anything further, compose SSidebarProvider / SSidebar / SSidebarInset / STopbar directly.
  */
 @ComponentV2
 export struct SAppShell {
@@ -309,12 +407,17 @@ export struct SAppShell {
   @Param brandIcon: string = 'sparkles';
   @Param brandDetail: ResourceStr | undefined = undefined;
   @Param nav: SparkShellNavGroup[] = [];
+  /** your own sidebar state object (headless control); one is created when omitted */
+  @Param controller: SparkSidebarState | undefined = undefined;
   /** active nav item id */
   @Param value: string | undefined = undefined;
   @Event $value: (value: string) => void = () => {
   };
   @Param defaultValue: string = '';
   @Event onValueChange: (value: string) => void = () => {
+  };
+  /** every activation of a nav item, even the current one (router hook) */
+  @Event onNavigate: (value: string) => void = () => {
   };
   /** top bar title (default: the active nav item's title) */
   @Param title: ResourceStr | undefined = undefined;
@@ -333,30 +436,66 @@ export struct SAppShell {
   @Param variant: SidebarVariant = 'sidebar';
   @Param collapsible: SidebarCollapsible = 'icon';
   @Param side: SidebarSide = 'left';
+  @Param sidebarWidth: number = SIDEBAR_WIDTH;
+  /** input of `layoutPolicy`: the content area should keep at least this width (vp) */
+  @Param minInsetWidth: number = 360;
+  @Param closeOnSelect: boolean = true;
+  @Param motionKey: string = 'sidebar';
+  @Event layoutPolicy: SparkSidebarLayoutPolicy = sparkSidebarDefaultPolicy;
+  @Event onPresentationChange: (presentation: SidebarPresentation) => void = () => {
+  };
+  @Event onOpenMobileChange: (open: boolean) => void = () => {
+  };
   @Param open: boolean | undefined = undefined;
   @Event $open: (open: boolean) => void = () => {
   };
+  /** initial docked state; feed a persisted value here and save it in `onOpenChange` */
   @Param defaultOpen: boolean = true;
   @Event onOpenChange: (open: boolean) => void = () => {
   };
+  /** show the built-in top bar (false: bring your own via `headerBuilder` or the content) */
+  @Param showTopbar: boolean = true;
   /** translucent top bar with content scrolling underneath */
   @Param topbarBlur: boolean = true;
+  /** wrap the content in the padded, centred scroller (false: the content fills the area as is) */
+  @Param scrollable: boolean = true;
   /** pad the window safe area (immersive pages) */
   @Param safeArea: boolean = true;
   /** max width of the page content (0 = unlimited) */
   @Param maxContentWidth: number = 1200;
+  /** region above the whole shell, e.g. an STitleBar for free-form windows */
+  @BuilderParam titleBarBuilder: () => void = sparkEmptyBuilder;
+  /** under the brand in the sidebar header (team switcher, search…) */
+  @BuilderParam sidebarHeaderBuilder: () => void = sparkEmptyBuilder;
+  /** after the nav groups in the scrolling sidebar content */
+  @BuilderParam sidebarContentBuilder: () => void = sparkEmptyBuilder;
+  /** under the user in the sidebar footer */
+  @BuilderParam sidebarFooterBuilder: () => void = sparkEmptyBuilder;
+  /** renders one nav item (default: sparkShellNavItemBuilder) */
+  @BuilderParam navItemBuilder: (item: SparkShellNavItem) => void = sparkShellNavItemBuilder;
+  /** renders a group's label (default: sparkShellNavGroupLabelBuilder) */
+  @BuilderParam navGroupLabelBuilder: (group: SparkShellNavGroup) => void = sparkShellNavGroupLabelBuilder;
+  @BuilderParam topbarLeadingBuilder: () => void = sparkEmptyBuilder;
+  @BuilderParam topbarTitleBuilder: () => void = sparkEmptyBuilder;
+  /** trailing top bar content (after `actions`) */
+  @BuilderParam topbarActionsBuilder: () => void = sparkEmptyBuilder;
+  /** under the top bar, above the content (tabs, filters…; also a custom bar with `showTopbar: false`) */
+  @BuilderParam headerBuilder: () => void = sparkEmptyBuilder;
+  /** after the content (after `footerText`) */
+  @BuilderParam footerBuilder: () => void = sparkEmptyBuilder;
   @BuilderParam content: () => void = sparkEmptyBuilder;
-  @Local current: string = '';
+  @Local own: SparkSidebarState = new SparkSidebarState();
 
   aboutToAppear(): void {
-    this.current = this.value ?? this.defaultValue;
+    if (this.controller === undefined) {
+      this.own.open = this.open ?? this.defaultOpen;
+      this.own.value = this.value ?? this.defaultValue;
+    }
   }
 
-  @Monitor('value')
-  syncValue(): void {
-    if (this.value !== undefined) {
-      this.current = this.value;
-    }
+  /** The sidebar controller in use (yours or the shell's own). */
+  get sidebar(): SparkSidebarState {
+    return this.controller ?? this.own;
   }
 
   @Computed
@@ -364,77 +503,115 @@ export struct SAppShell {
     if (this.title !== undefined) {
       return this.title;
     }
-    return sparkShellNavTitle(this.nav, this.current);
+    return sparkShellNavTitle(this.nav, this.sidebar.value);
   }
 
-  private select(v: string): void {
-    if (this.value === undefined) {
-      this.current = v;
-    }
-    this.$value(v);
-    this.onValueChange(v);
+  @Computed
+  get brandShown(): boolean {
+    return typeof this.brand !== 'string' || this.brand.length > 0;
   }
 
   build() {
-    SSidebarProvider({
-      variant: this.variant,
-      collapsible: this.collapsible,
-      side: this.side,
-      open: this.open,
-      defaultOpen: this.defaultOpen,
-      onOpenChange: (o: boolean) => {
-        this.$open(o);
-        this.onOpenChange(o);
-      },
-      value: this.current,
-      onValueChange: (v: string) => this.select(v),
-      safeArea: this.safeArea
-    }) {
-      SSidebar() {
-        SSidebarHeader() {
-          ShellBrand({ brand: this.brand, brandIcon: this.brandIcon, brandDetail: this.brandDetail })
-        }
-        SSidebarContent() {
-          ForEach(this.nav, (g: SparkShellNavGroup) => {
-            SSidebarGroup() {
-              if (g.title.length > 0) {
-                SSidebarGroupLabel({ text: g.title })
+    Column() {
+      this.titleBarBuilder()
+      Column() {
+        SSidebarProvider({
+          controller: this.sidebar,
+          variant: this.variant,
+          collapsible: this.collapsible,
+          side: this.side,
+          sidebarWidth: this.sidebarWidth,
+          minInsetWidth: this.minInsetWidth,
+          closeOnSelect: this.closeOnSelect,
+          motionKey: this.motionKey,
+          layoutPolicy: (i: SparkSidebarLayoutInput): SidebarPresentation => this.layoutPolicy(i),
+          onPresentationChange: (p: SidebarPresentation) => this.onPresentationChange(p),
+          onOpenMobileChange: (o: boolean) => this.onOpenMobileChange(o),
+          open: this.open,
+          onOpenChange: (o: boolean) => {
+            this.$open(o);
+            this.onOpenChange(o);
+          },
+          value: this.value,
+          onValueChange: (v: string) => {
+            this.$value(v);
+            this.onValueChange(v);
+          },
+          onNavigate: (v: string) => this.onNavigate(v),
+          safeArea: this.safeArea
+        }) {
+          SSidebar() {
+            SSidebarHeader() {
+              if (this.brandShown) {
+                ShellBrand({ brand: this.brand, brandIcon: this.brandIcon, brandDetail: this.brandDetail })
               }
-              SSidebarMenu() {
-                ForEach(g.items, (item: SparkShellNavItem) => {
-                  SSidebarMenuItem() {
-                    SSidebarMenuButton({ value: item.id, icon: item.icon, text: item.title, badge: item.badge })
-                  }
-                }, (item: SparkShellNavItem) => item.id)
-              }
+              this.sidebarHeaderBuilder()
             }
-          }, (g: SparkShellNavGroup, i: number) => `${i}:${g.title}`)
-        }
-        if (this.user !== undefined) {
-          SSidebarFooter() {
-            ShellUser({ user: this.user })
+            SSidebarContent() {
+              ForEach(this.nav, (g: SparkShellNavGroup) => {
+                SSidebarGroup() {
+                  this.navGroupLabelBuilder(g)
+                  SSidebarMenu() {
+                    ForEach(g.items, (item: SparkShellNavItem) => {
+                      SSidebarMenuItem() {
+                        this.navItemBuilder(item)
+                      }
+                    }, (item: SparkShellNavItem) => item.id)
+                  }
+                }
+              }, (g: SparkShellNavGroup, i: number) => `${i}:${g.title}`)
+              this.sidebarContentBuilder()
+            }
+            SSidebarFooter() {
+              if (this.user !== undefined) {
+                ShellUser({ user: this.user })
+              }
+              this.sidebarFooterBuilder()
+            }
+          }
+          SSidebarInset() {
+            AppShellMain({
+              title: this.resolvedTitle,
+              subtitle: this.subtitle,
+              actions: this.actions,
+              onAction: (id: string) => this.onAction(id),
+              search: this.search,
+              searchPlaceholder: this.searchPlaceholder,
+              onSearch: (v: string) => this.onSearch(v),
+              onSearchChange: (v: string) => this.onSearchChange(v),
+              showTopbar: this.showTopbar,
+              translucent: this.topbarBlur,
+              scrollable: this.scrollable,
+              safeArea: this.safeArea,
+              footerText: this.footerText,
+              maxContentWidth: this.maxContentWidth,
+              pageKey: this.sidebar.value,
+              topbarLeadingBuilder: (): void => {
+                this.topbarLeadingBuilder()
+              },
+              topbarTitleBuilder: (): void => {
+                this.topbarTitleBuilder()
+              },
+              topbarActionsBuilder: (): void => {
+                this.topbarActionsBuilder()
+              },
+              headerBuilder: (): void => {
+                this.headerBuilder()
+              },
+              footerBuilder: (): void => {
+                this.footerBuilder()
+              },
+              content: (): void => {
+                this.content()
+              }
+            })
           }
         }
       }
-      SSidebarInset() {
-        AppShellMain({
-          title: this.resolvedTitle,
-          subtitle: this.subtitle,
-          actions: this.actions,
-          onAction: (id: string) => this.onAction(id),
-          search: this.search,
-          searchPlaceholder: this.searchPlaceholder,
-          onSearch: (v: string) => this.onSearch(v),
-          onSearchChange: (v: string) => this.onSearchChange(v),
-          translucent: this.topbarBlur,
-          safeArea: this.safeArea,
-          footerText: this.footerText,
-          maxContentWidth: this.maxContentWidth,
-          pageKey: this.current
-        }) {
-          this.content()
-        }
-      }
+      .width('100%')
+      .layoutWeight(1)
     }
+    .width('100%')
+    .height('100%')
   }
 }
