@@ -265,6 +265,14 @@ export struct SelectDoc {
 
 // ------------------------------------------------------------------------------------------------ Toast
 
+const TOAST_DURATION_CODE = `SparkToast.show('Gone in 2 seconds', { duration: 2000 })
+SparkToast.info('Stays for 10 seconds', undefined, 10000)
+SparkToast.warning('Pinned', 'Swipe it sideways to dismiss.', 0)   // 0 = until dismissed
+SparkToast.dismissAll()
+
+// app-wide defaults
+SparkToast.configure({ duration: 6000, max: 4 })`;
+
 const TOAST_CODE = `SparkToast.show('Event has been created', {
   description: 'Sunday, December 03, 2023 at 9:00 AM',
   action: new SparkToastAction('Undo', () => this.undo())
@@ -305,6 +313,20 @@ export struct ToastDoc {
         }
       }
       Text(`undo pressed: ${this.undone}`).fontSize(this.theme.text.xs).fontColor(this.theme.colors.mutedForeground)
+
+      DocSection({ title: 'Duration', description: 'Each toast auto-dismisses after its duration (default 4 s). ' +
+        'Pass duration: 0 to keep it until it is swiped away or dismissed; SparkToast.configure() sets the defaults.' })
+      DemoBlock({ code: TOAST_DURATION_CODE }) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, space: space8 }) {
+          SButton({ text: '2 s', variant: 'outline' })
+            .onClick(() => SparkToast.show('Gone in 2 seconds', { duration: 2000 }))
+          SButton({ text: '10 s', variant: 'outline' })
+            .onClick(() => SparkToast.info('Stays for 10 seconds', undefined, 10000))
+          SButton({ text: 'Until dismissed', variant: 'outline' })
+            .onClick(() => SparkToast.warning('Pinned', 'Swipe it sideways to dismiss.', 0))
+          SButton({ text: 'Dismiss all', variant: 'ghost' }).onClick(() => SparkToast.dismissAll())
+        }
+      }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

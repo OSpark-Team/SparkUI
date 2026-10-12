@@ -202,7 +202,7 @@ export struct SparkOverlayHost {
     }
     .width(this.scope.contentSized ? 'auto' : '100%')
     .height(this.scope.contentSized ? 'auto' : '100%')
-    .padding({ bottom: this.anchored ? 0 : this.layout.env.keyboardHeight })
+    .padding({ bottom: this.anchored || this.scope.contentSized ? 0 : this.layout.env.keyboardHeight })
     .hitTestBehavior(this.scope.passThrough ? HitTestMode.Transparent : HitTestMode.Default)
     .onAreaChange((_: Area, n: Area) => {
       this.hostX = Number(n.globalPosition.x ?? 0);

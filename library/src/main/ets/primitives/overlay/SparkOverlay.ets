@@ -43,6 +43,10 @@ export class SparkOverlayScope {
    * inside its frame — docs "弹出框蒙层控制"). True for toasts and pass-through anchored layers; such a
    * layer is positioned by the dialog's alignment / offset instead of inside a full-window host.
    */
+  /** initial dialog offset of a content-sized toast layer (vp, from its alignment point) */
+  offsetX: number = 0;
+  offsetY: number = 0;
+
   get contentSized(): boolean {
     return this.presentation === 'toast' || (this.passThrough && this.presentation === 'anchored');
   }
@@ -120,17 +124,19 @@ export class SparkOverlayService {
     return e !== undefined && !e.closing;
   }
 
-  /** Move a content-sized layer: dialog offset from the TopStart alignment point (vp). */
-  static moveTo(scope: SparkOverlayScope, dx: number, dy: number): void {
+  /** Move a content-sized layer: dialog offset from its alignment point (vp). Resolves once applied. */
+  static moveTo(scope: SparkOverlayScope, dx: number, dy: number): Promise<void> {
     const e = SparkOverlayService.entries.get(scope.id);
     if (e === undefined) {
-      return;
+      return Promise.resolve();
     }
     try {
-      e.uiContext.getPromptAction().updateCustomDialog(e.content, { offset: { dx: dx, dy: dy } }).catch(() => {
-      });
+      return e.uiContext.getPromptAction().updateCustomDialog(e.content, { offset: { dx: dx, dy: dy } })
+        .catch(() => {
+        });
     } catch (err) {
       // layer already gone
+      return Promise.resolve();
     }
   }
 
@@ -157,7 +163,8 @@ export class SparkOverlayService {
       alignment: scope.presentation === 'toast' ?
         (scope.layout.env.windowWidthClass === 'compact' ? DialogAlignment.Bottom : DialogAlignment.BottomEnd) :
         DialogAlignment.TopStart,
-      offset: scope.contentSized && scope.presentation === 'anchored' ? { dx: 0, dy: -10000 } : { dx: 0, dy: 0 },
+      offset: scope.contentSized && scope.presentation === 'anchored' ? { dx: 0, dy: -10000 } :
+        { dx: scope.offsetX, dy: scope.offsetY },
       transition: TransitionEffect.IDENTITY,
       keyboardAvoidMode: KeyboardAvoidMode.NONE,
       levelOrder: LevelOrder.clamp(order),

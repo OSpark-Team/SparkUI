@@ -91,7 +91,7 @@ export {
   SparkSelectOption, SparkSelectState
 } from './src/main/ets/components/select/SSelect';
 export {
-  SparkToast, SparkToaster, SparkToastItem, SparkToastAction, SparkToastOptions, SparkToastVariant, SToastStack, toast
+  SparkToast, SparkToaster, SparkToastItem, SparkToastAction, SparkToastOptions, SparkToastVariant, SparkToasterOptions, SToastSlot, toast
 } from './src/main/ets/components/toast/SparkToast';
 
 // forms

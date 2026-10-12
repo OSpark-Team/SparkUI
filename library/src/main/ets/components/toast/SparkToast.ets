@@ -1,3 +1,5 @@
+import { SparkAnim } from '../../core/SparkAnim';
+import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
@@ -6,9 +8,13 @@ import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { SButton } from '../button/SButton';
 import { SSpinner } from '../spinner/SSpinner';
-import { SparkAnim } from '../../core/SparkAnim';
 
 export type SparkToastVariant = 'default' | 'success' | 'error' | 'warning' | 'info' | 'loading';
+
+const ITEM_KEY: string = 'spark.toast.item';
+/** gap between toasts / distance from the window edge (vp) */
+const GAP: number = 8;
+const EDGE: number = 16;
 
 export class SparkToastAction {
   label: string;
@@ -23,9 +29,17 @@ export class SparkToastAction {
 export interface SparkToastOptions {
   description?: string;
   variant?: SparkToastVariant;
-  /** ms; 0 = stay until dismissed */
+  /** Auto-dismiss after this many ms; 0 = stay until dismissed. Default: `SparkToast.configure({ duration })`. */
   duration?: number;
   action?: SparkToastAction;
+}
+
+/** Toaster-wide settings (`SparkToast.configure`). */
+export interface SparkToasterOptions {
+  /** default auto-dismiss time in ms (default 4000); loading toasts never auto-dismiss */
+  duration?: number;
+  /** most toasts on screen; the oldest is dismissed when exceeded (default 5) */
+  max?: number;
 }
 
 @ObservedV2
@@ -36,48 +50,69 @@ export class SparkToastItem {
   @Trace variant: SparkToastVariant;
   @Trace action: SparkToastAction | undefined;
   @Trace dragX: number = 0;
-  /** measured card height (vp), for stacking */
-  @Trace height: number = 0;
+  /** FLIP offset while the toast's layer is re-positioned (vp, animated back to 0) */
+  @Trace shift: number = 0;
+  /** measured card height (vp) */
+  height: number = 0;
   duration: number;
   timer: number = -1;
+  scope: SparkOverlayScope | undefined = undefined;
+  /** dialog offset currently applied (from the bottom alignment point, negative = up) */
+  placedY: number = 0;
 
-  constructor(id: number, title: string, options?: SparkToastOptions) {
+  constructor(id: number, title: string, duration: number, options?: SparkToastOptions) {
     this.id = id;
     this.title = title;
     this.description = options?.description ?? '';
     this.variant = options?.variant ?? 'default';
     this.action = options?.action;
-    this.duration = options?.duration ?? (this.variant === 'loading' ? 0 : 4000);
+    this.duration = options?.duration ?? (this.variant === 'loading' ? 0 : duration);
   }
 }
 
-/** Toast queue + overlay layer (singleton). */
+/**
+ * Toast manager (singleton). Every toast is its own small non-modal layer, so the page between and around
+ * toasts stays interactive and nothing depends on a layer growing after it opened. The manager lists them
+ * newest at the bottom and moves the older layers up (FLIP: the card is shifted back and animates into place).
+ */
 @ObservedV2
 export class SparkToaster {
   static readonly instance: SparkToaster = new SparkToaster();
   @Trace items: SparkToastItem[] = [];
-  /** max toasts on screen; older ones are dropped */
-  max: number = 3;
+  /** default auto-dismiss time (ms) */
+  duration: number = 4000;
+  /** max toasts on screen; the oldest is dismissed when exceeded */
+  max: number = 5;
   private nextId: number = 1;
-  private scope: SparkOverlayScope | undefined = undefined;
+
+  configure(options: SparkToasterOptions): void {
+    if (options.duration !== undefined) {
+      this.duration = Math.max(0, options.duration);
+    }
+    if (options.max !== undefined) {
+      this.max = Math.max(1, Math.floor(options.max));
+    }
+  }
 
   show(title: string, options?: SparkToastOptions): number {
-    const item = new SparkToastItem(this.nextId++, title, options);
     const ui = SparkUI.uiContext;
-    const add = (): void => {
-      this.items = this.items.concat([item]).slice(-this.max);
-    };
-    if (ui !== undefined) {
-      SparkAnim.run(ui, SparkUI.theme, 'toast', 'normal', add);
-    } else {
-      add();
+    const item = new SparkToastItem(this.nextId++, title, this.duration, options);
+    if (ui === undefined) {
+      return item.id;
     }
+    SparkAnim.commit(() => {
+      this.items = this.items.concat([item]);
+    });
+    this.open(ui, item);
     this.schedule(item);
-    this.ensureLayer();
+    while (this.items.length > this.max) {
+      this.dismiss(this.items[0].id);
+    }
+    this.relayout();
     return item.id;
   }
 
-  /** Update an existing toast (e.g. loading → success). */
+  /** Update an existing toast (e.g. loading → success). Shows a new one when it is gone. */
   update(id: number, title: string, options?: SparkToastOptions): void {
     const item = this.items.find((t: SparkToastItem) => t.id === id);
     if (item === undefined) {
@@ -88,31 +123,95 @@ export class SparkToaster {
     item.description = options?.description ?? item.description;
     item.variant = options?.variant ?? item.variant;
     item.action = options?.action ?? item.action;
-    item.duration = options?.duration ?? (item.variant === 'loading' ? 0 : 4000);
+    item.duration = options?.duration ?? (item.variant === 'loading' ? 0 : this.duration);
     this.schedule(item);
   }
 
   dismiss(id: number): void {
     const item = this.items.find((t: SparkToastItem) => t.id === id);
-    if (item !== undefined) {
-      clearTimeout(item.timer);
+    if (item === undefined) {
+      return;
     }
-    const ui = SparkUI.uiContext;
-    const remove = (): void => {
+    clearTimeout(item.timer);
+    SparkAnim.commit(() => {
       this.items = this.items.filter((t: SparkToastItem) => t.id !== id);
-    };
-    if (ui !== undefined) {
-      SparkAnim.run(ui, SparkUI.theme, 'toast', 'fast', remove, () => this.maybeCloseLayer());
-    } else {
-      remove();
-      this.maybeCloseLayer();
+    });
+    if (item.scope !== undefined) {
+      closeSparkOverlay(item.scope);
+      item.scope = undefined;
     }
+    this.relayout();
   }
 
   dismissAll(): void {
-    this.items.forEach((t: SparkToastItem) => clearTimeout(t.timer));
-    this.items = [];
-    this.maybeCloseLayer();
+    this.items.slice().forEach((t: SparkToastItem) => this.dismiss(t.id));
+  }
+
+  /** A card reports its measured height. */
+  measured(item: SparkToastItem, height: number): void {
+    if (Math.abs(item.height - height) > 0.5) {
+      item.height = height;
+      this.relayout();
+    }
+  }
+
+  private bottomBase(): number {
+    const env = SparkUI.layout.root.env;
+    return EDGE + Math.max(env.safeArea.bottom, env.keyboardHeight);
+  }
+
+  /** Newest at the bottom; each older toast sits above the newer ones. */
+  private targetY(index: number): number {
+    let y = this.bottomBase();
+    for (let k = this.items.length - 1; k > index; k--) {
+      y += this.items[k].height + GAP;
+    }
+    return -y;
+  }
+
+  private relayout(): void {
+    const ui = SparkUI.uiContext;
+    this.items.forEach((t: SparkToastItem, i: number) => {
+      const y = this.targetY(i);
+      const scope = t.scope;
+      if (scope === undefined || Math.abs(y - t.placedY) < 0.5) {
+        return;
+      }
+      const delta = y - t.placedY;
+      t.placedY = y;
+      SparkOverlayService.moveTo(scope, 0, y).then(() => {
+        if (ui === undefined) {
+          return;
+        }
+        // the layer jumped by `delta`; draw the card where it was and let it glide into place
+        SparkAnim.commit(() => {
+          t.shift = -delta;
+        });
+        SparkAnim.run(ui, SparkUI.theme, 'toast', 'normal', () => {
+          t.shift = 0;
+        });
+      });
+    });
+  }
+
+  private open(ui: UIContext, item: SparkToastItem): void {
+    const scope = SparkOverlayService.createScope();
+    scope.presentation = 'toast';
+    scope.motionKey = 'toast';
+    scope.modal = false;
+    scope.passThrough = true;
+    scope.focusable = false;
+    scope.dismissOnOutside = false;
+    scope.restoreFocusId = '';
+    scope.theme = SparkUI.theme;
+    scope.layout = SparkUI.layout.root;
+    scope.contextKey = ITEM_KEY;
+    scope.contextValue = item;
+    scope.content = sparkToastSlotBuilder;
+    scope.offsetY = -this.bottomBase();
+    item.placedY = scope.offsetY;
+    item.scope = scope;
+    openSparkOverlay(ui, scope);
   }
 
   private schedule(item: SparkToastItem): void {
@@ -121,65 +220,45 @@ export class SparkToaster {
       item.timer = setTimeout(() => this.dismiss(item.id), item.duration);
     }
   }
-
-  private ensureLayer(): void {
-    const ui = SparkUI.uiContext;
-    if (ui === undefined || (this.scope !== undefined && SparkOverlayService.isOpen(this.scope))) {
-      return;
-    }
-    const scope = SparkOverlayService.createScope();
-    scope.presentation = 'toast';
-          scope.motionKey = 'toast';
-    scope.modal = false;
-    scope.passThrough = true;
-    scope.focusable = false;
-    scope.dismissOnOutside = false;
-    scope.theme = SparkUI.theme;
-    scope.layout = SparkUI.layout.root;
-    scope.content = sparkToastStackBuilder;
-    this.scope = scope;
-    openSparkOverlay(ui, scope);
-  }
-
-  private maybeCloseLayer(): void {
-    if (this.items.length === 0 && this.scope !== undefined) {
-      closeSparkOverlay(this.scope);
-      this.scope = undefined;
-    }
-  }
 }
 
 /**
- * Sonner-style toasts.
+ * Sonner-style toasts. Several can be on screen; each auto-dismisses after its duration.
  *
  * ```
  * SparkToast.show('Event has been created', { description: 'Sunday, December 03, 2023 at 9:00 AM',
- *   action: new SparkToastAction('Undo', () => this.undo()) })
+ *   action: new SparkToastAction('Undo', () => this.undo()), duration: 8000 })
  * SparkToast.success('Saved')
+ * SparkToast.show('Pinned', { duration: 0 })            // stays until dismissed
+ * SparkToast.configure({ duration: 6000, max: 4 })      // defaults for every toast
  * const id = SparkToast.loading('Uploading…'); …; SparkToast.update(id, 'Uploaded', { variant: 'success' })
  * ```
  * Requires a SparkProvider on screen. Bottom-right on wide windows, bottom-centre on compact ones;
  * swipe sideways to dismiss.
  */
 export class SparkToast {
+  static configure(options: SparkToasterOptions): void {
+    SparkToaster.instance.configure(options);
+  }
+
   static show(title: string, options?: SparkToastOptions): number {
     return SparkToaster.instance.show(title, options);
   }
 
-  static success(title: string, description?: string): number {
-    return SparkToaster.instance.show(title, { description: description, variant: 'success' });
+  static success(title: string, description?: string, duration?: number): number {
+    return SparkToaster.instance.show(title, { description: description, variant: 'success', duration: duration });
   }
 
-  static error(title: string, description?: string): number {
-    return SparkToaster.instance.show(title, { description: description, variant: 'error' });
+  static error(title: string, description?: string, duration?: number): number {
+    return SparkToaster.instance.show(title, { description: description, variant: 'error', duration: duration });
   }
 
-  static warning(title: string, description?: string): number {
-    return SparkToaster.instance.show(title, { description: description, variant: 'warning' });
+  static warning(title: string, description?: string, duration?: number): number {
+    return SparkToaster.instance.show(title, { description: description, variant: 'warning', duration: duration });
   }
 
-  static info(title: string, description?: string): number {
-    return SparkToaster.instance.show(title, { description: description, variant: 'info' });
+  static info(title: string, description?: string, duration?: number): number {
+    return SparkToaster.instance.show(title, { description: description, variant: 'info', duration: duration });
   }
 
   static loading(title: string, description?: string): number {
@@ -193,6 +272,10 @@ export class SparkToast {
   static dismiss(id: number): void {
     SparkToaster.instance.dismiss(id);
   }
+
+  static dismissAll(): void {
+    SparkToaster.instance.dismissAll();
+  }
 }
 
 /** Shorthand: `toast('Saved')`. */
@@ -202,7 +285,7 @@ export function toast(title: string, options?: SparkToastOptions): number {
 
 @ComponentV2
 struct SparkToastCard {
-  @Param item: SparkToastItem = new SparkToastItem(0, '');
+  @Param item: SparkToastItem = new SparkToastItem(0, '', 0);
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   private iconName(): string {
@@ -259,9 +342,8 @@ struct SparkToastCard {
     .backgroundColor(this.theme.colors.popover)
     .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
     .shadow(this.theme.shadows.lg.toOptions())
-    .translate({ x: this.item.dragX })
+    .translate({ x: this.item.dragX, y: this.item.shift })
     .opacity(1 - Math.min(Math.abs(this.item.dragX) / 240, 0.8))
-    .transition(SparkAnim.enter(this.theme, 'toast', 'normal', undefined, 24))
     .gesture(
       PanGesture({ direction: PanDirection.Horizontal })
         .onActionUpdate((e: GestureEvent) => {
@@ -277,117 +359,40 @@ struct SparkToastCard {
           }
         })
     )
+    .onAreaChange((_: Area, n: Area) => SparkToaster.instance.measured(this.item, Number(n.height)))
     .accessibilityText(this.item.title + ' ' + this.item.description)
   }
 }
 
-/** collapsed stack: vertical peek of each toast behind the front one */
-const PEEK: number = 12;
-const GAP: number = 8;
-
 /**
- * The stack rendered inside the toast layer (Sonner style): the newest toast is in front, older ones are
- * pushed back (smaller, peeking out above). Tap the stack (touch) or hover it (pointer) to expand it into a
- * list. The stack reserves exactly the height it draws, so the non-modal layer never covers more of the page
- * than the toasts themselves.
+ * Content of one toast layer: resolves its item from the layer's context and draws the card at the
+ * toaster width (full width minus margins on compact windows, 356vp otherwise).
  */
 @ComponentV2
-export struct SToastStack {
+export struct SToastSlot {
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
-  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-  @Local expanded: boolean = false;
+  @Local item: SparkToastItem | undefined = undefined;
 
-  /** current position of a toast (keyed ForEach does not refresh the index parameter when older items drop) */
-  private indexOf(t: SparkToastItem): number {
-    return SparkToaster.instance.items.indexOf(t);
-  }
-
-  /** 0 = newest (front) */
-  private depth(i: number): number {
-    return SparkToaster.instance.items.length - 1 - i;
-  }
-
-  private offsetOf(i: number): number {
-    const items = SparkToaster.instance.items;
-    const d = this.depth(i);
-    if (!this.expanded) {
-      return -d * PEEK;
-    }
-    let y = 0;
-    for (let k = i + 1; k < items.length; k++) {
-      y += items[k].height + GAP;
-    }
-    return -y;
-  }
-
-  /**
-   * Extra space above the tallest card so the stacked / expanded cards (translated upwards) stay inside the
-   * layer. Reserved as top padding — never as a fixed height: cards are measured unconstrained, a fixed
-   * frame derived from their heights would clamp a new card to the old frame (it then never showed).
-   */
-  @Computed
-  get overhang(): number {
-    const items = SparkToaster.instance.items;
-    let tallest = 0;
-    let top = 0;
-    for (let i = 0; i < items.length; i++) {
-      tallest = Math.max(tallest, items[i].height);
-      top = Math.max(top, -this.offsetOf(i) + items[i].height);
-    }
-    return Math.max(0, top - tallest);
-  }
-
-  @Monitor('overhang')
-  collapseWhenSingle(): void {
-    if (SparkToaster.instance.items.length <= 1 && this.expanded) {
-      this.expanded = false;
-    }
-  }
-
-  @Computed
-  get bottomInset(): number {
-    return Math.max(this.layout.env.safeArea.bottom, this.layout.env.keyboardHeight);
-  }
-
-
-  private setExpanded(v: boolean): void {
-    if (v !== this.expanded) {
-      SparkAnim.run(this.getUIContext(), this.theme, 'toast', 'normal', () => {
-        this.expanded = v;
-      });
-    }
+  onDidBuild(): void {
+    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => {
+      if (this.item === undefined) {
+        this.item = SparkContext.resolve<SparkToastItem>(this.getUIContext(), this.getUniqueId(), ITEM_KEY);
+      }
+    });
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      ForEach(SparkToaster.instance.items, (t: SparkToastItem) => {
-        // stacking transform on a wrapper; the card's own drag translate stays un-animated
-        Column() {
-          SparkToastCard({ item: t })
-        }
-        .width('100%')
-        .translate({ y: this.offsetOf(this.indexOf(t)) })
-        .scale({
-          x: this.expanded ? 1 : 1 - this.depth(this.indexOf(t)) * 0.05,
-          y: this.expanded ? 1 : 1 - this.depth(this.indexOf(t)) * 0.05,
-          centerY: '100%'
-        })
-        .opacity(this.expanded || this.depth(this.indexOf(t)) < 3 ? 1 : 0)
-        .zIndex(this.indexOf(t))
-        .animation(SparkAnim.attr(this.theme, 'toast', 'normal'))
-        .onAreaChange((_: Area, n: Area) => {
-          t.height = Number(n.height);
-        })
-      }, (t: SparkToastItem) => String(t.id))
+    Column() {
+      if (this.item !== undefined) {
+        SparkToastCard({ item: this.item })
+      }
     }
-    .width(this.layout.env.windowWidthClass === 'compact' ? '100%' : 356 + 32)
-    .padding({ left: 16, right: 16, top: this.overhang, bottom: 16 + this.bottomInset })
-    .onHover((h: boolean) => this.setExpanded(h))
-    .onClick(() => this.setExpanded(!this.expanded))
+    .width(this.layout.env.windowWidthClass === 'compact' ? '100%' : 356 + EDGE * 2)
+    .padding({ left: EDGE, right: EDGE })
   }
 }
 
 @Builder
-function sparkToastStackBuilder() {
-  SToastStack()
+function sparkToastSlotBuilder() {
+  SToastSlot()
 }
