@@ -1,6 +1,6 @@
 import { LengthMetrics } from '@kit.ArkUI';
 import {
-  SAlert, SAlertDescription, SAlertTitle, SAspectRatio, SAvatar, SBadge, SButton, SEmpty, SEmptyContent,
+  SAlert, SAlertDescription, SAlertTitle, SAspectRatio, SAvatar, SAvatarGroup, SBadge, SButton, SEmpty, SEmptyContent,
   SEmptyDescription, SEmptyHeader, SEmptyMedia, SEmptyTitle, SH1, SH2, SH3, SH4, SBlockquote, SIcon, SInlineCode,
   SItem, SItemActions, SItemContent, SItemDescription, SItemGroup, SItemMedia, SItemTitle, SKbd, SKbdGroup, SLarge,
   SLead, SList, SMuted, SP, SSeparator, SSkeleton, SSmall, SSpinner, SparkTheme, SparkUI
@@ -25,9 +25,48 @@ SBadge({ variant: 'outline' }) {
   Text('Syncing').fontSize(12)
 }`;
 
+const BADGE_TONES_CODE = `SBadge({ text: 'Success', variant: 'success' })
+SBadge({ text: 'Warning', variant: 'warning' })
+SBadge({ text: 'Info', variant: 'info' })
+// soft: tinted background, coloured text
+SBadge({ text: 'Default', soft: true })
+SBadge({ text: 'Success', variant: 'success', soft: true })
+SBadge({ text: 'Warning', variant: 'warning', soft: true })
+SBadge({ text: 'Info', variant: 'info', soft: true })
+SBadge({ text: 'Destructive', variant: 'destructive', soft: true })`;
+
+const BADGE_SIZES_CODE = `SBadge({ text: 'Small', sizing: 'sm' })
+SBadge({ text: 'Default' })
+SBadge({ text: 'Large', sizing: 'lg' })
+SBadge({ text: 'Pill', pill: true, variant: 'secondary' })
+SBadge({ text: 'Large pill', pill: true, sizing: 'lg', variant: 'outline', icon: 'star' })`;
+
+const BADGE_STATUS_CODE = `SBadge({ text: 'Online', variant: 'success', soft: true, dot: true, pill: true })
+SBadge({ text: 'Away', variant: 'warning', soft: true, dot: true, pill: true })
+SBadge({ text: 'Offline', variant: 'outline', dot: true, dotColor: theme.colors.mutedForeground, pill: true })
+SBadge({ dot: true, variant: 'destructive' })      // bare 8vp dot
+SBadge({ count: 8, variant: 'destructive' })
+SBadge({ count: 128, variant: 'destructive' })      // "99+"
+SBadge({ count: 1200, max: 999 })                   // "999+"
+// over an icon
+Stack({ alignContent: Alignment.TopEnd }) {
+  SIcon({ name: 'bell', sizing: 24 })
+  SBadge({ count: 3, variant: 'destructive', sizing: 'sm' }).translate({ x: 8, y: -6 })
+}`;
+
+const BADGE_REMOVABLE_CODE = `@Local tags: string[] = ['react', 'vue', 'svelte', 'arkts'];
+
+ForEach(this.tags, (t: string) => {
+  SBadge({ text: t, variant: 'secondary', removable: true,
+    onRemove: () => this.tags = this.tags.filter((x: string) => x !== t) })
+}, (t: string) => t)`;
+
+const INITIAL_TAGS: string[] = ['react', 'vue', 'svelte', 'arkts', 'solid'];
+
 @ComponentV2
 export struct BadgeDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local tags: string[] = INITIAL_TAGS.slice();
 
   build() {
     Column({ space: 16 }) {
@@ -39,6 +78,23 @@ export struct BadgeDoc {
           SBadge({ text: 'Secondary', variant: 'secondary' })
           SBadge({ text: 'Destructive', variant: 'destructive' })
           SBadge({ text: 'Outline', variant: 'outline' })
+        }
+      }
+      DocSection({ title: 'Status tones', description: "success | warning | info, solid or soft (tinted)." })
+      DemoBlock({ code: BADGE_TONES_CODE }) {
+        Column({ space: 12 }) {
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, space: space8 }) {
+            SBadge({ text: 'Success', variant: 'success' })
+            SBadge({ text: 'Warning', variant: 'warning' })
+            SBadge({ text: 'Info', variant: 'info' })
+          }
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, space: space8 }) {
+            SBadge({ text: 'Default', soft: true })
+            SBadge({ text: 'Success', variant: 'success', soft: true })
+            SBadge({ text: 'Warning', variant: 'warning', soft: true })
+            SBadge({ text: 'Info', variant: 'info', soft: true })
+            SBadge({ text: 'Destructive', variant: 'destructive', soft: true })
+          }
         }
       }
       DocSection({ title: 'With icons', description: 'Leading / trailing lucide icons, or any content in the slot.' })
@@ -56,6 +112,70 @@ export struct BadgeDoc {
           }
         }
       }
+      DocSection({ title: 'Sizes & shapes', description: "sizing: 'sm' | 'default' | 'lg'; pill: rounded-full." })
+      DemoBlock({ code: BADGE_SIZES_CODE }) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center, space: space8 }) {
+          SBadge({ text: 'Small', sizing: 'sm' })
+          SBadge({ text: 'Default' })
+          SBadge({ text: 'Large', sizing: 'lg' })
+          SBadge({ text: 'Pill', pill: true, variant: 'secondary' })
+          SBadge({ text: 'Large pill', pill: true, sizing: 'lg', variant: 'outline', icon: 'star' })
+        }
+      }
+      DocSection({ title: 'Dot & count', description: 'Status dots, bare dots and notification counts with a max.' })
+      DemoBlock({ code: BADGE_STATUS_CODE }) {
+        Column({ space: 16 }) {
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center, space: space8 }) {
+            SBadge({ text: 'Online', variant: 'success', soft: true, dot: true, pill: true })
+            SBadge({ text: 'Away', variant: 'warning', soft: true, dot: true, pill: true })
+            SBadge({
+              text: 'Offline',
+              variant: 'outline',
+              dot: true,
+              dotColor: this.theme.colors.mutedForeground,
+              pill: true
+            })
+            SBadge({ dot: true, variant: 'destructive' })
+          }
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center, space: space16 }) {
+            SBadge({ count: 8, variant: 'destructive' })
+            SBadge({ count: 128, variant: 'destructive' })
+            SBadge({ count: 1200, max: 999 })
+            Stack({ alignContent: Alignment.TopEnd }) {
+              SIcon({ name: 'bell', sizing: 24, color: this.theme.colors.foreground })
+              SBadge({ count: 3, variant: 'destructive', sizing: 'sm' })
+                .translate({ x: 8, y: -6 })
+            }
+            Stack({ alignContent: Alignment.TopEnd }) {
+              SIcon({ name: 'mail', sizing: 24, color: this.theme.colors.foreground })
+              SBadge({ dot: true, variant: 'destructive' })
+                .translate({ x: 2, y: -1 })
+            }
+          }
+        }
+      }
+      DocSection({ title: 'Removable', description: 'removable adds a × that emits onRemove (tags, filters).' })
+      DemoBlock({ code: BADGE_REMOVABLE_CODE }) {
+        Column({ space: 12 }) {
+          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, space: space8 }) {
+            ForEach(this.tags, (t: string) => {
+              SBadge({
+                text: t,
+                variant: 'secondary',
+                removable: true,
+                onRemove: () => {
+                  this.tags = this.tags.filter((x: string) => x !== t);
+                }
+              })
+            }, (t: string) => t)
+          }
+          if (this.tags.length < INITIAL_TAGS.length) {
+            SButton({ text: 'Reset', variant: 'outline', sizing: 'sm' }).onClick(() => {
+              this.tags = INITIAL_TAGS.slice();
+            })
+          }
+        }
+      }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
@@ -69,18 +189,29 @@ SAvatar({ src: 'https://example.invalid/me.png', fallback: 'CN' })  // load erro
 SAvatar({ fallback: 'JD', sizing: 40 })
 SAvatar({ fallback: 'AB', sizing: 56 })`;
 
-const AVATAR_GROUP_CODE = `Row() {
-  ForEach(['CN', 'LR', 'ER'], (n: string, i: number) => {
-    Stack() { SAvatar({ fallback: n }) }
-      .border({ width: 2, color: theme.colors.background, radius: 18 })
-      .margin({ left: i === 0 ? 0 : -8 })
-  })
-}`;
+const AVATAR_SIZES_CODE = `SAvatar({ fallback: 'XS', sizing: 'xs' })
+SAvatar({ fallback: 'SM', sizing: 'sm' })
+SAvatar({ fallback: 'DF' })
+SAvatar({ fallback: 'MD', sizing: 'md' })
+SAvatar({ fallback: 'LG', sizing: 'lg' })
+SAvatar({ fallback: 'XL', sizing: 'xl' })`;
+
+const AVATAR_SHAPES_CODE = `SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg' })
+SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg', shape: 'rounded' })
+SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg', shape: 'square' })
+SAvatar({ fallback: 'ON', sizing: 'lg', status: 'online' })
+SAvatar({ fallback: 'AW', sizing: 'lg', status: 'away' })
+SAvatar({ fallback: 'BS', sizing: 'lg', status: 'busy', shape: 'rounded' })
+SAvatar({ fallback: 'OF', sizing: 'lg', status: 'offline' })`;
+
+const AVATAR_GROUP_CODE = `SAvatarGroup({ fallbacks: ['CN', 'LR', 'ER', 'MK'] })
+SAvatarGroup({ fallbacks: ['CN', 'LR', 'ER', 'MK', 'JD', 'AB'], max: 3, sizing: 'md' })
+SAvatarGroup({ fallbacks: ['SP', 'CN'], sources: [$r('app.media.startIcon')], extra: 12,
+  sizing: 'lg', shape: 'rounded' })`;
 
 @ComponentV2
 export struct AvatarDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-  private people: string[] = ['CN', 'LR', 'ER', 'MK'];
 
   build() {
     Column({ space: 16 }) {
@@ -97,16 +228,41 @@ export struct AvatarDoc {
           SAvatar({ fallback: 'AB', sizing: 56 })
         }
       }
-      DocSection({ title: 'Group', description: 'Overlap avatars with a background-coloured ring.' })
+      DocSection({ title: 'Sizes', description: "sizing: vp, or 'xs' | 'sm' | 'default' | 'md' | 'lg' | 'xl'." })
+      DemoBlock({ code: AVATAR_SIZES_CODE }) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center, space: space16 }) {
+          SAvatar({ fallback: 'XS', sizing: 'xs' })
+          SAvatar({ fallback: 'SM', sizing: 'sm' })
+          SAvatar({ fallback: 'DF' })
+          SAvatar({ fallback: 'MD', sizing: 'md' })
+          SAvatar({ fallback: 'LG', sizing: 'lg' })
+          SAvatar({ fallback: 'XL', sizing: 'xl' })
+        }
+      }
+      DocSection({ title: 'Shapes & status', description: "shape: circle | rounded | square; status: online | away | busy | offline." })
+      DemoBlock({ code: AVATAR_SHAPES_CODE }) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center, alignItems: ItemAlign.Center, space: space16 }) {
+          SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg' })
+          SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg', shape: 'rounded' })
+          SAvatar({ src: $r('app.media.startIcon'), fallback: 'SP', sizing: 'lg', shape: 'square' })
+          SAvatar({ fallback: 'ON', sizing: 'lg', status: 'online' })
+          SAvatar({ fallback: 'AW', sizing: 'lg', status: 'away' })
+          SAvatar({ fallback: 'BS', sizing: 'lg', status: 'busy', shape: 'rounded' })
+          SAvatar({ fallback: 'OF', sizing: 'lg', status: 'offline' })
+        }
+      }
+      DocSection({ title: 'Group', description: 'SAvatarGroup overlaps avatars with a background ring and adds "+N".' })
       DemoBlock({ code: AVATAR_GROUP_CODE }) {
-        Row() {
-          ForEach(this.people, (n: string, i: number) => {
-            Stack() {
-              SAvatar({ fallback: n })
-            }
-            .border({ width: 2, color: this.theme.colors.background, radius: 18 })
-            .margin({ left: i === 0 ? 0 : -8 })
-          }, (n: string) => n)
+        Column({ space: 16 }) {
+          SAvatarGroup({ fallbacks: ['CN', 'LR', 'ER', 'MK'] })
+          SAvatarGroup({ fallbacks: ['CN', 'LR', 'ER', 'MK', 'JD', 'AB'], max: 3, sizing: 'md' })
+          SAvatarGroup({
+            fallbacks: ['SP', 'CN'],
+            sources: [$r('app.media.startIcon')],
+            extra: 12,
+            sizing: 'lg',
+            shape: 'rounded'
+          })
         }
       }
     }
@@ -127,8 +283,29 @@ SAlert({ variant: 'destructive', icon: 'circle-alert' }) {
   SAlertDescription({ text: 'Please verify your billing information and try again.' })
 }`;
 
+const ALERT_TONES_CODE = `SAlert({ variant: 'success', icon: 'circle-check', heading: 'Deployment finished',
+  description: 'Your site is live at sparkui.dev.' })
+SAlert({ variant: 'warning', icon: 'triangle-alert', heading: 'Your trial ends in 3 days' })
+SAlert({ variant: 'info', icon: 'info', heading: 'A new version is available' })
+// soft: tinted surface and border
+SAlert({ variant: 'success', soft: true, icon: 'circle-check', heading: 'Payment received' })
+SAlert({ variant: 'warning', soft: true, icon: 'triangle-alert', heading: 'Storage almost full',
+  description: '9.2 GB of 10 GB used.' })
+SAlert({ variant: 'destructive', soft: true, icon: 'circle-alert', heading: 'Build failed' })`;
+
+const ALERT_ACTIONS_CODE = `SAlert({ variant: 'info', icon: 'info', heading: 'Update available',
+  description: 'Version 2.0 brings charts and blocks.', actionLabel: 'Update',
+  onAction: () => ..., dismissible: true, onDismiss: () => ... })
+SAlert({ variant: 'warning', soft: true, compact: true, icon: 'triangle-alert',
+  heading: 'Unsaved changes', actionLabel: 'Save' })
+SAlert({ compact: true, icon: 'bell', heading: 'Notifications are muted', dismissible: true })`;
+
 @ComponentV2
 export struct AlertDoc {
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local round: number = 0;
+  @Local events: string = '';
+
   build() {
     Column({ space: 16 }) {
       DocHeader({ title: 'Alert', lead: 'Displays a callout for user attention.' })
@@ -149,6 +326,82 @@ export struct AlertDoc {
           SAlert({ heading: 'No icon', description: 'Without an icon the text spans the full width.' })
         }
         .width('100%')
+        .constraintSize({ maxWidth: 560 })
+      }
+      DocSection({ title: 'Status variants', description: 'success | warning | info (+ destructive), plain or soft.' })
+      DemoBlock({ code: ALERT_TONES_CODE }) {
+        Column({ space: 12 }) {
+          SAlert({
+            variant: 'success',
+            icon: 'circle-check',
+            heading: 'Deployment finished',
+            description: 'Your site is live at sparkui.dev.'
+          })
+          SAlert({ variant: 'warning', icon: 'triangle-alert', heading: 'Your trial ends in 3 days' })
+          SAlert({ variant: 'info', icon: 'info', heading: 'A new version is available' })
+          SAlert({ variant: 'success', soft: true, icon: 'circle-check', heading: 'Payment received' })
+          SAlert({
+            variant: 'warning',
+            soft: true,
+            icon: 'triangle-alert',
+            heading: 'Storage almost full',
+            description: '9.2 GB of 10 GB used.'
+          })
+          SAlert({ variant: 'destructive', soft: true, icon: 'circle-alert', heading: 'Build failed' })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 560 })
+      }
+      DocSection({
+        title: 'Actions, dismissible, compact',
+        description: 'A dismissed alert hides itself with the alert motion and emits onDismiss.'
+      })
+      DemoBlock({ code: ALERT_ACTIONS_CODE }) {
+        Column({ space: 12 }) {
+          // re-created by `round` so the dismissed alerts can come back
+          ForEach([this.round], (r: number) => {
+            Column({ space: 12 }) {
+              SAlert({
+                variant: 'info',
+                icon: 'info',
+                heading: 'Update available',
+                description: 'Version 2.0 brings charts and layout blocks.',
+                actionLabel: 'Update',
+                onAction: () => {
+                  this.events = 'update tapped';
+                },
+                dismissible: true,
+                onDismiss: () => {
+                  this.events = 'dismissed';
+                }
+              })
+              SAlert({
+                variant: 'warning',
+                soft: true,
+                compact: true,
+                icon: 'triangle-alert',
+                heading: 'Unsaved changes',
+                actionLabel: 'Save',
+                onAction: () => {
+                  this.events = 'save tapped';
+                }
+              })
+              SAlert({ compact: true, icon: 'bell', heading: 'Notifications are muted', dismissible: true })
+            }
+            .width('100%')
+          }, (r: number) => `${r}`)
+          Row({ space: 8 }) {
+            SButton({ text: 'Reset', variant: 'outline', sizing: 'sm' }).onClick(() => {
+              this.round++;
+              this.events = '';
+            })
+            Text(this.events)
+              .fontSize(this.theme.text.xs)
+              .fontColor(this.theme.colors.mutedForeground)
+          }
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
         .constraintSize({ maxWidth: 560 })
       }
     }
@@ -172,6 +425,14 @@ const SKELETON_CARD_CODE = `Column({ space: 12 }) {
   SSkeleton({ boxWidth: '80%', boxHeight: 16 })
   SSkeleton({ boxWidth: '60%', boxHeight: 16 })
 }`;
+
+const SKELETON_MOTION_CODE = `SSkeleton({ boxWidth: '100%', boxHeight: 16 })                     // pulse
+SSkeleton({ boxWidth: '100%', boxHeight: 16, motion: 'shimmer' })
+SSkeleton({ boxWidth: '100%', boxHeight: 16, motion: 'none' })`;
+
+const SKELETON_PRESETS_CODE = `SSkeleton({ lines: 3 })                       // paragraph, last line shorter
+SSkeleton({ preset: 'list', motion: 'shimmer' })
+SSkeleton({ preset: 'card', motion: 'shimmer' })`;
 
 const SPINNER_CODE = `SSpinner()
 SSpinner({ sizing: 24 })
@@ -205,6 +466,26 @@ export struct SkeletonDoc {
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
+        .constraintSize({ maxWidth: 300 })
+      }
+      DocSection({ title: 'Motion', description: "motion: 'pulse' (default) | 'shimmer' | 'none'." })
+      DemoBlock({ code: SKELETON_MOTION_CODE }) {
+        Column({ space: 12 }) {
+          SSkeleton({ boxWidth: '100%', boxHeight: 16 })
+          SSkeleton({ boxWidth: '100%', boxHeight: 16, motion: 'shimmer' })
+          SSkeleton({ boxWidth: '100%', boxHeight: 16, motion: 'none' })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 300 })
+      }
+      DocSection({ title: 'Lines & presets', description: "lines: N; preset: 'text' | 'list' | 'card'." })
+      DemoBlock({ code: SKELETON_PRESETS_CODE }) {
+        Column({ space: 24 }) {
+          SSkeleton({ lines: 3 })
+          SSkeleton({ preset: 'list', motion: 'shimmer' })
+          SSkeleton({ preset: 'card', motion: 'shimmer' })
+        }
+        .width('100%')
         .constraintSize({ maxWidth: 300 })
       }
       DocHeader({ title: 'Spinner', lead: 'An indicator that can be used to show a loading state.' })
@@ -244,6 +525,12 @@ Row({ space: 16 }) {
   Text('Source')
 }.height(20)`;
 
+const SEPARATOR_LABEL_CODE = `SSeparator({ label: 'OR CONTINUE WITH' })
+SSeparator({ label: 'Today', labelAlignment: 'start' })
+SSeparator({ label: 'End of results', labelAlignment: 'end', lineStyle: 'dashed' })
+SSeparator({ lineStyle: 'dashed' })
+SSeparator({ lineStyle: 'dotted', thickness: 2 })`;
+
 const KBD_CODE = `SKbdGroup() {
   SKbd({ icon: 'command' })
   SKbd({ text: '⇧' })
@@ -256,6 +543,16 @@ SKbdGroup() {
   SKbd({ text: 'B' })
 }
 SKbd({ icon: 'corner-down-left' })`;
+
+const KBD_VARIANTS_CODE = `SKbd({ text: 'Esc', sizing: 'sm' })
+SKbd({ text: 'Esc' })
+SKbd({ text: 'Esc', sizing: 'lg' })
+SKbd({ text: 'Esc', variant: 'outline', sizing: 'lg' })
+// combos from strings; cmd / enter / arrows become icons
+SKbdGroup({ keys: ['Ctrl', 'Shift', 'P'], separator: '+' })
+SKbdGroup({ keys: ['cmd', 'K'], variant: 'outline' })
+SKbdGroup({ keys: ['G', 'H'], separator: 'then' })
+SKbdGroup({ keys: ['up', 'down', 'enter'], sizing: 'sm' })`;
 
 @ComponentV2
 export struct SeparatorDoc {
@@ -290,6 +587,21 @@ export struct SeparatorDoc {
         .width('100%')
         .constraintSize({ maxWidth: 320 })
       }
+      DocSection({
+        title: 'Label & line style',
+        description: "label with labelAlignment start | center | end; lineStyle solid | dashed | dotted; thickness."
+      })
+      DemoBlock({ code: SEPARATOR_LABEL_CODE }) {
+        Column({ space: 20 }) {
+          SSeparator({ label: 'OR CONTINUE WITH' })
+          SSeparator({ label: 'Today', labelAlignment: 'start' })
+          SSeparator({ label: 'End of results', labelAlignment: 'end', lineStyle: 'dashed' })
+          SSeparator({ lineStyle: 'dashed' })
+          SSeparator({ lineStyle: 'dotted', thickness: 2 })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 360 })
+      }
       DocHeader({ title: 'Kbd', lead: 'Used to display textual user input from keyboard.' })
       DemoBlock({ code: KBD_CODE }) {
         Column({ space: 16 }) {
@@ -309,6 +621,22 @@ export struct SeparatorDoc {
             SKbd({ icon: 'corner-down-left' })
             Text('to send').fontSize(this.theme.text.sm).fontColor(this.theme.colors.mutedForeground)
           }
+        }
+      }
+      DocSection({ title: 'Sizes, keycap, combos', description: "sizing sm | default | lg; variant 'outline'; SKbdGroup({ keys })." })
+      DemoBlock({ code: KBD_VARIANTS_CODE }) {
+        Column({ space: 16 }) {
+          Row({ space: 8 }) {
+            SKbd({ text: 'Esc', sizing: 'sm' })
+            SKbd({ text: 'Esc' })
+            SKbd({ text: 'Esc', sizing: 'lg' })
+            SKbd({ text: 'Esc', variant: 'outline', sizing: 'lg' })
+          }
+          .alignItems(VerticalAlign.Center)
+          SKbdGroup({ keys: ['Ctrl', 'Shift', 'P'], separator: '+' })
+          SKbdGroup({ keys: ['cmd', 'K'], variant: 'outline' })
+          SKbdGroup({ keys: ['G', 'H'], separator: 'then' })
+          SKbdGroup({ keys: ['up', 'down', 'enter'], sizing: 'sm' })
         }
       }
     }
@@ -341,6 +669,20 @@ const EMPTY_AVATAR_CODE = `SEmpty() {
     SEmptyDescription({ text: 'This user is currently offline. You can leave a message.' })
   }
   SEmptyContent() { SButton({ text: 'Leave Message', variant: 'outline', sizing: 'sm' }) }
+}`;
+
+const EMPTY_FILLED_CODE = `SEmpty({ filled: true }) {
+  SEmptyHeader() {
+    SEmptyMedia({ icon: 'bell', variant: 'icon' })
+    SEmptyTitle({ text: 'No Notifications' })
+    SEmptyDescription({ text: "You're all caught up." })
+  }
+}
+SEmpty({ compact: true, bordered: true }) {
+  SEmptyHeader() {
+    SEmptyTitle({ text: 'No results' })
+    SEmptyDescription({ text: 'Try a different search.' })
+  }
 }`;
 
 @ComponentV2
@@ -384,6 +726,25 @@ export struct EmptyDoc {
             SButton({ text: 'Leave Message', variant: 'outline', sizing: 'sm' })
           }
         }
+      }
+      DocSection({ title: 'Filled & compact', description: 'filled: bg-muted/50 surface; compact: 16vp padding for small containers.' })
+      DemoBlock({ code: EMPTY_FILLED_CODE }) {
+        Column({ space: 16 }) {
+          SEmpty({ filled: true }) {
+            SEmptyHeader() {
+              SEmptyMedia({ icon: 'bell', variant: 'icon' })
+              SEmptyTitle({ text: 'No Notifications' })
+              SEmptyDescription({ text: 'You\'re all caught up. New notifications will appear here.' })
+            }
+          }
+          SEmpty({ compact: true, bordered: true }) {
+            SEmptyHeader() {
+              SEmptyTitle({ text: 'No results' })
+              SEmptyDescription({ text: 'Try a different search.' })
+            }
+          }
+        }
+        .width('100%')
       }
     }
     .alignItems(HorizontalAlign.Start)

@@ -1,14 +1,25 @@
 import { sparkEmptyBuilder } from '../../core/Builders';
+import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkNoopModifier } from '../../core/SparkModifier';
+import { SparkTone, SparkTones } from '../../core/SparkTone';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SButton } from '../button/SButton';
 
 const KEY: string = 'spark.alert';
 
-export type AlertVariant = 'default' | 'destructive';
+export type AlertVariant = 'default' | 'destructive' | 'success' | 'warning' | 'info';
+
+/** Title / icon colour of an alert variant (`text-destructive`, status tones; card foreground by default). */
+export function sparkAlertForeground(t: SparkTheme, variant: AlertVariant): string {
+  if (variant === 'default') {
+    return t.colors.cardForeground;
+  }
+  return SparkTones.base(t, variant as SparkTone);
+}
 
 /** Alert variant shared with SAlertTitle / SAlertDescription. */
 @ObservedV2
@@ -27,12 +38,19 @@ function resolveAlert(uiContext: UIContext, id: number): SparkAlertState | undef
  *
  * `heading` / `description` are shortcuts for a title / description without a slot.
  *
+ * Variants: default | destructive | success | warning | info (title and icon take the tone colour). Extras:
+ * `soft` (tinted background and border), `compact` (tighter padding, centred row), `actionLabel` + `onAction`
+ * (trailing outline button), `dismissible` (trailing ×; the alert hides itself and emits `onDismiss`).
+ *
  * ```
  * SAlert({ icon: 'circle-check' }) {
  *   SAlertTitle({ text: 'Success! Your changes have been saved' })
  *   SAlertDescription({ text: 'This is an alert with icon, title and description.' })
  * }
  * SAlert({ variant: 'destructive', icon: 'circle-alert', heading: 'Error', description: 'Session expired.' })
+ * SAlert({ variant: 'success', soft: true, icon: 'circle-check', heading: 'Deployed', dismissible: true })
+ * SAlert({ variant: 'warning', compact: true, icon: 'triangle-alert', heading: 'Trial ends in 3 days',
+ *   actionLabel: 'Upgrade', onAction: () => ... })
  * ```
  */
 @ComponentV2
@@ -42,10 +60,23 @@ export struct SAlert {
   @Param icon: string | undefined = undefined;
   @Param heading: ResourceStr | undefined = undefined;
   @Param description: ResourceStr | undefined = undefined;
+  /** Tinted background and border in the variant colour. */
+  @Param soft: boolean = false;
+  /** Tighter padding (`px-3 py-2`), items centred. */
+  @Param compact: boolean = false;
+  /** Text of a trailing action button. */
+  @Param actionLabel: ResourceStr | undefined = undefined;
+  @Event onAction: () => void = () => {
+  };
+  /** Trailing × button; the alert hides itself (motion key 'alert') and emits `onDismiss`. */
+  @Param dismissible: boolean = false;
+  @Event onDismiss: () => void = () => {
+  };
   @Param modifier: AttributeModifier<RowAttribute> = new SparkNoopModifier<RowAttribute>();
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkAlertState = new SparkAlertState();
+  @Local dismissed: boolean = false;
 
   aboutToAppear(): void {
     this.state.variant = this.variant;
@@ -63,35 +94,79 @@ export struct SAlert {
 
   @Computed
   get fg(): string {
-    return this.variant === 'destructive' ? this.theme.colors.destructive : this.theme.colors.cardForeground;
+    return sparkAlertForeground(this.theme, this.variant);
+  }
+
+  @Computed
+  get tinted(): boolean {
+    return this.soft && this.variant !== 'default';
+  }
+
+  @Computed
+  get surface(): string {
+    return this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).soft : this.theme.colors.card;
+  }
+
+  @Computed
+  get edgeColor(): string {
+    return this.tinted ? SparkTones.resolve(this.theme, this.variant as SparkTone).border : this.theme.colors.border;
+  }
+
+  private dismiss(): void {
+    SparkAnim.run(this.getUIContext(), this.theme, 'alert', 'fast', () => {
+      this.dismissed = true;
+    });
+    this.onDismiss();
   }
 
   build() {
-    Row({ space: 12 }) {
-      if (this.icon !== undefined) {
-        // [&>svg]:size-4 [&>svg]:translate-y-0.5 text-current
-        SIcon({ name: this.icon, sizing: 16, color: this.fg })
-          .margin({ top: 2 })
-      }
-      Column({ space: 2 }) {
-        if (this.heading !== undefined) {
-          SAlertTitle({ text: this.heading })
+    Column() {
+      if (!this.dismissed) {
+        Row({ space: this.compact ? 8 : 12 }) {
+          if (this.icon !== undefined) {
+            // [&>svg]:size-4 [&>svg]:translate-y-0.5 text-current
+            SIcon({ name: this.icon, sizing: 16, color: this.fg })
+              .margin({ top: this.compact ? 0 : 2 })
+          }
+          Column({ space: 2 }) {
+            if (this.heading !== undefined) {
+              SAlertTitle({ text: this.heading })
+            }
+            if (this.description !== undefined) {
+              SAlertDescription({ text: this.description })
+            }
+            this.content()
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          if (this.actionLabel !== undefined) {
+            SButton({ text: this.actionLabel, variant: 'outline', sizing: 'sm' })
+              .margin({ top: this.compact ? -4 : -2, bottom: -4 })
+              .onClick(() => this.onAction())
+          }
+          if (this.dismissible) {
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: 'Dismiss' })
+              .margin({ top: -6, bottom: -6, right: -6 })
+              .onClick(() => this.dismiss())
+          }
         }
-        if (this.description !== undefined) {
-          SAlertDescription({ text: this.description })
-        }
-        this.content()
+        .width('100%')
+        .alignItems(this.compact ? VerticalAlign.Center : VerticalAlign.Top)
+        .padding({
+          left: this.compact ? 12 : 16,
+          right: this.compact ? 12 : 16,
+          top: this.compact ? 8 : 12,
+          bottom: this.compact ? 8 : 12
+        })
+        .backgroundColor(this.surface)
+        .border({ width: 1, color: this.edgeColor, radius: this.theme.radiusLg })
+        .accessibilityGroup(true)
+        .transition(SparkAnim.enter(this.theme, 'alert', 'fast', 0.98))
+        .attributeModifier(this.modifier)
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .alignItems(VerticalAlign.Top)
-    .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-    .backgroundColor(this.theme.colors.card)
-    .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
-    .accessibilityGroup(true)
-    .attributeModifier(this.modifier)
   }
 }
 
@@ -118,8 +193,7 @@ export struct SAlertTitle {
       .lineHeight(this.theme.text.leadingSm)
       .fontWeight(this.theme.text.weightMedium)
       .letterSpacing(-0.025 * this.theme.text.sm)
-      .fontColor(this.alert?.variant === 'destructive' ? this.theme.colors.destructive :
-        this.theme.colors.cardForeground)
+      .fontColor(sparkAlertForeground(this.theme, this.alert?.variant ?? 'default'))
       .maxLines(1)
       .textOverflow({ overflow: TextOverflow.Ellipsis })
       .constraintSize({ minHeight: 16 })

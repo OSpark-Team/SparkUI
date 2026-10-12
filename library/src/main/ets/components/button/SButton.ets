@@ -6,6 +6,21 @@ import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonVariants } from './ButtonVariants';
 
+/** `block`: stretch the button to the full width of its parent (`w-full`). */
+class ButtonBlockModifier implements AttributeModifier<ButtonAttribute> {
+  block: boolean;
+
+  constructor(block: boolean) {
+    this.block = block;
+  }
+
+  applyNormalAttribute(instance: ButtonAttribute): void {
+    if (this.block) {
+      instance.width('100%');
+    }
+  }
+}
+
 /**
  * shadcn-vue `Button`.
  *
@@ -14,6 +29,8 @@ import { ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonVari
  * SButton({ variant: 'outline', sizing: 'sm', icon: 'plus', text: 'Add' })
  * SButton({ variant: 'ghost', sizing: 'icon', icon: 'ellipsis', label: 'More' })
  * SButton({ variant: 'secondary' }) { Text('Custom content') }
+ * SButton({ text: 'Continue', block: true })                        // full width
+ * SButton({ text: 'Save', loading: this.saving, loadingText: 'Saving…' })
  * ```
  *
  * Clicks use the native universal event (`.onClick()` on SButton itself, like Vue's `@click`);
@@ -27,6 +44,10 @@ export struct SButton {
   @Param disabled: boolean = false;
   /** Shows a spinner and disables the button. */
   @Param loading: boolean = false;
+  /** Text shown instead of `text` while `loading`. */
+  @Param loadingText: ResourceStr | undefined = undefined;
+  /** Full width of the parent (`w-full`). */
+  @Param block: boolean = false;
   /** Leading lucide icon name. */
   @Param icon: string | undefined = undefined;
   /** Trailing lucide icon name. */
@@ -64,6 +85,16 @@ export struct SButton {
   }
 
   @Computed
+  get blockModifier(): ButtonBlockModifier {
+    return new ButtonBlockModifier(this.block);
+  }
+
+  @Computed
+  get shownText(): ResourceStr | undefined {
+    return this.loading && this.loadingText !== undefined ? this.loadingText : this.text;
+  }
+
+  @Computed
   get tapBlocker(): SparkTapBlocker {
     return new SparkTapBlocker(this.disabled || this.loading);
   }
@@ -91,8 +122,8 @@ export struct SButton {
         } else if (this.icon !== undefined) {
           SIcon({ name: this.icon, sizing: this.styles.iconSize, color: this.styles.foreground })
         }
-        if (this.text !== undefined) {
-          Text(this.text)
+        if (this.shownText !== undefined) {
+          Text(this.shownText)
             .fontSize(this.styles.fontSize)
             .fontWeight(this.styles.fontWeight)
             .fontColor(this.styles.foreground)
@@ -112,6 +143,7 @@ export struct SButton {
       .alignItems(VerticalAlign.Center)
     }
     .attributeModifier(this.recipe)
+    .attributeModifier(this.blockModifier)
     .attributeModifier(this.modifier)
     .focusable(!this.disabled && !this.loading)
     .gestureModifier(this.tapBlocker)

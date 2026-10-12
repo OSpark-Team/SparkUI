@@ -75,6 +75,38 @@ export class SparkAnim {
   }
 
   /**
+   * Infinite animation (indeterminate progress, skeleton pulse / shimmer, spin): `reset` is committed first
+   * (synchronously, so it is never folded into the animation), then `change` repeats forever.
+   *
+   * The cycle is `factor` × the key's duration (`--motion-<key>-duration` or the speed token), so it follows the
+   * motion configuration; `ease` is used unless the key configures its own easing. Returns false (after applying
+   * only `reset`) when motion is off for the key — callers then render a static state.
+   *
+   * Rule (component-guide §3.5): run it from `onAppear` of a node that exists only while the animation is
+   * wanted, and remove that node to stop it.
+   */
+  static loop(ctx: UIContext, t: SparkTheme, key: string, speed: SparkSpeed, factor: number, reset: () => void,
+    change: () => void, alternate?: boolean, ease?: string): boolean {
+    SparkAnim.commit(reset);
+    const d = SparkAnim.duration(t, key, speed) * factor;
+    if (d <= 0) {
+      return false;
+    }
+    const o: SparkMotionOverride | undefined = t.motion.overrides.get(key);
+    const curve: ICurve = o?.ease !== undefined ? SparkAnim.parseCurve(o.ease, t) :
+      SparkAnim.parseCurve(ease ?? DEFAULT_EASE, t);
+    ctx.animateTo({
+      duration: d,
+      curve: curve,
+      iterations: -1,
+      playMode: alternate === true ? PlayMode.Alternate : PlayMode.Normal
+    }, () => {
+      SparkAnim.commit(change);
+    });
+    return true;
+  }
+
+  /**
    * Apply V2 state changes synchronously (`UIUtils.applySync`): computed values, monitors and UI update now.
    * Use it for changes that must NOT become part of a following animation (e.g. a selection published
    * before a theme colour transition). A nested applySync is skipped by the framework; the change then runs

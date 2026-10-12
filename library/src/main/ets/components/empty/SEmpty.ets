@@ -2,6 +2,7 @@ import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkNoopModifier } from '../../core/SparkModifier';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
+import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 
 export type EmptyMediaVariant = 'default' | 'icon';
@@ -10,6 +11,9 @@ export type EmptyMediaVariant = 'default' | 'icon';
  * shadcn-vue `Empty`: `flex flex-col items-center justify-center gap-6 rounded-lg border-dashed p-6 md:p-12
  * text-center`. Padding follows the component's own width (24vp below 480vp, 48vp above); `bordered` draws the
  * dashed outline.
+ *
+ * Variants: `bordered` (dashed outline), `filled` (`bg-muted/50` surface) and `compact` (16vp padding,
+ * 16vp gaps — for empty states inside cards, lists or popovers).
  *
  * ```
  * SEmpty({ bordered: true }) {
@@ -25,19 +29,24 @@ export type EmptyMediaVariant = 'default' | 'icon';
 @ComponentV2
 export struct SEmpty {
   @Param bordered: boolean = false;
+  /** Muted surface (`bg-muted/50`). */
+  @Param filled: boolean = false;
+  /** Tight spacing for small containers. */
+  @Param compact: boolean = false;
   @Param modifier: AttributeModifier<ColumnAttribute> = new SparkNoopModifier<ColumnAttribute>();
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local inset: number = 24;
 
   build() {
-    Column({ space: 24 }) {
+    Column({ space: this.compact ? 16 : 24 }) {
       this.content()
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
-    .padding(this.inset)
+    .padding(this.compact ? 16 : this.inset)
+    .backgroundColor(this.filled ? SparkColor.alpha(this.theme.colors.muted, 0.5) : '#00000000')
     .border({
       width: this.bordered ? 1 : 0,
       color: this.theme.colors.border,

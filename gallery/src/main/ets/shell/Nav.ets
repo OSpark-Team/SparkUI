@@ -33,6 +33,23 @@ export const NAV: NavGroup[] = [
     new NavItem('icons', 'Icons', 'sparkles'),
     new NavItem('code', 'Code Block', 'code')
   ]),
+  new NavGroup('Blocks', [
+    new NavItem('app-shell', 'App Shell', 'layout-dashboard'),
+    new NavItem('sidebar', 'Sidebar', 'panel-left'),
+    new NavItem('topbar', 'Top Bar', 'menu'),
+    new NavItem('list-detail', 'List Detail', 'mail'),
+    new NavItem('supporting-pane', 'Supporting Pane', 'panel-right'),
+    new NavItem('dashboard-grid', 'Dashboard Grid', 'chart-pie')
+  ]),
+  new NavGroup('Charts', [
+    new NavItem('charts', 'Chart', 'activity'),
+    new NavItem('area-chart', 'Area Chart', 'trending-up'),
+    new NavItem('bar-chart', 'Bar Chart', 'chart-bar'),
+    new NavItem('line-chart', 'Line Chart', 'chart-line'),
+    new NavItem('pie-chart', 'Pie Chart', 'chart-pie'),
+    new NavItem('radar-chart', 'Radar Chart', 'star'),
+    new NavItem('radial-chart', 'Radial Chart', 'circle')
+  ]),
   new NavGroup('Components', [
     new NavItem('alert', 'Alert', 'circle-alert'),
     new NavItem('aspect-ratio', 'Aspect Ratio', 'image'),

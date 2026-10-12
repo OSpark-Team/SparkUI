@@ -7,6 +7,12 @@ import { SparkPressModifier } from '../../core/SparkPress';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { ChoiceCardStyle, ChoiceSize, sparkChoiceCard } from '../switch/SSwitch';
+
+/** Radio circle / dot size per `sizing`: [circle, dot] in vp. */
+export function sparkRadioMetrics(sizing: ChoiceSize): number[] {
+  return sizing === 'sm' ? [14, 6] : (sizing === 'lg' ? [20, 10] : [16, 8]);
+}
 
 const KEY: string = 'spark.radioGroup';
 
@@ -101,6 +107,13 @@ export struct SRadioGroup {
 /**
  * shadcn-vue `RadioGroupItem`: `size-4 rounded-full border border-input shadow-xs dark:bg-input/30`, the selected
  * item shows a `size-2` primary dot. The optional `label` is part of the tap target (`flex items-center gap-3`).
+ *
+ * Variants: `sizing` sm | default | lg, `description` (muted text under the label) and `card` (a bordered,
+ * pressable choice card, highlighted while selected — e.g. plan pickers).
+ *
+ * ```
+ * SRadioGroupItem({ value: 'pro', label: 'Pro', description: '$20 / month', card: true })
+ * ```
  */
 @ComponentV2
 export struct SRadioGroupItem {
@@ -108,6 +121,11 @@ export struct SRadioGroupItem {
   @Param label: ResourceStr | undefined = undefined;
   @Param disabled: boolean = false;
   @Param invalid: boolean = false;
+  /** Muted helper text under the label. */
+  @Param description: ResourceStr | undefined = undefined;
+  @Param sizing: ChoiceSize = 'default';
+  /** Bordered choice card around the radio, label and description. */
+  @Param card: boolean = false;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ctx: SparkRadioGroupState | undefined = undefined;
 
@@ -141,36 +159,70 @@ export struct SRadioGroupItem {
     return typeof this.label === 'string' ? this.label : this.value;
   }
 
+  @Computed
+  get metrics(): number[] {
+    return sparkRadioMetrics(this.sizing);
+  }
+
+  @Computed
+  get cardStyle(): ChoiceCardStyle {
+    return sparkChoiceCard(this.theme, this.selected, this.invalid);
+  }
+
   build() {
     Row({ space: 12 }) {
       Stack() {
         Row()
-          .width(8)
-          .height(8)
+          .width(this.metrics[1])
+          .height(this.metrics[1])
           .backgroundColor(this.theme.colors.primary)
-          .border({ width: 0, radius: 4 })
+          .border({ width: 0, radius: this.metrics[1] / 2 })
           .scale({ x: this.selected ? 1 : 0, y: this.selected ? 1 : 0 })
           .opacity(this.selected ? 1 : 0)
           .animation(SparkAnim.attr(this.theme, 'radio', 'fast'))
       }
-      .width(16)
-      .height(16)
+      .width(this.metrics[0])
+      .height(this.metrics[0])
+      .flexShrink(0)
+      .margin({ top: this.description !== undefined ? 2 : 0 })
       .backgroundColor(this.theme.isDark ? SparkColor.alpha(this.theme.colors.input, 0.3) : '#00000000')
       .border({
         width: 1,
-        color: this.invalid ? this.theme.colors.destructive : this.theme.colors.input,
-        radius: 8
+        color: this.invalid ? this.theme.colors.destructive :
+          (this.card && this.selected ? this.theme.colors.primary : this.theme.colors.input),
+        radius: this.metrics[0] / 2
       })
 
-      if (this.label !== undefined) {
-        Text(this.label)
-          .fontSize(this.theme.text.sm)
-          .fontWeight(this.theme.text.weightMedium)
-          .lineHeight(this.theme.text.leadingSm)
-          .fontColor(this.theme.colors.foreground)
+      if (this.label !== undefined || this.description !== undefined) {
+        Column({ space: 4 }) {
+          if (this.label !== undefined) {
+            Text(this.label)
+              .fontSize(this.sizing === 'lg' ? this.theme.text.base : this.theme.text.sm)
+              .fontWeight(this.theme.text.weightMedium)
+              .lineHeight(this.theme.text.leadingSm)
+              .fontColor(this.theme.colors.foreground)
+          }
+          if (this.description !== undefined) {
+            Text(this.description)
+              .fontSize(this.theme.text.sm)
+              .lineHeight(this.theme.text.leadingSm)
+              .fontColor(this.theme.colors.mutedForeground)
+          }
+        }
+        .layoutWeight(this.card ? 1 : 0)
+        .flexShrink(1)
+        .alignItems(HorizontalAlign.Start)
       }
     }
-    .alignItems(VerticalAlign.Center)
+    .width(this.card ? '100%' : 'auto')
+    .alignItems(this.description !== undefined ? VerticalAlign.Top : VerticalAlign.Center)
+    .padding(this.card ? 12 : 0)
+    .backgroundColor(this.card ? this.cardStyle.background : '#00000000')
+    .border({
+      width: this.card ? 1 : 0,
+      color: this.cardStyle.borderColor,
+      radius: this.card ? this.theme.radiusLg : 0
+    })
     .attributeModifier(this.press)
     .focusable(!this.isDisabled)
     .focusBox(sparkFocusRing(this.theme))

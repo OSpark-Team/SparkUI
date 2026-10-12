@@ -7,6 +7,9 @@ import paginationTest from './Pagination.test';
 import dateTest from './Date.test';
 import dataTest from './Data.test';
 import commandTest from './Command.test';
+import blocksTest from './Blocks.test';
+import chartTest from './Chart.test';
+import variantsTest from './Variants.test';
 
 export default function testsuite() {
   sparkColorTest();
@@ -18,4 +21,7 @@ export default function testsuite() {
   dateTest();
   dataTest();
   commandTest();
+  blocksTest();
+  chartTest();
+  variantsTest();
 }

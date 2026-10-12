@@ -71,9 +71,7 @@ export {
   sparkGutter
 } from './src/main/ets/layout/SparkLayouts';
 
-export {
-  SCard, SCardHeader, SCardTitle, SCardDescription, SCardAction, SCardContent, SCardFooter, SparkCardState
-} from './src/main/ets/components/card/SCard';
+export { SCard, SCardHeader, SCardTitle, SCardDescription, SCardAction, SCardContent, SCardFooter, SparkCardState, CardVariant, CardSize, CardStyle, CardVariants } from './src/main/ets/components/card/SCard';
 
 // overlay components
 export { OverlayBinding, OverlayConfigurator, SparkActivation } from './src/main/ets/primitives/overlay/OverlayBinding';
@@ -104,24 +102,22 @@ export {
   SFieldSeparator, SparkFieldState, FieldOrientation, FieldLegendVariant, resolveSparkField, sparkFieldGrows,
   FIELD_RESPONSIVE_MIN_WIDTH
 } from './src/main/ets/components/field/SField';
-export { SInput, InputKind, InputColors, sparkInputColors, sparkNoFocusBox } from './src/main/ets/components/input/SInput';
+export { SInput, InputKind, InputColors, sparkInputColors, sparkNoFocusBox, InputSize, sparkInputHeight, sparkInputCounter } from './src/main/ets/components/input/SInput';
 export { STextarea } from './src/main/ets/components/textarea/STextarea';
-export { SCheckbox } from './src/main/ets/components/checkbox/SCheckbox';
-export { SSwitch } from './src/main/ets/components/switch/SSwitch';
-export {
-  SRadioGroup, SRadioGroupItem, SparkRadioGroupState, RadioGroupOrientation
-} from './src/main/ets/components/radio-group/SRadioGroup';
-export { SSlider, sparkSnapSlider } from './src/main/ets/components/slider/SSlider';
-export { SProgress } from './src/main/ets/components/progress/SProgress';
+export { SCheckbox, sparkCheckboxMetrics } from './src/main/ets/components/checkbox/SCheckbox';
+export { SSwitch, ChoiceSize, ChoiceCardStyle, sparkChoiceCard, sparkSwitchMetrics } from './src/main/ets/components/switch/SSwitch';
+export { SRadioGroup, SRadioGroupItem, SparkRadioGroupState, RadioGroupOrientation, sparkRadioMetrics } from './src/main/ets/components/radio-group/SRadioGroup';
+export { SSlider, sparkSnapSlider, sparkSnapRange, sparkMoveRangeThumb, sparkSliderTicks, SliderOrientation, SliderTooltip } from './src/main/ets/components/slider/SSlider';
+export { SProgress, ProgressShape, ProgressSize } from './src/main/ets/components/progress/SProgress';
 
 // display
-export { SBadge, BadgeVariant, BadgeVariants, BadgeStyle } from './src/main/ets/components/badge/SBadge';
-export { SSeparator, SeparatorOrientation } from './src/main/ets/components/separator/SSeparator';
-export { SSkeleton } from './src/main/ets/components/skeleton/SSkeleton';
+export { SBadge, BadgeVariant, BadgeVariants, BadgeStyle, BadgeSize, sparkBadgeCount } from './src/main/ets/components/badge/SBadge';
+export { SSeparator, SeparatorOrientation, SeparatorLineStyle, SeparatorLabelAlignment } from './src/main/ets/components/separator/SSeparator';
+export { SSkeleton, SkeletonMotion, SkeletonPreset, sparkSkeletonLineWidth } from './src/main/ets/components/skeleton/SSkeleton';
 export { SSpinner } from './src/main/ets/components/spinner/SSpinner';
-export { SKbd, SKbdGroup } from './src/main/ets/components/kbd/SKbd';
-export { SAvatar } from './src/main/ets/components/avatar/SAvatar';
-export { SAlert, SAlertTitle, SAlertDescription, AlertVariant, SparkAlertState } from './src/main/ets/components/alert/SAlert';
+export { SKbd, SKbdGroup, KbdSize, KbdVariant, sparkKbdIcon } from './src/main/ets/components/kbd/SKbd';
+export { SAvatar, SAvatarGroup, AvatarSize, AvatarShape, AvatarStatus, sparkAvatarSize, sparkAvatarRadius } from './src/main/ets/components/avatar/SAvatar';
+export { SAlert, SAlertTitle, SAlertDescription, AlertVariant, SparkAlertState, sparkAlertForeground } from './src/main/ets/components/alert/SAlert';
 export {
   SEmpty, SEmptyHeader, SEmptyMedia, SEmptyTitle, SEmptyDescription, SEmptyContent, EmptyMediaVariant
 } from './src/main/ets/components/empty/SEmpty';
@@ -210,3 +206,31 @@ export {
 export {
   SparkMenuHandle, SparkMenuItemPart, SparkMenuCheckboxPart, SparkMenuRadioGroupPart, SparkMenuRadioPart
 } from './src/main/ets/primitives/menu/SparkMenuParts';
+
+// blocks (layout)
+export { SidebarVariant, SidebarCollapsible, SidebarSide, SIDEBAR_WIDTH, SIDEBAR_WIDTH_MOBILE, SIDEBAR_WIDTH_ICON, SIDEBAR_FRAME_GAP, sparkSidebarDockWidth, sparkSidebarIsMobile, sparkSidebarSheetWidth, sparkListDetailWide, sparkListPaneWidth, sparkSupportingWide, sparkTopbarCondensed, sparkTopbarHeight, TOPBAR_CONDENSED_BELOW } from './src/main/ets/blocks/BlocksLogic';
+export { SSidebarProvider, SSidebar, SSidebarHeader, SSidebarContent, SSidebarFooter, SSidebarGroup, SSidebarGroupLabel, SSidebarGroupContent, SSidebarMenu, SSidebarMenuItem, SSidebarMenuButton, SSidebarSeparator, SSidebarTrigger, SSidebarInset, SparkSidebarState, resolveSparkSidebar, SPARK_SIDEBAR_KEY, SidebarMenuButtonSize, SidebarMenuButtonVariant } from './src/main/ets/blocks/sidebar/SSidebar';
+export { STopbar, SparkTopbarAction, TopbarLeading } from './src/main/ets/blocks/topbar/STopbar';
+export { SAppShell, SparkShellNavGroup, SparkShellNavItem, SparkShellUser, sparkShellNavTitle } from './src/main/ets/blocks/app-shell/SAppShell';
+export { SListDetail, SListPane, SListDetailPane, SparkListDetailState } from './src/main/ets/blocks/list-detail/SListDetail';
+export { SSupportingPane, SSupportingPaneMain, SSupportingPaneAside, SSupportingPaneTrigger, SparkSupportingPaneState, SupportingCompactMode } from './src/main/ets/blocks/supporting-pane/SSupportingPane';
+export { SDashboardGrid, SDashboardTile, DashboardTrend } from './src/main/ets/blocks/dashboard/SDashboardGrid';
+
+// charts
+export {
+  SparkChartSeries, SparkChartConfig, SparkChartRow, SparkChartState, SparkChartTooltipItem, SparkChartIndicator,
+  SparkChartLegendPlacement, sparkChartColor
+} from './src/main/ets/components/chart/ChartTypes';
+export {
+  SparkChartCurve, SparkLinearScale, SparkBandScale, SparkArc, SparkStack, sparkNiceTicks, sparkNiceDomain,
+  sparkTickStep, sparkValueDomain, sparkStack, sparkPieArcs, sparkNearestIndex, sparkChartFormat, sparkChartCompact
+} from './src/main/ets/components/chart/ChartMath';
+export { SChartContainer, SChartLegend, SChartTooltipCard, SChartEmpty } from './src/main/ets/components/chart/ChartParts';
+export { SLineChart, SAreaChart, SBarChart } from './src/main/ets/components/chart/SCartesianChart';
+export { SPieChart, SDonutChart } from './src/main/ets/components/chart/SPieChart';
+export { SRadialChart } from './src/main/ets/components/chart/SRadialChart';
+export { SRadarChart, SparkRadarGrid } from './src/main/ets/components/chart/SRadarChart';
+export { SSparkline } from './src/main/ets/components/chart/SSparkline';
+
+export { SparkTone, SparkToneColors, SparkTones, SparkStatusPalette } from './src/main/ets/core/SparkTone';
+export { SparkProgressArc, sparkRingArcPath, sparkProgressPercent, sparkSegmentFills, sparkProgressLabel } from './src/main/ets/components/progress/ProgressLogic';

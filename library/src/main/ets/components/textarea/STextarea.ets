@@ -5,7 +5,7 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { resolveSparkField, SparkFieldState, sparkFieldGrows } from '../field/SField';
-import { InputColors, sparkInputColors, sparkNoFocusBox } from '../input/SInput';
+import { InputColors, sparkInputColors, sparkInputCounter, sparkNoFocusBox } from '../input/SInput';
 
 /**
  * shadcn-vue `Textarea`: `min-h-16 w-full rounded-md border px-3 py-2 text-sm field-sizing-content`
@@ -14,7 +14,9 @@ import { InputColors, sparkInputColors, sparkNoFocusBox } from '../input/SInput'
  * ```
  * STextarea({ placeholder: 'Type your message here.', value: this.message!! })
  * STextarea({ defaultValue: 'Hi', maxHeight: 200, onValueChange: (v: string) => ... })
+ * STextarea({ placeholder: 'Bio', maxLength: 160, showCount: true })
  * ```
+ * `modifier` styles the inner TextArea.
  */
 @ComponentV2
 export struct STextarea {
@@ -29,6 +31,8 @@ export struct STextarea {
   @Param maxLength: number | undefined = undefined;
   /** Upper bound of the auto-growing height (vp); scrolls beyond it. */
   @Param maxHeight: number | undefined = undefined;
+  /** Character counter at the bottom-right (`length/maxLength`). */
+  @Param showCount: boolean = false;
   /** Accessible name when there is no visible label. */
   @Param label: string | undefined = undefined;
   @Param modifier: AttributeModifier<TextAreaAttribute> = new SparkNoopModifier<TextAreaAttribute>();
@@ -76,41 +80,53 @@ export struct STextarea {
   }
 
   build() {
-    TextArea({ text: this.current, placeholder: this.placeholder })
-      .width('100%')
-      .constraintSize({ minHeight: 64, maxHeight: this.maxHeight ?? Infinity })
-      .layoutWeight(sparkFieldGrows(this.field) ? 1 : 0)
-      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-      .fontSize(this.theme.text.sm)
-      .lineHeight(this.theme.text.leadingSm)
-      .fontColor(this.theme.colors.foreground)
-      .placeholderColor(this.theme.colors.mutedForeground)
-      .placeholderFont({ size: this.theme.text.sm })
-      .caretColor(this.theme.colors.foreground)
-      .selectedBackgroundColor(SparkColor.alpha(this.theme.colors.primary, 0.25))
-      .backgroundColor(this.colors.background)
-      .border({ width: 1, color: this.colors.borderColor, radius: this.theme.radiusMd })
-      .outline({
-        width: this.colors.ringWidth,
-        color: this.colors.ringColor,
-        radius: this.theme.radiusMd + 3,
-        style: OutlineStyle.SOLID
-      })
-      .maxLength(this.maxLength ?? Infinity)
-      .hoverEffect(HoverEffect.None)
-      .enabled(!this.disabled)
-      .focusable(!this.disabled)
-      .opacity(this.disabled ? 0.5 : 1)
-      .focusBox(sparkNoFocusBox())
-      .accessibilityText(this.label ?? '')
-      .animation(SparkAnim.attr(this.theme, 'input', 'fast'))
-      .onChange((v: string) => this.set(v))
-      .onFocus(() => {
-        this.focused = true;
-      })
-      .onBlur(() => {
-        this.focused = false;
-      })
-      .attributeModifier(this.modifier)
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      TextArea({ text: this.current, placeholder: this.placeholder })
+        .width('100%')
+        .constraintSize({ minHeight: 64, maxHeight: this.maxHeight ?? Infinity })
+        .padding({ left: 12, right: 12, top: 8, bottom: this.showCount ? 24 : 8 })
+        .fontSize(this.theme.text.sm)
+        .lineHeight(this.theme.text.leadingSm)
+        .fontColor(this.theme.colors.foreground)
+        .placeholderColor(this.theme.colors.mutedForeground)
+        .placeholderFont({ size: this.theme.text.sm })
+        .caretColor(this.theme.colors.foreground)
+        .selectedBackgroundColor(SparkColor.alpha(this.theme.colors.primary, 0.25))
+        .backgroundColor(this.colors.background)
+        .border({ width: 1, color: this.colors.borderColor, radius: this.theme.radiusMd })
+        .outline({
+          width: this.colors.ringWidth,
+          color: this.colors.ringColor,
+          radius: this.theme.radiusMd + 3,
+          style: OutlineStyle.SOLID
+        })
+        .maxLength(this.maxLength ?? Infinity)
+        .hoverEffect(HoverEffect.None)
+        .enabled(!this.disabled)
+        .focusable(!this.disabled)
+        .focusBox(sparkNoFocusBox())
+        .accessibilityText(this.label ?? '')
+        .animation(SparkAnim.attr(this.theme, 'input', 'fast'))
+        .onChange((v: string) => this.set(v))
+        .onFocus(() => {
+          this.focused = true;
+        })
+        .onBlur(() => {
+          this.focused = false;
+        })
+        .attributeModifier(this.modifier)
+
+      if (this.showCount) {
+        Text(sparkInputCounter(this.current.length, this.maxLength))
+          .fontSize(this.theme.text.xs)
+          .fontColor(this.theme.colors.mutedForeground)
+          .fontFeature('"tnum" on')
+          .margin({ right: 12, bottom: 6 })
+          .hitTestBehavior(HitTestMode.None)
+      }
+    }
+    .width('100%')
+    .layoutWeight(sparkFieldGrows(this.field) ? 1 : 0)
+    .opacity(this.disabled ? 0.5 : 1)
   }
 }

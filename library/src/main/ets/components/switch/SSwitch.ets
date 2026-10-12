@@ -5,17 +5,49 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 
-const TRACK_W: number = 32;
-const TRACK_H: number = 18.4;
-const THUMB: number = 16;
+/** Size of a choice control (Switch / Checkbox / Radio): sm · default · lg. */
+export type ChoiceSize = 'sm' | 'default' | 'lg';
+
+/** Switch geometry per size: [track width, track height, thumb] in vp. */
+export function sparkSwitchMetrics(sizing: ChoiceSize): number[] {
+  switch (sizing) {
+    case 'sm':
+      return [26, 14.4, 12];
+    case 'lg':
+      return [40, 24, 22];
+    default:
+      return [32, 18.4, 16];
+  }
+}
+
+/** Surface of a "choice card" (label + description in a bordered, pressable box), selected or not. */
+export class ChoiceCardStyle {
+  background: string = '#00000000';
+  borderColor: string = '#00000000';
+}
+
+export function sparkChoiceCard(t: SparkTheme, selected: boolean, invalid: boolean): ChoiceCardStyle {
+  const s = new ChoiceCardStyle();
+  if (invalid) {
+    s.borderColor = t.colors.destructive;
+  } else {
+    s.borderColor = selected ? t.colors.primary : t.colors.border;
+  }
+  s.background = selected ? SparkColor.alpha(t.colors.primary, t.isDark ? 0.1 : 0.05) : '#00000000';
+  return s;
+}
 
 /**
  * shadcn-vue `Switch`: `h-[1.15rem] w-8 rounded-full border border-transparent shadow-xs`,
  * unchecked `bg-input dark:bg-input/80`, checked `bg-primary`; the `size-4` thumb slides `translate-x-[calc(100%-2px)]`.
  *
+ * Variants: `sizing` sm | default | lg, `description` (muted text under the label) and `card` (label and
+ * description in a bordered, pressable card with the switch on the right; highlighted while on).
+ *
  * ```
  * SSwitch({ checked: this.airplane!!, label: 'Airplane Mode' })
  * SSwitch({ defaultChecked: true, onCheckedChange: (v: boolean) => ... })
+ * SSwitch({ label: 'Marketing emails', description: 'Receive emails about new products.', card: true })
  * ```
  * React to changes with `onCheckedChange` / `!!` (the control's own tap consumes `.onClick()` on SSwitch).
  */
@@ -29,6 +61,11 @@ export struct SSwitch {
   @Param disabled: boolean = false;
   /** Text shown to the right; also tappable. */
   @Param label: ResourceStr | undefined = undefined;
+  /** Muted helper text under the label. */
+  @Param description: ResourceStr | undefined = undefined;
+  @Param sizing: ChoiceSize = 'default';
+  /** Bordered choice card: texts on the left, switch on the right. */
+  @Param card: boolean = false;
   @Event onCheckedChange: (v: boolean) => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -63,6 +100,11 @@ export struct SSwitch {
   }
 
   @Computed
+  get metrics(): number[] {
+    return sparkSwitchMetrics(this.sizing);
+  }
+
+  @Computed
   get trackColor(): string {
     const c = this.theme.colors;
     if (this.current) {
@@ -81,39 +123,58 @@ export struct SSwitch {
   }
 
   @Computed
+  get cardStyle(): ChoiceCardStyle {
+    return sparkChoiceCard(this.theme, this.current, false);
+  }
+
+  @Computed
   get accessibleName(): string {
     return typeof this.label === 'string' ? this.label : '';
   }
 
-  build() {
-    Row({ space: 8 }) {
-      Stack({ alignContent: Alignment.Start }) {
-        Row()
-          .width(THUMB)
-          .height(THUMB)
-          .backgroundColor(this.thumbColor)
-          .border({ width: 0, radius: THUMB / 2 })
-          .translate({ x: this.current ? TRACK_W - 2 - THUMB : 0 })
-          .animation(SparkAnim.attr(this.theme, 'switch', 'normal'))
-      }
-      .width(TRACK_W)
-      .height(TRACK_H)
-      // border-transparent (1px) insets the thumb
-      .padding(1)
-      .backgroundColor(this.trackColor)
-      .border({ width: 0, radius: TRACK_H / 2 })
-      .shadow(this.theme.shadows.xs.toOptions())
-      .animation(SparkAnim.attr(this.theme, 'switch', 'normal'))
+  @Computed
+  get labelSize(): number {
+    return this.sizing === 'lg' ? this.theme.text.base : this.theme.text.sm;
+  }
 
-      if (this.label !== undefined) {
-        Text(this.label)
-          .fontSize(this.theme.text.sm)
-          .fontWeight(this.theme.text.weightMedium)
-          .lineHeight(this.theme.text.leadingSm)
-          .fontColor(this.theme.colors.foreground)
+  build() {
+    Row({ space: this.card ? 16 : (this.sizing === 'lg' ? 12 : 8) }) {
+      if (!this.card) {
+        this.control()
+      }
+      if (this.label !== undefined || this.description !== undefined) {
+        Column({ space: 4 }) {
+          if (this.label !== undefined) {
+            Text(this.label)
+              .fontSize(this.labelSize)
+              .fontWeight(this.theme.text.weightMedium)
+              .lineHeight(this.theme.text.leadingSm)
+              .fontColor(this.theme.colors.foreground)
+          }
+          if (this.description !== undefined) {
+            Text(this.description)
+              .fontSize(this.theme.text.sm)
+              .lineHeight(this.theme.text.leadingSm)
+              .fontColor(this.theme.colors.mutedForeground)
+          }
+        }
+        .layoutWeight(this.card ? 1 : 0)
+        .flexShrink(1)
+        .alignItems(HorizontalAlign.Start)
+      }
+      if (this.card) {
+        this.control()
       }
     }
-    .alignItems(VerticalAlign.Center)
+    .width(this.card ? '100%' : 'auto')
+    .alignItems(this.description !== undefined && !this.card ? VerticalAlign.Top : VerticalAlign.Center)
+    .padding(this.card ? 16 : 0)
+    .backgroundColor(this.card ? this.cardStyle.background : '#00000000')
+    .border({
+      width: this.card ? 1 : 0,
+      color: this.cardStyle.borderColor,
+      radius: this.card ? this.theme.radiusLg : 0
+    })
     .attributeModifier(this.press)
     .focusable(!this.disabled)
     .focusBox(sparkFocusRing(this.theme))
@@ -122,5 +183,28 @@ export struct SSwitch {
     .accessibilityChecked(this.current)
     .accessibilityDescription(this.disabled ? 'disabled' : '')
     .onClick(() => this.toggle())
+  }
+
+  @Builder
+  control() {
+    Stack({ alignContent: Alignment.Start }) {
+      Row()
+        .width(this.metrics[2])
+        .height(this.metrics[2])
+        .backgroundColor(this.thumbColor)
+        .border({ width: 0, radius: this.metrics[2] / 2 })
+        .translate({ x: this.current ? this.metrics[0] - 2 - this.metrics[2] : 0 })
+        .animation(SparkAnim.attr(this.theme, 'switch', 'normal'))
+    }
+    .width(this.metrics[0])
+    .height(this.metrics[1])
+    // border-transparent (1px) insets the thumb
+    .padding(1)
+    .flexShrink(0)
+    .margin({ top: this.description !== undefined && !this.card ? 1 : 0 })
+    .backgroundColor(this.trackColor)
+    .border({ width: 0, radius: this.metrics[1] / 2 })
+    .shadow(this.theme.shadows.xs.toOptions())
+    .animation(SparkAnim.attr(this.theme, 'switch', 'normal'))
   }
 }

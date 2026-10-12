@@ -15,6 +15,8 @@ import {
 } from '../docs/DisplayDocs';
 import { AlertDialogDoc, DropdownMenuDoc, SelectDoc, ToastDoc, TooltipDoc } from '../docs/OverlayDocs';
 import { CalendarDoc, DatePickerDoc } from '../docs/DateDocs';
+import { AreaChartDoc, BarChartDoc, ChartsOverviewDoc, LineChartDoc, PieChartDoc, RadarChartDoc, RadialChartDoc } from '../docs/ChartDocs';
+import { AppShellDoc, DashboardGridDoc, ListDetailDoc, SidebarDoc, SupportingPaneDoc, TopbarDoc } from '../docs/BlocksDocs';
 import { InputGroupDoc, NumberFieldDoc, PinInputDoc, StepperDoc, TableDoc, TagsInputDoc } from '../docs/DataDocs';
 import { ComboboxDoc, CommandDoc, ContextMenuDoc, DrawerDoc, HoverCardDoc, MenubarDoc } from '../docs/OverlayDocs2';
 
@@ -58,7 +60,33 @@ struct DocContent {
   @Param page: string = 'intro';
 
   build() {
-    if (this.page === 'calendar') {
+    if (this.page === 'charts') {
+      ChartsOverviewDoc()
+    } else if (this.page === 'area-chart') {
+      AreaChartDoc()
+    } else if (this.page === 'bar-chart') {
+      BarChartDoc()
+    } else if (this.page === 'line-chart') {
+      LineChartDoc()
+    } else if (this.page === 'pie-chart') {
+      PieChartDoc()
+    } else if (this.page === 'radar-chart') {
+      RadarChartDoc()
+    } else if (this.page === 'radial-chart') {
+      RadialChartDoc()
+    } else if (this.page === 'sidebar') {
+      SidebarDoc()
+    } else if (this.page === 'topbar') {
+      TopbarDoc()
+    } else if (this.page === 'app-shell') {
+      AppShellDoc()
+    } else if (this.page === 'list-detail') {
+      ListDetailDoc()
+    } else if (this.page === 'supporting-pane') {
+      SupportingPaneDoc()
+    } else if (this.page === 'dashboard-grid') {
+      DashboardGridDoc()
+    } else if (this.page === 'calendar') {
       CalendarDoc()
     } else if (this.page === 'date-picker') {
       DatePickerDoc()

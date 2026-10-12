@@ -4,7 +4,7 @@ import {
   SDialogHeader, SDialogTitle, SDialogTrigger, SIcon, SPopover, SPopoverContent, SPopoverTrigger, SSheet,
   SSheetContent, SSheetDescription, SSheetFooter, SSheetHeader, SSheetTitle, SSheetTrigger, SSheetClose, SheetSide,
   SparkIcons, SparkTheme, SparkUI, SparkSide, SCard, SCardHeader, SCardTitle, SCardDescription, SCardContent,
-  SCardFooter, SCardAction
+  SCardFooter, SCardAction, SBadge
 } from '@sparkui/core';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -30,11 +30,21 @@ SButton({ text: 'Please wait', loading: true })
 SButton({ text: 'Disabled', disabled: true })
   .onClick(() => this.save())   // never fires while disabled`;
 
+const BTN_BLOCK = `SButton({ text: 'Continue', block: true })
+SButton({ text: 'Sign in with Google', variant: 'outline', icon: 'globe', block: true })
+SButton({ text: 'Save changes', loading: this.saving, loadingText: 'Saving…', block: true })`;
+
 @ComponentV2
 export struct ButtonDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local taps: number = 0;
+  @Local saving: boolean = false;
+  private timer: number = -1;
   private variants: ButtonVariant[] = ['default', 'secondary', 'destructive', 'outline', 'ghost', 'link'];
+
+  aboutToDisappear(): void {
+    clearTimeout(this.timer);
+  }
 
   build() {
     Column({ space: 16 }) {
@@ -69,6 +79,25 @@ export struct ButtonDoc {
             this.taps += 1000;
           })
         }
+      }
+      DocSection({
+        title: 'Block & loading text',
+        description: 'block stretches to the parent width; loadingText replaces the label while loading.'
+      })
+      DemoBlock({ code: BTN_BLOCK }) {
+        Column({ space: 8 }) {
+          SButton({ text: 'Continue', block: true })
+          SButton({ text: 'Sign in with Google', variant: 'outline', icon: 'globe', block: true })
+          SButton({ text: 'Save changes', loading: this.saving, loadingText: 'Saving…', block: true })
+            .onClick(() => {
+              this.saving = true;
+              this.timer = setTimeout(() => {
+                this.saving = false;
+              }, 1500);
+            })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 320 })
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -407,9 +436,25 @@ const CARD_CODE = `SCard() {
   }
 }`;
 
+const CARD_VARIANTS = `SCard({ variant: 'outline' }) { ... }    // border only
+SCard({ variant: 'elevated' }) { ... }   // shadow-md, no border
+SCard({ variant: 'filled' }) { ... }     // bg-muted
+SCard({ variant: 'ghost' }) { ... }      // no surface
+SCard({ sizing: 'sm' }) { ... }          // compact 16vp padding`;
+
+const CARD_INTERACTIVE = `Stack() {
+  SCard({ interactive: true, image: $r('app.media.startIcon'), imageHeight: 140 }) {
+    SCardHeader() {
+      SCardTitle({ text: 'Design systems' })
+      SCardDescription({ text: 'Tap the whole card.' })
+    }
+  }
+}.onClick(() => this.opened++)`;
+
 @ComponentV2
 export struct CardDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local opened: number = 0;
 
   build() {
     Column({ space: 16 }) {
@@ -442,6 +487,77 @@ export struct CardDoc {
           }
         }
         .width('100%')
+        .constraintSize({ maxWidth: 380 })
+      }
+      DocSection({ title: 'Variants', description: "variant: default | outline | elevated | filled | ghost; sizing: 'sm'." })
+      DemoBlock({ code: CARD_VARIANTS }) {
+        Column({ space: 16 }) {
+          SCard({ variant: 'outline', sizing: 'sm' }) {
+            SCardHeader() {
+              SCardTitle({ text: 'Outline' })
+              SCardDescription({ text: 'Border only, no shadow.' })
+            }
+          }
+          SCard({ variant: 'elevated', sizing: 'sm' }) {
+            SCardHeader() {
+              SCardTitle({ text: 'Elevated' })
+              SCardDescription({ text: 'shadow-md instead of a border.' })
+            }
+          }
+          SCard({ variant: 'filled', sizing: 'sm' }) {
+            SCardHeader() {
+              SCardTitle({ text: 'Filled' })
+              SCardDescription({ text: 'A muted surface.' })
+            }
+          }
+          SCard({ variant: 'ghost', sizing: 'sm' }) {
+            SCardHeader() {
+              SCardTitle({ text: 'Ghost' })
+              SCardDescription({ text: 'No surface — keeps card spacing only.' })
+            }
+          }
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 380 })
+      }
+      DocSection({
+        title: 'Interactive & media',
+        description: 'interactive adds hover / pressed feedback; image puts a full-bleed header on top.'
+      })
+      DemoBlock({ code: CARD_INTERACTIVE }) {
+        Column({ space: 12 }) {
+          Stack() {
+            SCard({ interactive: true, image: $r('app.media.startIcon'), imageHeight: 140 }) {
+              SCardHeader() {
+                SCardTitle({ text: 'Design systems' })
+                SCardDescription({ text: 'Tap anywhere on the card.' })
+              }
+              SCardFooter() {
+                SBadge({ text: 'Guide', variant: 'secondary' })
+                SBadge({ text: '12 min', variant: 'outline' })
+              }
+            }
+          }
+          .onClick(() => {
+            this.opened++;
+          })
+          Stack() {
+            SCard({ variant: 'outline', interactive: true, sizing: 'sm' }) {
+              SCardHeader() {
+                SCardTitle({ text: 'Outline + interactive' })
+                SCardDescription({ text: 'Hover (pointer) and press feedback.' })
+              }
+            }
+          }
+          .onClick(() => {
+            this.opened++;
+          })
+          Text(`opened: ${this.opened}`)
+            .fontSize(this.theme.text.xs)
+            .fontColor(this.theme.colors.mutedForeground)
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
         .constraintSize({ maxWidth: 380 })
       }
     }
