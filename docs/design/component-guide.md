@@ -103,6 +103,7 @@ private set(v: boolean) {
 
 ## 8. ArkTS 严格模式常见坑
 
+- **`@ObservedV2` 类的单例不能写在类内的 static 初始化里**（`static readonly shared = new X()`）。static 初始化先于类装饰器执行，这样创建出的实例不会被 V2 观察，它的 `@Trace` 字段变化不会刷新 UI，只能等别的原因重渲染才显示出来（第 9 轮的 Title Bar 开关和 Toast 都受此影响）。正确写法：在类定义之后写 `const X_INSTANCE = new X()`，类内用 `static get shared(): X { return X_INSTANCE; }` 返回它。
 - 不允许 any / unknown、索引签名、对象字面量充当未声明的类型、解构、`for..in`、函数表达式（要用箭头函数）。
 - 箭头函数需要写返回类型时显式写 `: void` 等；对象字面量需要有对应的 interface / class 类型。
 - struct 内不能有与 `CustomComponent` 成员同名的字段（例如 `width`），改名为 `measuredWidth` 等。

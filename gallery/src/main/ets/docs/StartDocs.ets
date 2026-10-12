@@ -96,11 +96,12 @@ struct ComponentTokensDemo {
           .fontSize(this.theme.text.sm)
           .fontColor(this.theme.colors.foreground)
         SSlider({ value: this.shownRadius, min: 0, max: 20, step: 1, length: 180, label: 'Button radius',
+          // dragging only moves the slider; the theme variable (a whole-theme refresh) is set on release
           onValueChange: (v: number) => {
-            if (v !== this.buttonRadius) {
-              this.buttonRadius = v;
-              this.set('--button-radius', `${v}px`);
-            }
+            this.buttonRadius = v;
+          },
+          onValueCommit: (v: number) => {
+            this.set('--button-radius', `${v}px`);
           } })
         SButton({ text: 'Reset', variant: 'ghost', sizing: 'sm' })
           .onClick(() => {

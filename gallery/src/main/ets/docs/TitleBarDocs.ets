@@ -37,10 +37,19 @@ Column() {
 /** Gallery-wide switch for the live title bar ("apply to this window"). Read by the gallery root. */
 @ObservedV2
 export class GalleryWindowChrome {
-  static readonly shared: GalleryWindowChrome = new GalleryWindowChrome();
+  /**
+   * Singleton, created after the class (see below) rather than in a static initializer: static initializers run
+   * before the class decorators are applied, so an instance created there is not observed by V2 and its @Trace
+   * fields would not refresh the UI.
+   */
+  static get shared(): GalleryWindowChrome {
+    return GALLERY_WINDOW_CHROME;
+  }
   @Trace enabled: boolean = false;
   @Trace systemButtons: SparkSystemButtons = 'custom';
 }
+
+const GALLERY_WINDOW_CHROME: GalleryWindowChrome = new GalleryWindowChrome();
 
 /** The gallery's live title bar: renders only while "Apply to this window" is on (and the window is free). */
 @ComponentV2
@@ -48,17 +57,11 @@ export struct GalleryTitleBar {
   @Local g: GalleryWindowChrome = GalleryWindowChrome.shared;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
-  @LocalBuilder
-  themeAction() {
-    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
-      .onClick(() => SparkUI.themes.toggleDark())
-  }
-
   build() {
     Column() {
       if (this.g.enabled) {
-        STitleBar({ title: 'SparkUI Gallery', icon: 'sparkles', systemButtons: this.g.systemButtons,
-          content: this.themeAction })
+        // no actions here: the theme toggle lives in the app's top bar (one control per action)
+        STitleBar({ title: 'SparkUI Gallery', icon: 'sparkles', systemButtons: this.g.systemButtons })
       }
     }
     .width('100%')

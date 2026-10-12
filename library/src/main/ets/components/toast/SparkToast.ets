@@ -79,7 +79,14 @@ export class SparkToastItem {
  */
 @ObservedV2
 export class SparkToaster {
-  static readonly instance: SparkToaster = new SparkToaster();
+  /**
+   * Singleton, created after the class (see below) rather than in a static initializer: static initializers run
+   * before the class decorators are applied, so an instance created there is not observed by V2 and its @Trace
+   * fields would not refresh the UI.
+   */
+  static get instance(): SparkToaster {
+    return SPARK_TOASTER;
+  }
   @Trace items: SparkToastItem[] = [];
   /** default auto-dismiss time (ms) */
   duration: number = 4000;
@@ -223,6 +230,8 @@ export class SparkToaster {
     }
   }
 }
+
+const SPARK_TOASTER: SparkToaster = new SparkToaster();
 
 /**
  * Sonner-style toasts. Several can be on screen; each auto-dismisses after its duration.

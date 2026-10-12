@@ -10,6 +10,7 @@ import { ThemeDiagnostic, ThemeSource } from './css/ThemeSource';
 import { accentCss, presetCss, SparkAccentName, SparkPresetName } from './presets/Presets';
 import { SystemThemeBridge } from './SystemThemeBridge';
 import { SparkTheme, SparkThemeMode } from './tokens/SparkTheme';
+import { SPARK_COLOR_TOKENS } from './tokens/SparkColors';
 import { SparkAnim, SparkMotionOptions } from '../core/SparkAnim';
 
 /** Outcome of loading a theme file. Loading never throws. */
@@ -58,6 +59,7 @@ export class SparkThemeController {
   syncAppColorMode: boolean = true;
   /** Theme passed to WithTheme by SparkProvider; replaced on every refresh. */
   @Trace bridgeTheme: CustomTheme = {};
+  private bridgeSignature: string = '';
 
   /** effective = base preset ⊕ accent ⊕ overrides */
   private source: ThemeSource = new ThemeSource();
@@ -356,8 +358,15 @@ export class SparkThemeController {
       SparkAnim.commit(commit);
     }
     if (this.systemBridge) {
-      this.bridgeTheme = SystemThemeBridge.toCustomTheme(this.theme.colors);
-      SystemThemeBridge.applyDefault(this.theme.colors);
+      // Re-theming native components re-renders the whole WithTheme subtree: only when colours really changed
+      // (component-token / motion / radius edits leave them untouched).
+      const signature = SPARK_COLOR_TOKENS.map((k: string) => this.theme.colors.get(k) ?? '').join(',') +
+        (this.theme.isDark ? '|d' : '|l');
+      if (signature !== this.bridgeSignature) {
+        this.bridgeSignature = signature;
+        this.bridgeTheme = SystemThemeBridge.toCustomTheme(this.theme.colors);
+        SystemThemeBridge.applyDefault(this.theme.colors);
+      }
     }
   }
 

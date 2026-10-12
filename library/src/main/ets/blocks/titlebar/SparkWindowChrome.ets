@@ -57,7 +57,14 @@ export class SparkWindowChromeOptions {
  */
 @ObservedV2
 export class SparkWindowChrome {
-  static readonly shared: SparkWindowChrome = new SparkWindowChrome();
+  /**
+   * Singleton, created after the class (see below) rather than in a static initializer: static initializers run
+   * before the class decorators are applied, so an instance created there is not observed by V2 and its @Trace
+   * fields would not refresh the UI.
+   */
+  static get shared(): SparkWindowChrome {
+    return SPARK_WINDOW_CHROME;
+  }
 
   /** Bind to the main window (call from EntryAbility after `loadContent` succeeded). */
   static init(windowStage: window.WindowStage, context?: common.UIAbilityContext): void {
@@ -529,3 +536,5 @@ export class SparkWindowChrome {
     }
   }
 }
+
+const SPARK_WINDOW_CHROME: SparkWindowChrome = new SparkWindowChrome();
