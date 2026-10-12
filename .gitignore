@@ -14,3 +14,10 @@
 *.jpeg
 /library/BuildProfile.ets
 /gallery/BuildProfile.ets
+
+# local signing config (copy build-profile.example.json5 and sign in DevEco Studio)
+/build-profile.json5
+/.cache
+# docs site
+/docs/.vitepress/cache
+/docs/.vitepress/dist
