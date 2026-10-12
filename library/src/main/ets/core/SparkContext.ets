@@ -104,8 +104,12 @@ export class SparkContext {
     } catch (e) {
       attached = false;
     }
-    if (attached || left <= 0) {
+    if (attached) {
       fn();
+      return;
+    }
+    if (left <= 0) {
+      // never attached (unmounted before its first frame): resolving now would bind a ghost
       return;
     }
     setTimeout(() => SparkContext.whenAttached(uiContext, componentId, fn, left - 1), 16);

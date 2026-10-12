@@ -219,7 +219,8 @@ export class SparkOverlayService {
     } catch (e) {
       closing = Promise.resolve();
     }
-    closing.finally(() => {
+    // then(done, done): a rejected close (layer already gone) must not surface as an unhandled rejection
+    const done = (): void => {
       entry.content.dispose();
       SparkOverlayService.entries.delete(scope.id);
       if (scope.hostComponentId >= 0) {
@@ -233,7 +234,8 @@ export class SparkOverlayService {
         }
       }
       scope.onClosed();
-    });
+    };
+    closing.then(done, done);
   }
 
   /** Close everything (e.g. on page change). */

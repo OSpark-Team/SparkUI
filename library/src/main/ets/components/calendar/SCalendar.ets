@@ -40,7 +40,8 @@ const KEY_HOME: number = 2081;
 const KEY_END: number = 2082;
 const KEY_ENTER: number = 2054;
 const KEY_SPACE: number = 2050;
-const KEY_NUMPAD_ENTER: number = 2124;
+// KEYCODE_NUMPAD_ENTER (2119 in the SDK KeyCode table)
+const KEY_NUMPAD_ENTER: number = 2119;
 
 const NO_RADIUS: BorderRadiuses = { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 };
 

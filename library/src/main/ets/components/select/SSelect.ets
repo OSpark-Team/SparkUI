@@ -36,7 +36,7 @@ export class SparkSelectState {
   @Trace value: string = '';
   @Trace version: number = 0;
   readonly disclosure: SparkDisclosure = new SparkDisclosure();
-  disabled: boolean = false;
+  @Trace disabled: boolean = false;
   private labels: Map<string, string> = new Map<string, string>();
   emit: (v: string) => void = () => {
   };
