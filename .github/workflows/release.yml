@@ -121,7 +121,12 @@ jobs:
             -re {(?i)(pass(word|phrase)|密码)} {
               incr tries
               if {$tries > 2} { puts "\nohpm keeps asking for the passphrase: rejected"; exit 1 }
-              send -- "$env(OHPM_KEY_PASSPHRASE)\r"
+              # ohpm's hidden prompt drops any stdin chunk that contains a control character, so the passphrase
+              # and the Enter key must arrive as separate chunks ("pass\r" in one write = empty passphrase)
+              sleep 0.5
+              send -- "$env(OHPM_KEY_PASSPHRASE)"
+              sleep 0.5
+              send -- "\r"
               exp_continue
             }
             timeout { puts "\nohpm publish timed out"; exit 1 }
