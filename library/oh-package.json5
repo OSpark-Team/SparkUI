@@ -1,0 +1,10 @@
+{
+  "name": "@sparkui/core",
+  "version": "0.1.0",
+  "description": "SparkUI - refined, token-driven ArkTS component library for HarmonyOS, aligned with shadcn-vue.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "MIT",
+  "keywords": ["harmonyos", "arkui", "arkts", "ui", "components", "shadcn"],
+  "dependencies": {}
+}

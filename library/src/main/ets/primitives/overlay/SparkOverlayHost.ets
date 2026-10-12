@@ -1,0 +1,215 @@
+import { SparkAnim } from '../../core/SparkAnim';
+import { sparkEmptyBuilder } from '../../core/Builders';
+import { SparkContext } from '../../core/SparkContext';
+import { SparkUI } from '../../core/SparkUI';
+import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
+import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { Placement, PlacementRect, PlacementRequest, PlacementResult } from './Placement';
+import { SparkOverlayScope, SparkOverlayService } from './SparkOverlay';
+
+/** Backdrop colour: shadcn `bg-black/50`. */
+const BACKDROP: string = '#80000000';
+
+/**
+ * Root of every SparkUI overlay layer (rendered inside a ComponentContent). Draws the backdrop, places the
+ * content (centred / edge sheet / anchored with flip & shift), runs enter / exit transitions and re-provides
+ * theme, layout and compound-component context to the content.
+ */
+@ComponentV2
+export struct SparkOverlayHost {
+  @Param @Require scope: SparkOverlayScope;
+  @BuilderParam content: () => void = sparkEmptyBuilder;
+  @Provider('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Provider('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
+  @Local originX: number = 0;
+  @Local originY: number = 0;
+  @Local hostX: number = 0;
+  @Local hostY: number = 0;
+
+  aboutToAppear(): void {
+    this.theme = this.scope.theme;
+    this.layout = this.scope.layout;
+    if (this.scope.contextKey.length > 0 && this.scope.contextValue !== undefined) {
+      SparkContext.provide(this.getUIContext(), this.getUniqueId(), this.scope.contextKey, this.scope.contextValue);
+      this.scope.hostComponentId = this.getUniqueId();
+    }
+  }
+
+  aboutToDisappear(): void {
+    SparkContext.revoke(this.getUniqueId());
+  }
+
+  private get anchored(): boolean {
+    return this.scope.presentation === 'anchored';
+  }
+
+  private enter(): void {
+    if (this.scope.visible) {
+      return;
+    }
+    SparkAnim.run(this.getUIContext(), this.theme, this.scope.motionKey, 'normal', () => {
+      this.scope.visible = true;
+    });
+  }
+
+  private dismiss(): void {
+    if (this.scope.dismissOnOutside) {
+      this.scope.onDismiss('outside');
+    }
+  }
+
+  /** Recompute anchored placement from the latest anchor / content size / viewport. */
+  private place(): void {
+    const s = this.scope;
+    if (!this.anchored || s.anchor === undefined || s.measuredWidth <= 0) {
+      return;
+    }
+    const env = this.layout.env;
+    const r = new PlacementRequest();
+    // anchor is in window coordinates; translate into host coordinates
+    r.anchor = new PlacementRect(s.anchor.x - this.hostX, s.anchor.y - this.hostY, s.anchor.width, s.anchor.height);
+    r.content = new PlacementRect(0, 0, s.measuredWidth, s.measuredHeight);
+    const w = SparkUI.layout.root.width;
+    const h = SparkUI.layout.root.height;
+    r.viewport = new PlacementRect(env.safeArea.left - this.hostX, env.safeArea.top - this.hostY,
+      w - env.safeArea.left - env.safeArea.right,
+      h - env.safeArea.top - Math.max(env.safeArea.bottom, env.keyboardHeight));
+    r.side = s.side;
+    r.alignment = s.alignment;
+    r.sideOffset = s.sideOffset;
+    r.alignOffset = s.alignOffset;
+    const result: PlacementResult = Placement.compute(r);
+    s.placement = result;
+    this.originX = result.originX;
+    this.originY = result.originY;
+  }
+
+  // ---- transition values (functions of `visible`) ----
+
+  private panelOpacity(): number {
+    if (this.scope.presentation.startsWith('sheet')) {
+      return 1;
+    }
+    return this.scope.visible ? 1 : 0;
+  }
+
+  private panelScale(): ScaleOptions {
+    const p = this.scope.presentation;
+    const k = this.scope.visible || (p !== 'center' && p !== 'anchored') ? 1 : 0.95;
+    if (p === 'anchored') {
+      return { x: k, y: k, centerX: this.originX, centerY: this.originY };
+    }
+    return { x: k, y: k };
+  }
+
+  private panelTranslate(): TranslateOptions {
+    const s = this.scope;
+    if (s.visible) {
+      return { x: 0, y: 0 };
+    }
+    switch (s.presentation) {
+      case 'sheet-bottom':
+        return { x: 0, y: s.measuredHeight > 0 ? s.measuredHeight : '100%' };
+      case 'sheet-top':
+        return { x: 0, y: s.measuredHeight > 0 ? -s.measuredHeight : '-100%' };
+      case 'sheet-left':
+        return { x: s.measuredWidth > 0 ? -s.measuredWidth : '-100%', y: 0 };
+      case 'sheet-right':
+        return { x: s.measuredWidth > 0 ? s.measuredWidth : '100%', y: 0 };
+      case 'anchored': {
+        const side = s.placement?.side ?? s.side;
+        const d = 8;
+        return side === 'bottom' ? { x: 0, y: -d } : side === 'top' ? { x: 0, y: d } :
+          side === 'right' ? { x: -d, y: 0 } : { x: d, y: 0 };
+      }
+      case 'toast':
+        return { x: 0, y: 16 };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+
+  private stackAlign(): Alignment {
+    switch (this.scope.presentation) {
+      case 'center':
+        return Alignment.Center;
+      case 'sheet-bottom':
+        return Alignment.Bottom;
+      case 'sheet-top':
+        return Alignment.Top;
+      case 'sheet-left':
+        return Alignment.Start;
+      case 'sheet-right':
+        return Alignment.End;
+      case 'toast':
+        return this.layout.env.windowWidthClass === 'compact' ? Alignment.Bottom : Alignment.BottomEnd;
+      default:
+        return Alignment.TopStart;
+    }
+  }
+
+  build() {
+    Stack({ alignContent: this.stackAlign() }) {
+      if (this.scope.modal) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(BACKDROP)
+          .opacity(this.scope.visible ? 1 : 0)
+          .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
+          .onClick(() => this.dismiss())
+          .accessibilityText('Close')
+      } else if (!this.scope.passThrough) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(Color.Transparent)
+          .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
+          .onClick(() => this.dismiss())
+      }
+      Column() {
+        this.content()
+      }
+      .position(this.anchored ? {
+        x: this.scope.placement?.x ?? 0,
+        y: this.scope.placement?.y ?? 0
+      } : undefined)
+      .opacity(this.anchored && this.scope.placement === undefined ? 0 : this.panelOpacity())
+      .scale(this.panelScale())
+      .translate(this.panelTranslate())
+      .hitTestBehavior(HitTestMode.Default)
+      .onSizeChange((_: SizeOptions, n: SizeOptions) => {
+        this.scope.measuredWidth = Number(n.width);
+        this.scope.measuredHeight = Number(n.height);
+        this.place();
+        this.enter();
+      })
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ bottom: this.anchored ? 0 : this.layout.env.keyboardHeight })
+    .hitTestBehavior(this.scope.passThrough ? HitTestMode.Transparent : HitTestMode.Default)
+    .onAreaChange((_: Area, n: Area) => {
+      this.hostX = Number(n.globalPosition.x ?? 0);
+      this.hostY = Number(n.globalPosition.y ?? 0);
+      this.place();
+    })
+  }
+}
+
+@Builder
+function sparkOverlayHostBuilder(scope: SparkOverlayScope) {
+  SparkOverlayHost({ scope: scope, content: scope.content })
+}
+
+const HOST: WrappedBuilder<[SparkOverlayScope]> = wrapBuilder(sparkOverlayHostBuilder);
+
+/** Open an overlay layer for `scope` (see SparkOverlayService). */
+export function openSparkOverlay(uiContext: UIContext, scope: SparkOverlayScope): void {
+  SparkOverlayService.open(uiContext, scope, HOST);
+}
+
+/** Close with exit animation. */
+export function closeSparkOverlay(scope: SparkOverlayScope): void {
+  SparkOverlayService.close(scope);
+}

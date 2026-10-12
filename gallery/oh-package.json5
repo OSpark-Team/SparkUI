@@ -1,0 +1,11 @@
+{
+  "name": "gallery",
+  "version": "1.0.0",
+  "description": "SparkUI Gallery - component showcase, theme editor and layout inspector.",
+  "main": "",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@sparkui/core": "file:../library"
+  }
+}
