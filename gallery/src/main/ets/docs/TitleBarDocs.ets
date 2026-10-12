@@ -89,7 +89,7 @@ export struct GalleryTitleBar {
           title: 'SparkUI Gallery',
           icon: 'sparkles',
           systemButtons: this.g.systemButtons,
-          leading: this.sidebarToggle,
+          start: this.sidebarToggle,
           content: this.themeToggle
         })
       }

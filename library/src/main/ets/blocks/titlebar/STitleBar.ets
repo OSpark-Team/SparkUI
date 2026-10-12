@@ -110,6 +110,8 @@ export struct STitleBar {
   @Event onCaption: (action: SparkCaptionAction) => void = () => {
   };
   /** content after the icon / title (menus, breadcrumbs) — a no-drag region */
+  /** before the app icon (sidebar toggle, back) — a no-drag region */
+  @BuilderParam start: () => void = sparkEmptyBuilder;
   @BuilderParam leading: () => void = sparkEmptyBuilder;
   /** centred content (tabs, search) — a no-drag region; the space around it drags */
   @BuilderParam center: () => void = sparkEmptyBuilder;
@@ -265,6 +267,12 @@ export struct STitleBar {
   build() {
     if (this.visible) {
       Row({ space: 8 }) {
+        if (this.start !== sparkEmptyBuilder) {
+          Row() {
+            this.start()
+          }
+          .onTouch((e: TouchEvent) => e.stopPropagation())
+        }
         if (this.appIcon !== undefined) {
           Image(this.appIcon)
             .width(18)
