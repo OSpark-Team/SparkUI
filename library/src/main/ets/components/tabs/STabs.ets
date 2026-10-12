@@ -5,40 +5,16 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkRowPressModifier } from '../../primitives/SparkPressModifier';
-import { SparkSelection } from '../../primitives/SparkSelection';
+import { SparkItemRect, SparkSelection } from '../../primitives/SparkSelection';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { SparkAnim } from '../../core/SparkAnim';
 
 const KEY: string = 'spark.tabs';
 
-class TabRect {
-  x: number;
-  w: number;
-
-  constructor(x: number, w: number) {
-    this.x = x;
-    this.w = w;
-  }
-}
-
-/** Tabs selection + trigger geometry (for the sliding active indicator). */
+/** Tabs selection; trigger geometry (for the sliding active indicator) lives in SparkSelection. */
 @ObservedV2
 export class SparkTabsState extends SparkSelection {
-  @Trace geoVersion: number = 0;
-  private rects: Map<string, TabRect> = new Map<string, TabRect>();
-
-  report(value: string, x: number, w: number): void {
-    const r = this.rects.get(value);
-    if (r === undefined || r.x !== x || r.w !== w) {
-      this.rects.set(value, new TabRect(x, w));
-      this.geoVersion++;
-    }
-  }
-
-  rectOf(value: string): TabRect | undefined {
-    return this.geoVersion >= 0 ? this.rects.get(value) : undefined;
-  }
 }
 
 function resolveTabs(uiContext: UIContext, id: number): SparkTabsState | undefined {
@@ -118,8 +94,6 @@ export struct STabsList {
   @Local available: number = 0;
   @Local contentWidth: number = 0;
   @Local ctx: SparkTabsState | undefined = undefined;
-  /** the indicator only animates after it has been placed once (no slide-in from x = 0) */
-  @Local placed: boolean = false;
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -132,21 +106,12 @@ export struct STabsList {
   }
 
   @Computed
-  get activeRect(): TabRect | undefined {
+  get activeRect(): SparkItemRect | undefined {
     const c = this.ctx;
     if (c === undefined || c.values.length === 0) {
       return undefined;
     }
     return c.rectOf(c.values[0]);
-  }
-
-  @Monitor('activeRect')
-  onPlaced(): void {
-    if (this.activeRect !== undefined && !this.placed) {
-      setTimeout(() => {
-        this.placed = true;
-      }, 0);
-    }
   }
 
   @Computed
@@ -181,7 +146,7 @@ export struct STabsList {
                 radius: this.theme.radiusMd
               })
               .shadow(this.theme.shadows.sm.toOptions())
-              .animation(this.placed ? SparkAnim.attr(this.theme, 'tabs', 'normal') : { duration: 0 })
+              .animation(this.ctx?.interacted === true ? SparkAnim.attr(this.theme, 'tabs', 'normal') : { duration: 0 })
           }
           Row() {
             this.content()
@@ -287,7 +252,8 @@ export struct STabsTrigger {
     .attributeModifier(this.press)
     .border({ width: 0, radius: this.theme.radiusMd })
     .onAreaChange((_: Area, n: Area) => {
-      this.ctx?.report(this.value, Number(n.position.x ?? 0), Number(n.width));
+      this.ctx?.report(this.value, Number(n.position.x ?? 0), Number(n.position.y ?? 0), Number(n.width),
+        Number(n.height));
     })
     .focusable(!this.disabled)
     .focusBox(sparkFocusRing(this.theme))

@@ -185,8 +185,8 @@ export struct SparkOverlayHost {
         this.enter();
       })
     }
-    .width('100%')
-    .height('100%')
+    .width(this.scope.presentation === 'toast' ? 'auto' : '100%')
+    .height(this.scope.presentation === 'toast' ? 'auto' : '100%')
     .padding({ bottom: this.anchored ? 0 : this.layout.env.keyboardHeight })
     .hitTestBehavior(this.scope.passThrough ? HitTestMode.Transparent : HitTestMode.Default)
     .onAreaChange((_: Area, n: Area) => {

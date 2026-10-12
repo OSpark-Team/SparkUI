@@ -1,3 +1,20 @@
+import { SparkAnim } from '../core/SparkAnim';
+
+/** Laid-out rectangle of one item, relative to the items' container (vp). */
+export class SparkItemRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+
+  constructor(x: number, y: number, w: number, h: number) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+}
+
 /**
  * Selected-values state shared by the parts of a compound component (Tabs, Accordion, ToggleGroup),
  * distributed through {@link SparkContext}. Supports controlled (`value` + `$value` / `!!`) and uncontrolled
@@ -19,6 +36,28 @@ export class SparkSelection {
   /** notifies the owner component (→ `$value` / `onValueChange`) */
   emit: (values: string[]) => void = () => {
   };
+  /**
+   * True once the user changed the selection. A sliding selection indicator only animates from then on,
+   * so the initial layout (and geometry settling during first layout) never animates in from x = 0.
+   */
+  @Trace interacted: boolean = false;
+  /** bumps when an item's laid-out rectangle changes */
+  @Trace geoVersion: number = 0;
+  private rects: Map<string, SparkItemRect> = new Map<string, SparkItemRect>();
+
+  /** Items report their rectangle (from `.onAreaChange`, relative to the items' container). */
+  report(value: string, x: number, y: number, w: number, h: number): void {
+    const r = this.rects.get(value);
+    if (r === undefined || r.x !== x || r.y !== y || r.w !== w || r.h !== h) {
+      this.rects.set(value, new SparkItemRect(x, y, w, h));
+      this.geoVersion++;
+    }
+  }
+
+  /** Rectangle of an item (reactive through `geoVersion`). */
+  rectOf(value: string): SparkItemRect | undefined {
+    return this.geoVersion >= 0 ? this.rects.get(value) : undefined;
+  }
 
   has(value: string): boolean {
     return this.values.indexOf(value) >= 0;
@@ -55,6 +94,12 @@ export class SparkSelection {
 
   /** Request a change. Controlled owners decide via `emit`. */
   request(next: string[]): void {
+    if (!this.interacted) {
+      // flushed first, so the indicator's animation is already enabled when the selection moves
+      SparkAnim.commit(() => {
+        this.interacted = true;
+      });
+    }
     if (!this.controlled) {
       this.assign(next);
     }

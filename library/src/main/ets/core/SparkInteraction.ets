@@ -1,5 +1,5 @@
-import { curves } from '@kit.ArkUI';
 import { SparkTheme } from '../theme/tokens/SparkTheme';
+import { SparkAnim } from './SparkAnim';
 import { SparkUI } from './SparkUI';
 
 /**
@@ -28,20 +28,12 @@ export class SparkInteraction {
     if (this.hovered === isHover) {
       return;
     }
-    this.animate(ctx, theme, () => {
+    SparkAnim.run(ctx, theme, 'hover', 'fast', () => {
       this.hovered = isHover && this.enabled;
     });
   }
 
   reset(): void {
     this.hovered = false;
-  }
-
-  private animate(ctx: UIContext, theme: SparkTheme, change: () => void): void {
-    const e = theme.motion.easeStandard;
-    ctx.animateTo({
-      duration: theme.motion.durationFast,
-      curve: curves.cubicBezierCurve(e[0], e[1], e[2], e[3])
-    }, change);
   }
 }

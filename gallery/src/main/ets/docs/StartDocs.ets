@@ -3,7 +3,7 @@ import {
   SButton, SCodeBlock, SIcon, SparkAccentName, SparkColor, SparkLayoutContext, SparkPresetName, SparkTheme, SparkUI,
   SPARK_ACCENTS, SPARK_PRESETS, accentCss, SparkContainer, ThemeCssParser, ThemeResolver, resolveSparkLayout,
   SparkContext, STabs, STabsList, STabsTrigger, STabsContent, SAccordion, SAccordionItem, SAccordionTrigger,
-  SAccordionContent
+  SAccordionContent, SToggleGroup, SToggleGroupItem, SparkThemeMode
 } from '@sparkui/core';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -120,47 +120,54 @@ export struct ThemingDoc {
           'radius — everything below updates live, including native ArkUI components.'
       })
 
+      // Single-select toggle groups: one indicator slides to the new choice while the theme colours transition.
       this.label('Mode')
-      Row({ space: 8 }) {
-        SButton({ text: 'Light', icon: 'sun', sizing: 'sm',
-          variant: SparkUI.themes.mode === 'light' ? 'default' : 'outline' })
-          .onClick(() => SparkUI.themes.setMode('light'))
-        SButton({ text: 'Dark', icon: 'moon', sizing: 'sm',
-          variant: SparkUI.themes.mode === 'dark' ? 'default' : 'outline' })
-          .onClick(() => SparkUI.themes.setMode('dark'))
-        SButton({ text: 'System', icon: 'monitor', sizing: 'sm',
-          variant: SparkUI.themes.mode === 'system' ? 'default' : 'outline' })
-          .onClick(() => SparkUI.themes.setMode('system'))
+      SToggleGroup({ type: 'single', variant: 'outline', deselectable: false, value: [SparkUI.themes.mode],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            SparkUI.themes.setMode(v[0] as SparkThemeMode);
+          }
+        } }) {
+        SToggleGroupItem({ value: 'light', text: 'Light', icon: 'sun' })
+        SToggleGroupItem({ value: 'dark', text: 'Dark', icon: 'moon' })
+        SToggleGroupItem({ value: 'system', text: 'System', icon: 'monitor' })
       }
 
       this.label('Accent colour')
-      Flex({ wrap: FlexWrap.Wrap, space: { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) } }) {
-        ForEach(SPARK_ACCENTS, (a: SparkAccentName, i: number) => {
-          // A component written with a trailing-closure slot cannot chain attributes (ArkTS rule),
-          // so the click goes on a wrapper.
-          Stack() {
-            SButton({ variant: SparkUI.themes.accent === a ? 'outline' : 'ghost', sizing: 'sm' }) {
-              Row({ space: 8 }) {
-                Column()
-                  .width(14)
-                  .height(14)
-                  .borderRadius(7)
-                  .backgroundColor(a === 'none' ? this.theme.colors.foreground : this.swatches[i])
-                Text(a === 'none' ? 'Default' : a.charAt(0).toUpperCase() + a.substring(1))
-                  .fontSize(this.theme.text.sm)
-                  .fontColor(this.theme.colors.foreground)
-              }
-            }
+      SToggleGroup({ type: 'single', sizing: 'sm', spacing: 8, wrap: true, deselectable: false,
+        value: [SparkUI.themes.accent],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            SparkUI.themes.useAccent(v[0] as SparkAccentName);
           }
-          .onClick(() => SparkUI.themes.useAccent(a))
+        } }) {
+        ForEach(SPARK_ACCENTS, (a: SparkAccentName, i: number) => {
+          SToggleGroupItem({ value: a, label: a }) {
+            Row({ space: 8 }) {
+              Column()
+                .width(14)
+                .height(14)
+                .borderRadius(7)
+                .backgroundColor(a === 'none' ? this.theme.colors.foreground : this.swatches[i])
+              Text(a === 'none' ? 'Default' : a.charAt(0).toUpperCase() + a.substring(1))
+                .fontSize(this.theme.text.sm)
+                .fontColor(this.theme.colors.foreground)
+            }
+            .padding({ left: 4, right: 4 })
+          }
         }, (a: SparkAccentName) => a)
       }
 
       this.label('Base gray')
-      Flex({ wrap: FlexWrap.Wrap, space: { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) } }) {
+      SToggleGroup({ type: 'single', sizing: 'sm', spacing: 8, wrap: true, deselectable: false,
+        value: [SparkUI.themes.preset],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            SparkUI.themes.usePreset(v[0] as SparkPresetName);
+          }
+        } }) {
         ForEach(SPARK_PRESETS, (p: SparkPresetName) => {
-          SButton({ text: p, sizing: 'sm', variant: SparkUI.themes.preset === p ? 'secondary' : 'ghost' })
-            .onClick(() => SparkUI.themes.usePreset(p))
+          SToggleGroupItem({ value: p, text: p })
         }, (p: SparkPresetName) => p)
       }
       Text('Base grays only shift the hue of neutrals (backgrounds, borders, muted text) — subtle by design, exactly ' +
@@ -169,36 +176,45 @@ export struct ThemingDoc {
         .fontColor(this.theme.colors.mutedForeground)
 
       this.label('Radius')
-      Row({ space: 8 }) {
+      SToggleGroup({ type: 'single', sizing: 'sm', spacing: 8, wrap: true, deselectable: false,
+        value: [String(this.radius)],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            this.radius = Number(v[0]);
+            SparkUI.themes.setVariable('--radius', `${v[0]}rem`);
+          }
+        } }) {
         ForEach(RADII, (r: number) => {
-          SButton({ text: String(r), sizing: 'sm', variant: this.radius === r ? 'secondary' : 'ghost' })
-            .onClick(() => {
-              this.radius = r;
-              SparkUI.themes.setVariable('--radius', `${r}rem`);
-            })
+          SToggleGroupItem({ value: String(r), text: String(r) })
         }, (r: number) => String(r))
       }
 
       this.label('Motion')
-      Row({ space: 8 }) {
-        SButton({ text: 'On', sizing: 'sm', variant: this.motionOn ? 'secondary' : 'ghost' }).onClick(() => {
-          this.motionOn = true;
-          SparkUI.themes.setMotionEnabled(true);
-        })
-        SButton({ text: 'Off', sizing: 'sm', variant: this.motionOn ? 'ghost' : 'secondary' }).onClick(() => {
-          this.motionOn = false;
-          SparkUI.themes.setMotionEnabled(false);
-        })
+      SToggleGroup({ type: 'single', sizing: 'sm', variant: 'outline', deselectable: false,
+        value: [this.motionOn ? 'on' : 'off'],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            this.motionOn = v[0] === 'on';
+            SparkUI.themes.setMotionEnabled(this.motionOn);
+          }
+        } }) {
+        SToggleGroupItem({ value: 'on', text: 'On' })
+        SToggleGroupItem({ value: 'off', text: 'Off' })
       }
-      Flex({ wrap: FlexWrap.Wrap, space: { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) } }) {
+      SToggleGroup({ type: 'single', sizing: 'sm', spacing: 8, wrap: true, deselectable: false, value: [this.ease],
+        onValueChange: (v: string[]) => {
+          if (v.length === 0) {
+            return;
+          }
+          this.ease = v[0];
+          const spec = easeSpec(v[0]);
+          ['tabs', 'accordion', 'collapsible', 'toggle-group', 'button', 'dialog', 'popover', 'menu', 'select',
+            'sheet'].forEach((k: string) => {
+            SparkUI.themes.setMotion(k, { ease: spec[0], duration: Number(spec[1]) });
+          });
+        } }) {
         ForEach(EASES, (e: string) => {
-          SButton({ text: e, sizing: 'sm', variant: this.ease === e ? 'secondary' : 'ghost' }).onClick(() => {
-            this.ease = e;
-            const spec = easeSpec(e);
-            ['tabs', 'accordion', 'dialog', 'popover', 'menu', 'select', 'sheet'].forEach((k: string) => {
-              SparkUI.themes.setMotion(k, { ease: spec[0], duration: Number(spec[1]) });
-            });
-          })
+          SToggleGroupItem({ value: e, text: e })
         }, (e: string) => e)
       }
       Text('Every animated component has a motion key. Configure it like a CSS transition — ' +

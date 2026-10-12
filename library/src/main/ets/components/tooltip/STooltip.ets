@@ -1,19 +1,47 @@
+import { SparkAnim } from '../../core/SparkAnim';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
-import { SparkAdaptive, SparkLayoutContext } from '../../layout/SparkLayoutContext';
-import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
+import { SparkAdaptive } from '../../layout/SparkLayoutContext';
 import { SparkAlign, SparkSide } from '../../primitives/overlay/Placement';
-import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
-import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
+import { SparkDisclosure } from '../../primitives/SparkDisclosure';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 
 const KEY: string = 'spark.tooltip';
+/** touch: hold this long to show the tooltip */
+const LONG_PRESS_MS: number = 450;
+
+/** Tooltip state: open / closed plus what the content part publishes for the trigger's popup. */
+@ObservedV2
+export class SparkTooltipState extends SparkDisclosure {
+  delay: number = 500;
+  adaptive: SparkAdaptive = 'auto';
+  @Trace panel: (() => void) | undefined = undefined;
+  @Trace side: SparkSide = 'top';
+  @Trace alignment: SparkAlign = 'center';
+  @Trace sideOffset: number = 6;
+}
+
+function popupPlacement(side: SparkSide, alignment: SparkAlign): Placement {
+  switch (side) {
+    case 'bottom':
+      return alignment === 'start' ? Placement.BottomLeft : (alignment === 'end' ? Placement.BottomRight :
+        Placement.Bottom);
+    case 'left':
+      return alignment === 'start' ? Placement.LeftTop : (alignment === 'end' ? Placement.LeftBottom : Placement.Left);
+    case 'right':
+      return alignment === 'start' ? Placement.RightTop : (alignment === 'end' ? Placement.RightBottom :
+        Placement.Right);
+    default:
+      return alignment === 'start' ? Placement.TopLeft : (alignment === 'end' ? Placement.TopRight : Placement.Top);
+  }
+}
 
 /**
- * shadcn-vue `Tooltip`, with semantic translation:
+ * shadcn-vue `Tooltip`, built on the system popup (`bindPopup`: placement with flip, arrow, no mask), with
+ * semantic translation:
  * - pointer: shows after hovering `delay` ms, hides on leave
- * - touch: long-press shows, releasing hides
+ * - touch: long-press shows (the press is then not delivered as a tap to the trigger), releasing hides
  *
  * ```
  * STooltip() {
@@ -29,15 +57,21 @@ export struct STooltip {
   /** 'auto' follows the input modality; 'touch' disables hover, 'pointer' disables long-press */
   @Param adaptive: SparkAdaptive = 'auto';
   @BuilderParam content: () => void = sparkEmptyBuilder;
-  @Local state: SparkDisclosure = new SparkDisclosure();
+  @Local state: SparkTooltipState = new SparkTooltipState();
 
   aboutToAppear(): void {
-    this.state.placement = `${this.delay}|${this.adaptive}`;
+    this.syncOptions();
     SparkContext.provide(this.getUIContext(), this.getUniqueId(), KEY, this.state);
   }
 
   aboutToDisappear(): void {
     SparkContext.revoke(this.getUniqueId());
+  }
+
+  @Monitor('delay', 'adaptive')
+  syncOptions(): void {
+    this.state.delay = this.delay;
+    this.state.adaptive = this.adaptive;
   }
 
   build() {
@@ -50,8 +84,9 @@ export struct STooltip {
 @ComponentV2
 export struct STooltipTrigger {
   @BuilderParam content: () => void = sparkEmptyBuilder;
-  @Local ctx: SparkDisclosure | undefined = undefined;
-  private timer: number = -1;
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local ctx: SparkTooltipState | undefined = undefined;
+  private hoverTimer: number = -1;
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -59,63 +94,44 @@ export struct STooltipTrigger {
 
   private sparkResolve(): void {
     if (this.ctx === undefined) {
-      this.ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
-      if (this.ctx !== undefined) {
-        this.ctx.triggerUniqueId = this.getUniqueId();
-        this.ctx.triggerKey = sparkTriggerKey(this.getUniqueId());
-      }
+      this.ctx = SparkContext.resolve<SparkTooltipState>(this.getUIContext(), this.getUniqueId(), KEY);
     }
   }
 
   aboutToDisappear(): void {
-    clearTimeout(this.timer);
-    clearTimeout(this.pressTimer);
+    clearTimeout(this.hoverTimer);
   }
 
-  private config(): string[] {
-    return (this.ctx?.placement ?? '500|auto').split('|');
+  @Computed
+  get shown(): boolean {
+    return this.ctx !== undefined && this.ctx.open && this.ctx.panel !== undefined;
   }
 
   private hover(isHover: boolean): void {
     const ctx = this.ctx;
-    if (ctx === undefined || this.config()[1] === 'touch') {
+    if (ctx === undefined || ctx.adaptive === 'touch') {
       return;
     }
     SparkUI.layout.reportPointerEvent(true);
-    clearTimeout(this.timer);
+    clearTimeout(this.hoverTimer);
     if (isHover) {
-      this.timer = setTimeout(() => ctx.setOpen(true), Number(this.config()[0]));
+      this.hoverTimer = setTimeout(() => ctx.setOpen(true), ctx.delay);
     } else {
       ctx.setOpen(false);
     }
   }
 
-  private pressTimer: number = -1;
-  private downX: number = 0;
-  private downY: number = 0;
-
-  /**
-   * Touch long-press without a gesture recognizer: a LongPressGesture on the trigger competes with the
-   * trigger's own button (and lost — the tooltip never showed). Touch events don't enter the gesture arena.
-   */
-  private touch(e: TouchEvent): void {
+  private press(open: boolean): void {
     const ctx = this.ctx;
-    if (ctx === undefined || this.config()[1] === 'pointer') {
-      return;
+    if (ctx !== undefined && ctx.adaptive !== 'pointer') {
+      ctx.setOpen(open);
     }
-    const t = e.touches.length > 0 ? e.touches[0] : (e.changedTouches.length > 0 ? e.changedTouches[0] : undefined);
-    if (e.type === TouchType.Down && t !== undefined) {
-      this.downX = t.windowX;
-      this.downY = t.windowY;
-      clearTimeout(this.pressTimer);
-      this.pressTimer = setTimeout(() => ctx.setOpen(true), 450);
-    } else if (e.type === TouchType.Move && t !== undefined) {
-      if (Math.abs(t.windowX - this.downX) > 10 || Math.abs(t.windowY - this.downY) > 10) {
-        clearTimeout(this.pressTimer);
-      }
-    } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
-      clearTimeout(this.pressTimer);
-      ctx.setOpen(false);
+  }
+
+  @Builder
+  panelBuilder() {
+    if (this.ctx?.panel !== undefined) {
+      this.ctx.panel()
     }
   }
 
@@ -123,13 +139,45 @@ export struct STooltipTrigger {
     Stack() {
       this.content()
     }
-    .id(sparkTriggerKey(this.getUniqueId()))
     .onHover((isHover: boolean) => this.hover(isHover))
-    .onTouch((e: TouchEvent) => this.touch(e))
+    // A priority gesture is recognised before the trigger's own tap: a completed long press shows the tooltip
+    // and is not also delivered as a click; a short tap fails it and reaches the child as usual.
+    .priorityGesture(
+      LongPressGesture({ duration: LONG_PRESS_MS })
+        .onAction(() => this.press(true))
+        .onActionEnd(() => this.press(false))
+        .onActionCancel(() => this.press(false))
+    )
+    .bindPopup(this.shown, {
+      builder: () => this.panelBuilder(),
+      placement: popupPlacement(this.ctx?.side ?? 'top', this.ctx?.alignment ?? 'center'),
+      targetSpace: this.ctx?.sideOffset ?? 6,
+      popupColor: this.theme.colors.primary,
+      backgroundBlurStyle: BlurStyle.NONE,
+      shadow: { radius: 0, color: Color.Transparent },
+      radius: this.theme.radiusMd,
+      enableArrow: true,
+      arrowWidth: 10,
+      arrowHeight: 5,
+      mask: false,
+      autoCancel: true,
+      focusable: false,
+      outlineWidth: 0,
+      borderWidth: 0,
+      transition: SparkAnim.enter(this.theme, 'tooltip', 'fast', 0.95),
+      onStateChange: (e: PopupStateChangeParam) => {
+        if (!e.isVisible) {
+          this.ctx?.setOpen(false);
+        }
+      }
+    })
   }
 }
 
-/** `bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-xs` with an arrow; flips to stay on screen. */
+/**
+ * `bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-xs` with an arrow; the system popup flips it
+ * to stay on screen.
+ */
 @ComponentV2
 export struct STooltipContent {
   @Param text: ResourceStr | undefined = undefined;
@@ -138,10 +186,7 @@ export struct STooltipContent {
   @Param sideOffset: number = 6;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-  @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
-  @Local ctx: SparkDisclosure | undefined = undefined;
-  @Local scope: SparkOverlayScope | undefined = undefined;
-  private binding: OverlayBinding = new OverlayBinding();
+  @Local ctx: SparkTooltipState | undefined = undefined;
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -149,97 +194,44 @@ export struct STooltipContent {
 
   private sparkResolve(): void {
     if (this.ctx === undefined) {
-      const ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
+      const ctx = SparkContext.resolve<SparkTooltipState>(this.getUIContext(), this.getUniqueId(), KEY);
       this.ctx = ctx;
       if (ctx !== undefined) {
-        this.binding.attach(this.getUIContext(), ctx, (scope: SparkOverlayScope) => {
-          scope.presentation = 'anchored';
-          scope.motionKey = 'tooltip';
-          scope.modal = false;
-          scope.passThrough = true;
-          scope.focusable = false;
-          scope.dismissOnOutside = false;
-          scope.restoreFocusId = '';
-          scope.anchor = ctx.anchorRect(this.getUIContext());
-          scope.side = this.side;
-          scope.alignment = this.alignment;
-          scope.sideOffset = this.sideOffset;
-          scope.content = this.panel;
-          scope.theme = this.theme;
-          scope.layout = this.layout;
-          this.scope = scope;
-        });
+        ctx.panel = this.panel;
+        this.syncPlacement();
       }
+    }
+  }
+
+  @Monitor('side', 'alignment', 'sideOffset')
+  syncPlacement(): void {
+    const ctx = this.ctx;
+    if (ctx !== undefined) {
+      ctx.side = this.side;
+      ctx.alignment = this.alignment;
+      ctx.sideOffset = this.sideOffset;
     }
   }
 
   aboutToDisappear(): void {
-    this.binding.dispose();
-  }
-
-  @Computed
-  get arrowX(): number {
-    const p = this.scope?.placement;
-    if (p === undefined || p.side === 'left' || p.side === 'right') {
-      return -100;
+    if (this.ctx !== undefined) {
+      this.ctx.setOpen(false);
+      this.ctx.panel = undefined;
     }
-    return p.arrowOffset - 4;
-  }
-
-  @Computed
-  get arrowY(): number {
-    const s = this.scope;
-    const p = s?.placement;
-    if (s === undefined || p === undefined) {
-      return -100;
-    }
-    if (p.side === 'top') {
-      return s.measuredHeight - 4;
-    }
-    if (p.side === 'bottom') {
-      return -4;
-    }
-    return p.arrowOffset - 4;
-  }
-
-  @Computed
-  get arrowLeft(): number {
-    const s = this.scope;
-    const p = s?.placement;
-    if (s === undefined || p === undefined) {
-      return -100;
-    }
-    if (p.side === 'left') {
-      return s.measuredWidth - 4;
-    }
-    if (p.side === 'right') {
-      return -4;
-    }
-    return this.arrowX;
   }
 
   @LocalBuilder
   panel() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      Column()
-        .width(8)
-        .height(8)
-        .rotate({ angle: 45 })
-        .backgroundColor(this.theme.colors.primary)
-        .position({ x: this.arrowLeft, y: this.arrowY })
-      Column() {
-        if (this.text !== undefined) {
-          Text(this.text)
-            .fontSize(this.theme.text.xs)
-            .fontColor(this.theme.colors.primaryForeground)
-        }
-        this.content()
+    Column() {
+      if (this.text !== undefined) {
+        Text(this.text)
+          .fontSize(this.theme.text.xs)
+          .fontColor(this.theme.colors.primaryForeground)
       }
-      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .constraintSize({ maxWidth: 280 })
-      .backgroundColor(this.theme.colors.primary)
-      .borderRadius(this.theme.radiusMd)
+      this.content()
     }
+    .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+    .constraintSize({ maxWidth: 280 })
   }
 
   build() {

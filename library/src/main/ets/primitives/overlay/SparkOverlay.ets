@@ -129,7 +129,11 @@ export class SparkOverlayService {
       isModal: !scope.passThrough,
       autoCancel: false,
       maskColor: Color.Transparent,
-      alignment: DialogAlignment.TopStart,
+      // A non-modal dialog only intercepts touches inside its own frame (docs: 弹出框蒙层控制), so the toast
+      // layer is content-sized and aligned by the dialog; every other layer is a full-window host.
+      alignment: scope.presentation === 'toast' ?
+        (scope.layout.env.windowWidthClass === 'compact' ? DialogAlignment.Bottom : DialogAlignment.BottomEnd) :
+        DialogAlignment.TopStart,
       offset: { dx: 0, dy: 0 },
       transition: TransitionEffect.IDENTITY,
       keyboardAvoidMode: KeyboardAvoidMode.NONE,

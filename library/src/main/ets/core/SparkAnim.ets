@@ -1,4 +1,4 @@
-import { curves } from '@kit.ArkUI';
+import { curves, UIUtils } from '@kit.ArkUI';
 import { SparkMotionOverride, SparkTheme } from '../theme/tokens/SparkTheme';
 
 /** Base speed of a component animation; maps to the duration tokens. */
@@ -51,18 +51,48 @@ export class SparkAnim {
     return { duration: SparkAnim.duration(t, key, speed), curve: SparkAnim.curve(t, key) };
   }
 
-  /** Explicit transition around a state change; runs the change directly when motion is off. */
+  /**
+   * Explicit transition around a state change; runs the change directly when motion is off.
+   *
+   * State Management V2 marks components dirty in a micro-task, while `animateTo` captures dirty nodes
+   * immediately: a plain V2 change inside the closure — and every change made from `@Monitor` — would skip
+   * the animation. The change is therefore applied with `UIUtils.applySync` inside the closure, the
+   * official V2 pattern (docs: "applySync/flushUpdates/flushUIUpdates接口：同步刷新").
+   */
   static run(ctx: UIContext, t: SparkTheme, key: string, speed: SparkSpeed, change: () => void,
     onFinish?: () => void): void {
     const d = SparkAnim.duration(t, key, speed);
     if (d <= 0) {
-      change();
+      SparkAnim.commit(change);
       if (onFinish !== undefined) {
         onFinish();
       }
       return;
     }
-    ctx.animateTo({ duration: d, curve: SparkAnim.curve(t, key), onFinish: onFinish }, change);
+    ctx.animateTo({ duration: d, curve: SparkAnim.curve(t, key), onFinish: onFinish }, () => {
+      SparkAnim.commit(change);
+    });
+  }
+
+  /**
+   * Apply V2 state changes synchronously (`UIUtils.applySync`): computed values, monitors and UI update now.
+   * Use it for changes that must NOT become part of a following animation (e.g. a selection published
+   * before a theme colour transition). A nested applySync is skipped by the framework; the change then runs
+   * directly and is flushed by the outer call.
+   */
+  static commit(change: () => void): void {
+    let ran = false;
+    try {
+      UIUtils.applySync(() => {
+        ran = true;
+        change();
+      });
+    } catch (e) {
+      // not allowed here (e.g. inside @Computed, error 140001): fall back to a normal update
+    }
+    if (!ran) {
+      change();
+    }
   }
 
   /** `TransitionEffect` for appear / disappear of an element (opacity + optional scale / slide). */

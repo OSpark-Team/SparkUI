@@ -1,10 +1,12 @@
+import { LengthMetrics } from '@kit.ArkUI';
+import { SparkAnim } from '../../core/SparkAnim';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
-import { SparkSelection } from '../../primitives/SparkSelection';
+import { SparkItemRect, SparkSelection } from '../../primitives/SparkSelection';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import {
   ToggleJoin, ToggleSize, ToggleStyle, ToggleStyleModifier, ToggleVariant, ToggleVariants
@@ -20,6 +22,19 @@ export class SparkToggleGroupState extends SparkSelection {
   @Trace variant: ToggleVariant = 'default';
   @Trace sizing: ToggleSize = 'default';
   @Trace disabled: boolean = false;
+  /** gap between items; > 0 detaches the items (each keeps its own corners / border) */
+  @Trace spacing: number = 0;
+  /** single selection drawn by one sliding indicator instead of per-item backgrounds */
+  @Trace indicator: boolean = false;
+  private joins: Map<string, ToggleJoin> = new Map<string, ToggleJoin>();
+
+  setJoin(value: string, join: ToggleJoin): void {
+    this.joins.set(value, join);
+  }
+
+  joinOf(value: string): ToggleJoin {
+    return this.joins.get(value) ?? 'none';
+  }
 }
 
 /**
@@ -32,10 +47,12 @@ export class SparkToggleGroupState extends SparkSelection {
  *   SToggleGroupItem({ value: 'underline', icon: 'underline', label: 'Toggle underline' })
  * }
  * // controlled: SToggleGroup({ type: 'single', value: this.align!! }) { ... }
+ * // detached chips that wrap: SToggleGroup({ type: 'single', spacing: 8, wrap: true }) { ... }
  * ```
  *
  * `value` is always a string array (for `type: 'single'` it holds at most one entry; tapping the selected
- * item again clears it, like Radix).
+ * item again clears it, like Radix). In `single` mode the selection is one indicator that slides between
+ * items (motion key `toggle-group`), so a selection change never flashes or cross-fades two items.
  */
 @ComponentV2
 export struct SToggleGroup {
@@ -50,6 +67,12 @@ export struct SToggleGroup {
   @Param variant: ToggleVariant = 'default';
   @Param sizing: ToggleSize = 'default';
   @Param disabled: boolean = false;
+  /** Gap between items in vp (shadcn `spacing`). 0 = joined segments. */
+  @Param spacing: number = 0;
+  /** Wrap items onto several lines when they do not fit (use with `spacing`). */
+  @Param wrap: boolean = false;
+  /** `single` only: tapping the selected item again clears the selection (Radix default: true). */
+  @Param deselectable: boolean = true;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkToggleGroupState = new SparkToggleGroupState();
@@ -69,13 +92,15 @@ export struct SToggleGroup {
     SparkContext.revoke(this.getUniqueId());
   }
 
-  @Monitor('type', 'variant', 'sizing', 'disabled')
+  @Monitor('type', 'variant', 'sizing', 'disabled', 'spacing', 'deselectable')
   syncLook(): void {
     this.state.multiple = this.type === 'multiple';
-    this.state.collapsible = true;
+    this.state.collapsible = this.type === 'multiple' || this.deselectable;
     this.state.variant = this.variant;
     this.state.sizing = this.sizing;
     this.state.disabled = this.disabled;
+    this.state.spacing = this.spacing;
+    this.state.indicator = this.type === 'single';
   }
 
   @Monitor('value')
@@ -85,13 +110,56 @@ export struct SToggleGroup {
     }
   }
 
-  build() {
-    Row() {
-      this.content()
+  @Computed
+  get activeRect(): SparkItemRect | undefined {
+    const s = this.state;
+    if (!s.indicator || s.values.length === 0) {
+      return undefined;
     }
-    .alignItems(VerticalAlign.Center)
+    return s.rectOf(s.values[0]);
+  }
+
+  @Computed
+  get indicatorRadius(): BorderRadiuses {
+    const s = this.state;
+    if (s.geoVersion < 0) {
+      // geoVersion: joins are recorded together with the item rectangles
+      return ToggleVariants.radii(this.theme.radiusMd, 'none');
+    }
+    return ToggleVariants.radii(this.theme.radiusMd, s.values.length > 0 ? s.joinOf(s.values[0]) : 'none');
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      // The sliding selection: one node whose position / size animate, never on a pressed-style chain.
+      if (this.activeRect !== undefined) {
+        Column()
+          .position({ x: this.activeRect.x, y: this.activeRect.y })
+          .width(this.activeRect.w)
+          .height(this.activeRect.h)
+          .backgroundColor(this.theme.colors.accent)
+          .borderRadius(this.indicatorRadius)
+          .animation(this.state.interacted ? SparkAnim.attr(this.theme, 'toggle-group', 'normal') :
+            { duration: 0 })
+      }
+      if (this.wrap) {
+        Flex({
+          wrap: FlexWrap.Wrap,
+          alignItems: ItemAlign.Center,
+          space: { main: LengthMetrics.vp(this.spacing), cross: LengthMetrics.vp(this.spacing) }
+        }) {
+          this.content()
+        }
+      } else {
+        Row({ space: this.spacing }) {
+          this.content()
+        }
+        .alignItems(VerticalAlign.Center)
+      }
+    }
     .border({ width: 0, radius: this.theme.radiusMd })
-    .shadow(this.variant === 'outline' ? this.theme.shadows.xs.toOptions() : { radius: 0, color: Color.Transparent })
+    .shadow(this.variant === 'outline' && this.spacing === 0 ? this.theme.shadows.xs.toOptions() :
+      { radius: 0, color: Color.Transparent })
     .accessibilityGroup(false)
   }
 }
@@ -145,6 +213,9 @@ export struct SToggleGroupItem {
     if (ctx === undefined) {
       return 'middle';
     }
+    if (ctx.spacing > 0) {
+      return 'none';
+    }
     const id = this.getUniqueId();
     const first = ctx.isFirst(id);
     const last = ctx.isLast(id);
@@ -154,11 +225,21 @@ export struct SToggleGroupItem {
     return first ? 'first' : (last ? 'last' : 'middle');
   }
 
+  /** The group's sliding indicator paints the selected background. */
+  @Computed
+  get usesIndicator(): boolean {
+    return this.ctx !== undefined && this.ctx.indicator;
+  }
+
   @Computed
   get styles(): ToggleStyle {
     const variant: ToggleVariant = this.ctx?.variant ?? 'default';
     const sizing: ToggleSize = this.ctx?.sizing ?? 'default';
-    return ToggleVariants.resolve(this.theme, variant, sizing, this.on, this.ix.hovered && !this.inactive);
+    const s = ToggleVariants.resolve(this.theme, variant, sizing, this.on, this.ix.hovered && !this.inactive);
+    if (this.on && this.usesIndicator) {
+      s.background = '#00000000';
+    }
+    return s;
   }
 
   @Computed
@@ -185,12 +266,19 @@ export struct SToggleGroupItem {
           .fontWeight(this.styles.fontWeight)
           .fontColor(this.styles.foreground)
           .maxLines(1)
+          .animation(this.ctx?.interacted === true ? SparkAnim.attr(this.theme, 'toggle-group', 'normal') :
+            { duration: 0 })
       }
       this.content()
     }
     .justifyContent(FlexAlign.Center)
     .alignItems(VerticalAlign.Center)
     .attributeModifier(this.recipe)
+    .onAreaChange((_: Area, n: Area) => {
+      this.ctx?.setJoin(this.value, this.join);
+      this.ctx?.report(this.value, Number(n.position.x ?? 0), Number(n.position.y ?? 0), Number(n.width),
+        Number(n.height));
+    })
     .focusable(!this.inactive)
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityRole(AccessibilityRoleType.TOGGLER)

@@ -46,12 +46,6 @@ export class SparkThemeController {
   @Trace preset: SparkPresetName = 'neutral';
   /** Accent colour layered on the base preset. */
   @Trace accent: SparkAccentName = 'none';
-  // Internal copies used for resolution. The public @Trace fields above are published *after* the theme
-  // transition starts: ArkUI's animateTo also animates pending (unflushed) state changes, which would make
-  // selection controls bound to mode / preset / accent cross-fade (two items highlighted at once).
-  private curMode: SparkThemeMode = 'system';
-  private curPreset: SparkPresetName = 'neutral';
-  private curAccent: SparkAccentName = 'none';
   /** Size class used for `@size()` blocks; driven by SparkLayout. */
   @Trace sizeClass: string = 'compact';
   /** Diagnostics of the last load/refresh (parse + apply). */
@@ -83,7 +77,7 @@ export class SparkThemeController {
   }
 
   get isDark(): boolean {
-    return this.curMode === 'dark' || (this.curMode === 'system' && this.systemDark);
+    return this.mode === 'dark' || (this.mode === 'system' && this.systemDark);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -107,7 +101,7 @@ export class SparkThemeController {
       this.envCallbackId = this.appContext.on('environment', {
         onConfigurationUpdated: (config) => {
           // While the app colour mode is forced, config.colorMode reflects our own override.
-          if (this.curMode === 'system' || !this.syncAppColorMode) {
+          if (this.mode === 'system' || !this.syncAppColorMode) {
             const dark = config.colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK;
             if (dark !== this.systemDark) {
               this.systemDark = dark;
@@ -143,19 +137,21 @@ export class SparkThemeController {
   // ---------------------------------------------------------------------------------------------
 
   setMode(mode: SparkThemeMode): void {
-    if (mode === this.curMode) {
+    if (mode === this.mode) {
       return;
     }
-    this.curMode = mode;
-    this.applyAppColorMode();
-    if (mode === 'system' && this.uiContext !== undefined) {
-      const host = this.uiContext.getHostContext();
-      if (host !== undefined) {
-        this.systemDark = SparkThemeController.readSystemDark(host);
+    // Selection state is applied synchronously first, so only the token colours take part in the transition.
+    SparkAnim.commit(() => {
+      this.mode = mode;
+      if (mode === 'system' && this.uiContext !== undefined) {
+        const host = this.uiContext.getHostContext();
+        if (host !== undefined) {
+          this.systemDark = SparkThemeController.readSystemDark(host);
+        }
       }
-    }
+    });
+    this.applyAppColorMode();
     this.refresh(this.transitions);
-    this.mode = mode;
   }
 
   toggleDark(): void {
@@ -164,18 +160,20 @@ export class SparkThemeController {
 
   /** Switch the gray base (keeps accent and overrides such as radius). */
   usePreset(name: SparkPresetName): void {
-    this.curPreset = name;
+    SparkAnim.commit(() => {
+      this.preset = name;
+    });
     this.rebuildSource();
     this.refresh(this.transitions);
-    this.preset = name;
   }
 
   /** Switch the accent colour theme ('none' = monochrome shadcn default). */
   useAccent(name: SparkAccentName): void {
-    this.curAccent = name;
+    SparkAnim.commit(() => {
+      this.accent = name;
+    });
     this.rebuildSource();
     this.refresh(this.transitions);
-    this.accent = name;
   }
 
   /** Drop loaded / edited overrides, back to preset + accent. */
@@ -204,8 +202,7 @@ export class SparkThemeController {
   /** Load a theme from CSS-subset or JSON text (auto-detected). */
   loadString(text: string, options?: ThemeLoadOptions): ThemeLoadResult {
     const parsed = text.trim().startsWith('{') ? ThemeCssParser.parseJson(text) : ThemeCssParser.parse(text);
-    this.curPreset = options?.base ?? this.curPreset;
-    this.preset = this.curPreset;
+    this.preset = options?.base ?? this.preset;
     this.customName = options?.name ?? 'custom';
     this.overrides = parsed;
     this.rebuildSource();
@@ -318,22 +315,19 @@ export class SparkThemeController {
     const dark = this.isDark;
     const scratch = new SparkTheme();
     // 1) defaults: the base preset for this appearance (guarantees every token has a valid value)
-    ThemeResolver.apply(this.presetSource(this.curPreset), dark, this.sizeClass, scratch);
+    ThemeResolver.apply(this.presetSource(this.preset), dark, this.sizeClass, scratch);
     // 2) effective source
     const applyDiags = ThemeResolver.apply(this.source, dark, this.sizeClass, scratch);
-    scratch.name = this.customName ?? (this.curAccent === 'none' ? this.curPreset : `${this.curPreset}/${this.curAccent}`);
+    scratch.name = this.customName ?? (this.accent === 'none' ? this.preset : `${this.preset}/${this.accent}`);
     this.diagnostics = this.sourceDiagnostics.concat(applyDiags);
 
     const commit = (): void => {
       this.theme.copyFrom(scratch);
     };
-    if (animate && this.uiContext !== undefined && SparkAnim.duration(scratch, 'theme', 'slow') > 0) {
-      this.uiContext.animateTo({
-        duration: SparkAnim.duration(scratch, 'theme', 'slow'),
-        curve: SparkAnim.curve(scratch, 'theme')
-      }, commit);
+    if (animate && this.uiContext !== undefined) {
+      SparkAnim.run(this.uiContext, scratch, 'theme', 'slow', commit);
     } else {
-      commit();
+      SparkAnim.commit(commit);
     }
     if (this.systemBridge) {
       this.bridgeTheme = SystemThemeBridge.toCustomTheme(this.theme.colors);
@@ -348,9 +342,9 @@ export class SparkThemeController {
   }
 
   private rebuildSource(): void {
-    let src = this.presetSource(this.curPreset);
-    if (this.curAccent !== 'none') {
-      src = src.merge(this.accentSource(this.curAccent));
+    let src = this.presetSource(this.preset);
+    if (this.accent !== 'none') {
+      src = src.merge(this.accentSource(this.accent));
     }
     this.source = src.merge(this.overrides);
   }
@@ -379,8 +373,8 @@ export class SparkThemeController {
       return;
     }
     try {
-      const m = this.curMode === 'dark' ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK :
-        (this.curMode === 'light' ? ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT :
+      const m = this.mode === 'dark' ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK :
+        (this.mode === 'light' ? ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT :
         ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
       this.appContext.setColorMode(m);
     } catch (e) {

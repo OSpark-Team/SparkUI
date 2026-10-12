@@ -82,7 +82,7 @@ export { SPARK_DIALOG_KEY } from './src/main/ets/components/dialog/SDialog';
 export {
   SAlertDialog, SAlertDialogTrigger, SAlertDialogContent, SAlertDialogAction, SAlertDialogCancel
 } from './src/main/ets/components/alert-dialog/SAlertDialog';
-export { STooltip, STooltipTrigger, STooltipContent } from './src/main/ets/components/tooltip/STooltip';
+export { STooltip, STooltipTrigger, STooltipContent, SparkTooltipState } from './src/main/ets/components/tooltip/STooltip';
 export {
   SDropdownMenu, SDropdownMenuTrigger, SDropdownMenuContent, SDropdownMenuItem, SDropdownMenuCheckboxItem,
   SDropdownMenuRadioGroup, SDropdownMenuRadioItem, SDropdownMenuLabel, SDropdownMenuSeparator, SDropdownMenuGroup,

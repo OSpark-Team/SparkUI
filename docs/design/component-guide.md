@@ -46,7 +46,11 @@
   - 显式动画：`SparkAnim.run(this.getUIContext(), this.theme, 'tabs', 'fast', () => { ...状态变化 })`
   - 出现 / 消失：`.transition(SparkAnim.enter(this.theme, 'checkbox', 'fast', 0.5))`
 - 禁止写死 `{ duration: 200 }` 或直接调用 `animateTo`：所有动画都必须能被 `--motion-*` 配置或关闭。
-- 不要对按压态加动画；选中切换不要让两个兄弟节点同时渐变背景（改用单个移动的指示器，或者瞬切）。
+- **V2 状态与显式动画**（官方文档《applySync/flushUpdates/flushUIUpdates接口：同步刷新》）：状态管理 V2 在微任务里才标脏，而 `animateTo` 会立即刷新脏节点，所以闭包中的 V2 修改，尤其是 `@Monitor` 里触发的修改，会直接跳到终态，看不到动画。这正是第 6 轮 Accordion 展开没有动画的根因。
+  - `SparkAnim.run` 已在闭包内调用 `UIUtils.applySync`，组件直接用 `run` 即可，在 `@Monitor` 中也可以。
+  - 不应参与动画的前置修改（例如选中值先切换、再做主题色过渡），用 `SparkAnim.commit(() => …)` 同步提交。
+  - 不要用"等动画开始后再赋值"或 `setTimeout(0)` 这类时序技巧来代替。
+- 不要对按压态加动画。单选的选中态要用一个滑动的指示器表示（`SToggleGroup` type 'single'、`STabsList`），选中值统一记在 `SparkSelection.report/rectOf` 中，`interacted` 置位前不做动画。也可以像 SButton 那样，把变体切换放进一个短的颜色过渡里（motion key 'button'）。
 - 无限动画（如 Spinner）放在独立节点里，条件变化时直接移除该节点；不要在同一节点上切换属性，否则旋转不会停。
 
 ## 4. 值组件：受控 / 非受控
@@ -91,6 +95,8 @@ private set(v: boolean) {
 
 - 统一用 `openSparkOverlay(uiContext, scope)` 和 `closeSparkOverlay(scope)`。scope 由 `SparkOverlayService.createScope()` 创建。
 - 内容用 `@LocalBuilder panel()`（保证 `this` 绑定），参考 `SDialogContent`、`SPopoverContent`、`SSheetContent`。
+- **非模态层不得铺满窗口**：非模态 dialog 只拦截自身框架范围内的触摸（官方文档《弹出框蒙层控制》）。如果宿主是全窗口大小，即使设置 `HitTestMode.Transparent`，也会挡住整个页面（第 6 轮 Toast 期间页面无法操作，就是这个原因）。因此 Toast 层按内容尺寸布局，由 dialog 的 alignment 负责定位。
+- 纯提示类气泡（Tooltip）直接用系统 `bindPopup`（mask: false），由系统负责翻转、箭头和非阻塞行为；触屏长按用 `priorityGesture(LongPressGesture)`，这样长按成功后不会再触发子元素的点击。
 
 ## 8. ArkTS 严格模式常见坑
 
