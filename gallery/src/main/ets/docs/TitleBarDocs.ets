@@ -1,6 +1,6 @@
 import {
   SButton, SIcon, SparkCaptionAction, SparkSystemButtons, SparkTheme, SparkUI, SparkWindowChrome, SSwitch,
-  STitleBar, SToggleGroup, SToggleGroupItem
+  STitleBar, SToggleGroup, SToggleGroupItem, SSidebarTrigger, SparkSidebarState, sparkTitleBarVisible
 } from '@sparkui/core';
 import { DemoBlock, DemoCaption, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -47,21 +47,51 @@ export class GalleryWindowChrome {
   }
   @Trace enabled: boolean = false;
   @Trace systemButtons: SparkSystemButtons = 'custom';
+
+  /**
+   * The live title bar is on screen (switch on, free window, not full screen / minimized). While it is, it hosts
+   * the sidebar and theme toggles and the app's top bar drops its own copies (one control per action).
+   */
+  get active(): boolean {
+    const c = SparkWindowChrome.shared;
+    return this.enabled && sparkTitleBarVisible('auto', c.freeWindow, c.owned, c.status);
+  }
 }
 
 const GALLERY_WINDOW_CHROME: GalleryWindowChrome = new GalleryWindowChrome();
 
-/** The gallery's live title bar: renders only while "Apply to this window" is on (and the window is free). */
+/**
+ * The gallery's live title bar: renders only while "Apply to this window" is on (and the window is free). It then
+ * carries the sidebar toggle and the theme toggle; the top bar hides its own (see GalleryWindowChrome.active).
+ */
 @ComponentV2
 export struct GalleryTitleBar {
+  /** the app's sidebar controller, so the toggle works from outside the sidebar provider */
+  @Param sidebar: SparkSidebarState | undefined = undefined;
   @Local g: GalleryWindowChrome = GalleryWindowChrome.shared;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+
+  @LocalBuilder
+  sidebarToggle() {
+    SSidebarTrigger({ controller: this.sidebar })
+  }
+
+  @LocalBuilder
+  themeToggle() {
+    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
+      .onClick(() => SparkUI.themes.toggleDark())
+  }
 
   build() {
     Column() {
       if (this.g.enabled) {
-        // no actions here: the theme toggle lives in the app's top bar (one control per action)
-        STitleBar({ title: 'SparkUI Gallery', icon: 'sparkles', systemButtons: this.g.systemButtons })
+        STitleBar({
+          title: 'SparkUI Gallery',
+          icon: 'sparkles',
+          systemButtons: this.g.systemButtons,
+          leading: this.sidebarToggle,
+          content: this.themeToggle
+        })
       }
     }
     .width('100%')

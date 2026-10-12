@@ -145,9 +145,11 @@ function absolutize(d) {
 
 const num = (v, def = 0) => (v === undefined ? def : Number(v));
 
+// Four 90° arcs: a full circle written as two exact 180° arcs is numerically ambiguous (the arc centre
+// solution degenerates) and some renderers then draw only one half after scaling.
 function circle(cx, cy, rx, ry) {
-  return `M${r(cx - rx)} ${r(cy)}A${r(rx)} ${r(ry)} 0 1 0 ${r(cx + rx)} ${r(cy)}` +
-    `A${r(rx)} ${r(ry)} 0 1 0 ${r(cx - rx)} ${r(cy)}Z`;
+  const a = (x, y) => `A${r(rx)} ${r(ry)} 0 0 0 ${r(x)} ${r(y)}`;
+  return `M${r(cx - rx)} ${r(cy)}` + a(cx, cy + ry) + a(cx + rx, cy) + a(cx, cy - ry) + a(cx - rx, cy) + 'Z';
 }
 
 function rect(a) {

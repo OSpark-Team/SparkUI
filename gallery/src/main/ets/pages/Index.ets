@@ -21,7 +21,7 @@ import { AppShellDoc, DashboardGridDoc, ListDetailDoc, SidebarDoc, SupportingPan
 import { InputGroupDoc, NumberFieldDoc, PinInputDoc, StepperDoc, TableDoc, TagsInputDoc } from '../docs/DataDocs';
 import { ComboboxDoc, CommandDoc, ContextMenuDoc, DrawerDoc, HoverCardDoc, MenubarDoc } from '../docs/OverlayDocs2';
 import { TransitionDoc } from '../docs/TransitionDocs';
-import { GalleryTitleBar, TitleBarDoc } from '../docs/TitleBarDocs';
+import { GalleryTitleBar, GalleryWindowChrome, TitleBarDoc } from '../docs/TitleBarDocs';
 
 /** Gallery preferences persisted across launches (PersistenceV2), fed to SAppShell through its hooks. */
 @ObservedV2
@@ -254,12 +254,15 @@ struct GalleryShell {
   @LocalBuilder
   titleBar() {
     // free-window / PC chrome (renders nothing unless the window is a free-form window)
-    GalleryTitleBar()
+    GalleryTitleBar({ sidebar: this.sidebar })
   }
 
   @LocalBuilder
   topbarActions() {
-    ThemeToggle()
+    // while the window title bar is shown it hosts the theme toggle (no duplicate here)
+    if (!GalleryWindowChrome.shared.active) {
+      ThemeToggle()
+    }
   }
 
   @LocalBuilder
@@ -286,6 +289,8 @@ struct GalleryShell {
       },
       subtitle: navGroupTitle(this.prefs.page),
       collapsible: 'icon',
+      // the sidebar toggle moves into the window title bar while it is shown
+      topbarLeading: GalleryWindowChrome.shared.active ? 'none' : 'auto',
       maxContentWidth: 880,
       titleBarBuilder: (): void => {
         this.titleBar()

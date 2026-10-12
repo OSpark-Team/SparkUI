@@ -15,7 +15,7 @@ import {
   SSidebarGroupLabel, SSidebarHeader, SSidebarInset, SSidebarMenu, SSidebarMenuButton, SSidebarMenuItem,
   SSidebarProvider
 } from '../sidebar/SSidebar';
-import { SparkTopbarAction, STopbar } from '../topbar/STopbar';
+import { SparkTopbarAction, STopbar, TopbarLeading } from '../topbar/STopbar';
 
 /** One navigation entry of an SAppShell sidebar. */
 export class SparkShellNavItem {
@@ -204,6 +204,7 @@ struct AppShellMain {
   @Event onSearchChange: (value: string) => void = () => {
   };
   @Param showTopbar: boolean = true;
+  @Param topbarLeading: TopbarLeading = 'auto';
   @Param translucent: boolean = true;
   @Param safeArea: boolean = true;
   @Param scrollable: boolean = true;
@@ -261,6 +262,7 @@ struct AppShellMain {
       STopbar({
         title: this.title,
         subtitle: this.subtitle,
+        leading: this.topbarLeading,
         actions: this.actions,
         onAction: (id: string) => this.onAction(id),
         search: this.search,
@@ -455,6 +457,8 @@ export struct SAppShell {
   };
   /** show the built-in top bar (false: bring your own via `headerBuilder` or the content) */
   @Param showTopbar: boolean = true;
+  /** top bar leading control: 'auto' (sidebar trigger), 'none' when e.g. a title bar already hosts it */
+  @Param topbarLeading: TopbarLeading = 'auto';
   /** translucent top bar with content scrolling underneath */
   @Param topbarBlur: boolean = true;
   /** wrap the content in the padded, centred scroller (false: the content fills the area as is) */
@@ -580,6 +584,7 @@ export struct SAppShell {
               onSearch: (v: string) => this.onSearch(v),
               onSearchChange: (v: string) => this.onSearchChange(v),
               showTopbar: this.showTopbar,
+              topbarLeading: this.topbarLeading,
               translucent: this.topbarBlur,
               scrollable: this.scrollable,
               safeArea: this.safeArea,

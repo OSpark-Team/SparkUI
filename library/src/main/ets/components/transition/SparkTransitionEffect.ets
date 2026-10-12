@@ -49,7 +49,8 @@ export function sparkEffectFromSpec(s: SparkEffectSpec, timing: SparkTransitionT
     return TransitionEffect.IDENTITY;
   }
   const d = timing.duration;
-  let e: TransitionEffect = TransitionEffect.opacity(s.opacity).animation({
+  // opacity 1 equals the default and would not animate at all (docs): 0.99 keeps a finish callback
+  let e: TransitionEffect = TransitionEffect.opacity(s.opacity >= 1 ? 0.99 : s.opacity).animation({
     duration: Math.round(d * s.opacityDuration), delay: Math.round(d * s.opacityDelay), curve: timing.curve
   });
   if (s.hasTransform()) {
@@ -87,8 +88,11 @@ export function sparkCustomEffect(f: SparkTransitionEffectFactory, forward: bool
   env.forward = forward;
   env.duration = timing.duration;
   env.curve = timing.curve;
-  // a preceding effect's animation parameters apply to the following combined effects (TransitionEffect docs)
-  return TransitionEffect.IDENTITY.animation({ duration: timing.duration, curve: timing.curve }).combine(f(env));
+  // A preceding effect's animation parameters apply to the following combined effects (TransitionEffect docs).
+  // The carrier must be a real effect: IDENTITY means "no transition" and drops the whole chain (the custom
+  // effect then appeared / vanished instantly). opacity(0.99) is the near-invisible carrier the docs' own
+  // example uses; it also guarantees a finish callback for out-in / in-out sequencing.
+  return TransitionEffect.opacity(0.99).animation({ duration: timing.duration, curve: timing.curve }).combine(f(env));
 }
 
 /**
