@@ -5,7 +5,7 @@ import {
   SparkContext, STabs, STabsList, STabsTrigger, STabsContent, SAccordion, SAccordionItem, SAccordionTrigger,
   SAccordionContent, SToggleGroup, SToggleGroupItem, SparkThemeMode
 } from '@sparkui/core';
-import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
 
 const INSTALL = `ohpm install @sparkui/core`;
 
@@ -331,18 +331,6 @@ export struct LayoutDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
 
-  @Builder
-  row(k: string, v: string) {
-    Row() {
-      Text(k).fontSize(this.theme.text.sm).fontColor(this.theme.colors.mutedForeground).width(160)
-      Text(v).fontSize(this.theme.text.sm).fontWeight(this.theme.text.weightMedium)
-        .fontColor(this.theme.colors.foreground)
-    }
-    .width('100%')
-    .padding({ top: 8, bottom: 8 })
-    .border({ width: { bottom: 1 }, color: this.theme.colors.border })
-  }
-
   build() {
     Column({ space: 16 }) {
       DocHeader({
@@ -366,14 +354,14 @@ export struct LayoutDoc {
         .fontSize(this.theme.text.xs)
         .fontColor(this.theme.colors.mutedForeground)
       Column() {
-        this.row('widthClass', this.layout.widthClass)
-        this.row('heightClass', this.layout.heightClass)
-        this.row('posture', this.layout.env.posture)
-        this.row('modality', this.layout.env.modality)
-        this.row('windowMode', this.layout.env.windowMode)
-        this.row('deviceType', this.layout.env.deviceType)
-        this.row('safe area', `top ${this.layout.env.safeArea.top} · bottom ${this.layout.env.safeArea.bottom}`)
-        this.row('keyboard', `${this.layout.env.keyboardHeight} vp`)
+        DemoPropRow({ label: 'widthClass', value: this.layout.widthClass })
+        DemoPropRow({ label: 'heightClass', value: this.layout.heightClass })
+        DemoPropRow({ label: 'posture', value: this.layout.env.posture })
+        DemoPropRow({ label: 'modality', value: this.layout.env.modality })
+        DemoPropRow({ label: 'windowMode', value: this.layout.env.windowMode })
+        DemoPropRow({ label: 'deviceType', value: this.layout.env.deviceType })
+        DemoPropRow({ label: 'safe area', value: `top ${this.layout.env.safeArea.top} · bottom ${this.layout.env.safeArea.bottom}` })
+        DemoPropRow({ label: 'keyboard', value: `${this.layout.env.keyboardHeight} vp` })
       }
       .width('100%')
       .constraintSize({ maxWidth: 520 })

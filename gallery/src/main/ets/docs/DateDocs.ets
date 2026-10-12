@@ -2,7 +2,7 @@ import {
   SCalendar, SDatePicker, SDateRangePicker, SparkDate, SparkDateRange, SparkDates, SparkTheme, SparkUI, SRangeCalendar,
   SSwitch
 } from '@sparkui/core';
-import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 function rangeText(r: SparkDateRange): string {
   const a = r.from !== undefined ? SparkDates.toIso(r.from) : '—';
@@ -45,14 +45,6 @@ export struct CalendarDoc {
   @Local zhDate: SparkDate | undefined = undefined;
   @Local sundayFirst: boolean = false;
 
-  @Builder
-  caption(text: string) {
-    Text(text)
-      .fontSize(this.theme.text.xs)
-      .fontColor(this.theme.colors.mutedForeground)
-      .margin({ top: 8 })
-  }
-
   build() {
     Column({ space: 16 }) {
       DocHeader({
@@ -63,7 +55,7 @@ export struct CalendarDoc {
       DemoBlock({ code: CALENDAR_CODE }) {
         Column() {
           SCalendar({ selected: this.date!!, bordered: true, weekStartsOn: this.sundayFirst ? 0 : 1 })
-          this.caption(`selected: ${this.date !== undefined ? SparkDates.format(this.date, 'PPP') : '—'}`)
+          DemoCaption({ text: `selected: ${this.date !== undefined ? SparkDates.format(this.date, 'PPP') : '—'}` })
           Row({ space: 8 }) {
             SSwitch({ checked: this.sundayFirst!! })
             Text('Week starts on Sunday').fontSize(this.theme.text.sm).fontColor(this.theme.colors.foreground)
@@ -76,8 +68,8 @@ export struct CalendarDoc {
       DemoBlock({ code: CALENDAR_MULTIPLE_CODE }) {
         Column() {
           SCalendar({ mode: 'multiple', selectedDates: this.days!!, bordered: true })
-          this.caption(`${this.days.length} selected${this.days.length > 0 ? ': ' +
-            this.days.map((d: SparkDate) => SparkDates.format(d, 'MMM d')).join(', ') : ''}`)
+          DemoCaption({ text: `${this.days.length} selected${this.days.length > 0 ? ': ' +
+            this.days.map((d: SparkDate) => SparkDates.format(d, 'MMM d')).join(', ') : ''}` })
         }
       }
 
@@ -88,7 +80,7 @@ export struct CalendarDoc {
       DemoBlock({ code: CALENDAR_RANGE_CODE }) {
         Column() {
           SRangeCalendar({ range: this.range!!, bordered: true })
-          this.caption(rangeText(this.range))
+          DemoCaption({ text: rangeText(this.range) })
         }
       }
 
@@ -107,7 +99,7 @@ export struct CalendarDoc {
             showOutsideDays: false,
             bordered: true
           })
-          this.caption(`选中：${this.zhDate !== undefined ? SparkDates.format(this.zhDate, 'PPP', 'zh') : '—'}`)
+          DemoCaption({ text: `选中：${this.zhDate !== undefined ? SparkDates.format(this.zhDate, 'PPP', 'zh') : '—'}` })
         }
       }
     }
@@ -135,14 +127,6 @@ export struct DatePickerDoc {
   @Local zhDate: SparkDate | undefined = undefined;
   @Local range: SparkDateRange = new SparkDateRange();
 
-  @Builder
-  caption(text: string) {
-    Text(text)
-      .fontSize(this.theme.text.xs)
-      .fontColor(this.theme.colors.mutedForeground)
-      .margin({ top: 8 })
-  }
-
   build() {
     Column({ space: 16 }) {
       DocHeader({
@@ -153,7 +137,7 @@ export struct DatePickerDoc {
       DemoBlock({ code: PICKER_CODE }) {
         Column() {
           SDatePicker({ value: this.date!! })
-          this.caption(`value: ${this.date !== undefined ? SparkDates.toIso(this.date) : 'undefined'}`)
+          DemoCaption({ text: `value: ${this.date !== undefined ? SparkDates.toIso(this.date) : 'undefined'}` })
         }
       }
 
@@ -166,7 +150,7 @@ export struct DatePickerDoc {
       DemoBlock({ code: RANGE_PICKER_CODE }) {
         Column() {
           SDateRangePicker({ value: this.range!! })
-          this.caption(rangeText(this.range))
+          DemoCaption({ text: rangeText(this.range) })
         }
       }
     }

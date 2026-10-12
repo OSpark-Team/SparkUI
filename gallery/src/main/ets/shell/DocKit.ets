@@ -94,3 +94,39 @@ export struct DemoBlock {
     .width('100%')
   }
 }
+
+/**
+ * Live status line under a demo ("selected: …"). A component, not a @Builder: primitive arguments passed to a
+ * @Builder are evaluated once by value and do not re-render when the demo's state changes.
+ */
+@ComponentV2
+export struct DemoCaption {
+  @Param text: string = '';
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+
+  build() {
+    Text(this.text)
+      .fontSize(this.theme.text.xs)
+      .fontColor(this.theme.colors.mutedForeground)
+      .margin({ top: 8 })
+  }
+}
+
+/** Key / value row that follows live values (see DemoCaption). */
+@ComponentV2
+export struct DemoPropRow {
+  @Param label: string = '';
+  @Param value: string = '';
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+
+  build() {
+    Row() {
+      Text(this.label).fontSize(this.theme.text.sm).fontColor(this.theme.colors.mutedForeground).width(160)
+      Text(this.value).fontSize(this.theme.text.sm).fontWeight(this.theme.text.weightMedium)
+        .fontColor(this.theme.colors.foreground)
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
+    .border({ width: { bottom: 1 }, color: this.theme.colors.border })
+  }
+}
