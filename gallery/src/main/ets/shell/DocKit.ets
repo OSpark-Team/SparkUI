@@ -1,4 +1,4 @@
-import { CodeLanguage, SButton, SCodeBlock, SparkTheme, SparkUI } from '@sparkui/core';
+import { CodeLanguage, SCodeBlock, SparkTheme, SparkUI, SToggleGroup, SToggleGroupItem } from '@sparkui/core';
 
 @Builder
 function emptyDemo() {
@@ -66,15 +66,14 @@ export struct DemoBlock {
 
   build() {
     Column({ space: 8 }) {
-      Row({ space: 4 }) {
-        SButton({ text: 'Preview', variant: this.showCode ? 'ghost' : 'secondary', sizing: 'sm' })
-          .onClick(() => {
-            this.showCode = false;
-          })
-        SButton({ text: 'Code', variant: this.showCode ? 'secondary' : 'ghost', sizing: 'sm' })
-          .onClick(() => {
-            this.showCode = true;
-          })
+      SToggleGroup({ type: 'single', sizing: 'sm', deselectable: false, value: [this.showCode ? 'code' : 'preview'],
+        onValueChange: (v: string[]) => {
+          if (v.length > 0) {
+            this.showCode = v[0] === 'code';
+          }
+        } }) {
+        SToggleGroupItem({ value: 'preview', text: 'Preview', icon: 'eye' })
+        SToggleGroupItem({ value: 'code', text: 'Code', icon: 'code' })
       }
 
       if (this.showCode) {

@@ -187,7 +187,6 @@ export struct SCombobox {
       radius: this.sheet ? { topLeft: this.theme.radiusXl, topRight: this.theme.radiusXl } : this.theme.radiusMd
     })
     .shadow(this.theme.shadows.md.toOptions())
-    .clip(true)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 

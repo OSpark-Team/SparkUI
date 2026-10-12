@@ -265,19 +265,24 @@ export class SparkThemeController {
    * ```
    * SparkUI.themes.setMotion('accordion', { duration: 320, ease: 'spring(0.45, 0.85)' })
    * SparkUI.themes.setMotion('tooltip', { enabled: false })
+   * SparkUI.themes.setMotion(['dialog', 'sheet'], { ease: 'spring(0.4, 0.8)' })   // several keys, one refresh
    * ```
    */
-  setMotion(component: string, options: SparkMotionOptions): ThemeLoadResult {
+  setMotion(component: string | string[], options: SparkMotionOptions): ThemeLoadResult {
+    // A theme refresh re-renders every themed component, so several keys are applied in one refresh.
+    const keys: string[] = typeof component === 'string' ? [component] : component;
     let css = ':root {';
-    if (options.duration !== undefined) {
-      css += ` --motion-${component}-duration: ${options.duration}ms;`;
-    }
-    if (options.ease !== undefined) {
-      css += ` --motion-${component}-ease: ${options.ease};`;
-    }
-    if (options.enabled !== undefined) {
-      css += ` --motion-${component}-enabled: ${options.enabled};`;
-    }
+    keys.forEach((k: string) => {
+      if (options.duration !== undefined) {
+        css += ` --motion-${k}-duration: ${options.duration}ms;`;
+      }
+      if (options.ease !== undefined) {
+        css += ` --motion-${k}-ease: ${options.ease};`;
+      }
+      if (options.enabled !== undefined) {
+        css += ` --motion-${k}-enabled: ${options.enabled};`;
+      }
+    });
     css += ' }';
     return this.applyOverrideCss(css);
   }

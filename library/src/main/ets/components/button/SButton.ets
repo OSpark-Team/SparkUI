@@ -3,7 +3,6 @@ import { SparkNoopModifier, sparkFocusRing, SparkTapBlocker } from '../../core/S
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
-import { SparkAnim } from '../../core/SparkAnim';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonVariants } from './ButtonVariants';
 
@@ -40,16 +39,10 @@ export struct SButton {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ix: SparkInteraction = new SparkInteraction();
   @Local spinAngle: number = 0;
-  /**
-   * Variant actually drawn. A variant change (e.g. a selected button turning `default` → `outline`) is
-   * applied inside a short colour transition, like CSS `transition: background-color, color`. Pressed
-   * styles stay instant (they are not on this path).
-   */
-  @Local shownVariant: ButtonVariant = 'default';
 
   @Computed
   get styles(): ButtonStyle {
-    return ButtonVariants.resolve(this.theme, this.shownVariant, this.sizing);
+    return ButtonVariants.resolve(this.theme, this.variant, this.sizing);
   }
 
   @Computed
@@ -59,15 +52,7 @@ export struct SButton {
   }
 
   aboutToAppear(): void {
-    this.shownVariant = this.variant;
     this.syncEnabled();
-  }
-
-  @Monitor('variant')
-  syncVariant(): void {
-    SparkAnim.run(this.getUIContext(), this.theme, 'button', 'fast', () => {
-      this.shownVariant = this.variant;
-    });
   }
 
   @Monitor('disabled', 'loading')

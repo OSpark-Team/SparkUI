@@ -208,10 +208,9 @@ export struct ThemingDoc {
           }
           this.ease = v[0];
           const spec = easeSpec(v[0]);
-          ['tabs', 'accordion', 'collapsible', 'toggle-group', 'button', 'dialog', 'popover', 'menu', 'select',
-            'sheet'].forEach((k: string) => {
-            SparkUI.themes.setMotion(k, { ease: spec[0], duration: Number(spec[1]) });
-          });
+          // one call, one theme refresh; the selector controls themselves keep their own motion
+          SparkUI.themes.setMotion(['tabs', 'accordion', 'collapsible', 'dialog', 'popover', 'menu', 'select', 'sheet'],
+            { ease: spec[0], duration: Number(spec[1]) });
         } }) {
         ForEach(EASES, (e: string) => {
           SToggleGroupItem({ value: e, text: e })

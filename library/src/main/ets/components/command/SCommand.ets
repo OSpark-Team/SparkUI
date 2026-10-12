@@ -757,7 +757,6 @@ export struct SCommandDialog {
       .backgroundColor(this.theme.colors.popover)
       .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
       .shadow(this.theme.shadows.lg.toOptions())
-      .clip(true)
       .accessibilityText(this.title)
     }
     .width('100%')

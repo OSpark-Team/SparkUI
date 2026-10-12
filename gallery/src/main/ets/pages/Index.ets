@@ -14,6 +14,9 @@ import {
   AlertDoc, AspectRatioDoc, AvatarDoc, BadgeDoc, EmptyDoc, ItemDoc, SeparatorDoc, SkeletonDoc, TypographyDoc
 } from '../docs/DisplayDocs';
 import { AlertDialogDoc, DropdownMenuDoc, SelectDoc, ToastDoc, TooltipDoc } from '../docs/OverlayDocs';
+import { CalendarDoc, DatePickerDoc } from '../docs/DateDocs';
+import { InputGroupDoc, NumberFieldDoc, PinInputDoc, StepperDoc, TableDoc, TagsInputDoc } from '../docs/DataDocs';
+import { ComboboxDoc, CommandDoc, ContextMenuDoc, DrawerDoc, HoverCardDoc, MenubarDoc } from '../docs/OverlayDocs2';
 
 @Entry
 @ComponentV2
@@ -55,7 +58,35 @@ struct DocContent {
   @Param page: string = 'intro';
 
   build() {
-    if (this.page === 'accordion') {
+    if (this.page === 'calendar') {
+      CalendarDoc()
+    } else if (this.page === 'date-picker') {
+      DatePickerDoc()
+    } else if (this.page === 'input-group') {
+      InputGroupDoc()
+    } else if (this.page === 'number-field') {
+      NumberFieldDoc()
+    } else if (this.page === 'pin-input') {
+      PinInputDoc()
+    } else if (this.page === 'tags-input') {
+      TagsInputDoc()
+    } else if (this.page === 'stepper') {
+      StepperDoc()
+    } else if (this.page === 'table') {
+      TableDoc()
+    } else if (this.page === 'hover-card') {
+      HoverCardDoc()
+    } else if (this.page === 'context-menu') {
+      ContextMenuDoc()
+    } else if (this.page === 'command') {
+      CommandDoc()
+    } else if (this.page === 'combobox') {
+      ComboboxDoc()
+    } else if (this.page === 'drawer') {
+      DrawerDoc()
+    } else if (this.page === 'menubar') {
+      MenubarDoc()
+    } else if (this.page === 'accordion') {
       AccordionDoc()
     } else     if (this.page === 'breadcrumb') {
       BreadcrumbDoc()

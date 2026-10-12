@@ -167,3 +167,46 @@ export { SScrollArea, ScrollAreaOrientation } from './src/main/ets/components/sc
 export { SparkAnim, SparkSpeed, SparkMotionOptions } from './src/main/ets/core/SparkAnim';
 export { SparkMotionOverride } from './src/main/ets/theme/tokens/SparkTheme';
 export { sparkPaginationSiblings } from './src/main/ets/components/pagination/PaginationRange';
+
+// date
+export { SCalendar, SparkCalendarMode, SparkDateMatcher } from './src/main/ets/components/calendar/SCalendar';
+export { SRangeCalendar } from './src/main/ets/components/calendar/SRangeCalendar';
+export { SDatePicker, SDateRangePicker } from './src/main/ets/components/calendar/SDatePicker';
+export { SparkDate, SparkDateRange, SparkDates, SparkWeekStart, SparkDateLocale } from './src/main/ets/components/calendar/SparkDate';
+
+// data & input
+export { SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput, SparkInputGroupState, InputGroupAddonAlignment, InputGroupButtonSize } from './src/main/ets/components/input-group/SInputGroup';
+export { SNumberField } from './src/main/ets/components/number-field/SNumberField';
+export { sparkNumberClamp, sparkNumberStep, sparkNumberParse, sparkNumberFormat, sparkRoundTo, sparkDecimalsOf } from './src/main/ets/components/number-field/NumberFieldLogic';
+export { SPinInput } from './src/main/ets/components/pin-input/SPinInput';
+export { PinPattern, sparkPinSanitize, sparkPinGroups, sparkPinActiveIndex, sparkPinSlotSize } from './src/main/ets/components/pin-input/PinInputLogic';
+export { STagsInput } from './src/main/ets/components/tags-input/STagsInput';
+export { SparkTagsParse, sparkTagsParse, sparkTagsAdd, sparkTagsRemoveAt } from './src/main/ets/components/tags-input/TagsInputLogic';
+export { SStepper, SStepperItem, SparkStepperState } from './src/main/ets/components/stepper/SStepper';
+export { StepperOrientation, StepperItemState, STEPPER_MIN_ITEM_WIDTH, sparkStepperHorizontal, sparkStepState, sparkStepReachable } from './src/main/ets/components/stepper/StepperLogic';
+export { STable, STableCaption, STableHeader, STableBody, STableFooter, STableRow, STableHead, STableCell, SparkTableState, SparkTableMembers, TableSectionKind } from './src/main/ets/components/table/STable';
+export { STableColumn, STableColumnOptions, TableAlignment, TableAdaptive, sparkTableColumnWidths, sparkTableMinWidth, sparkTableUseCards, sparkTableTotal } from './src/main/ets/components/table/TableLayout';
+
+// overlays 2
+export { SHoverCard, SHoverCardTrigger, SHoverCardContent, SparkHoverCardState } from './src/main/ets/components/hover-card/SHoverCard';
+export {
+  SContextMenu, SContextMenuTrigger, SContextMenuContent, SContextMenuItem, SContextMenuCheckboxItem,
+  SContextMenuRadioGroup, SContextMenuRadioItem, SContextMenuLabel, SContextMenuSeparator, SContextMenuGroup,
+  SparkContextMenuState
+} from './src/main/ets/components/context-menu/SContextMenu';
+export {
+  SCommand, SCommandInput, SCommandList, SCommandEmpty, SCommandGroup, SCommandItem, SCommandSeparator,
+  SCommandDialog, SparkCommandState
+} from './src/main/ets/components/command/SCommand';
+export { sparkCommandScore } from './src/main/ets/components/command/CommandScore';
+export { SCombobox } from './src/main/ets/components/combobox/SCombobox';
+export {
+  SDrawer, SDrawerTrigger, SDrawerContent, SDrawerHeader, SDrawerFooter, SDrawerTitle, SDrawerDescription, SDrawerClose
+} from './src/main/ets/components/drawer/SDrawer';
+export {
+  SMenubar, SMenubarMenu, SMenubarTrigger, SMenubarContent, SMenubarItem, SMenubarCheckboxItem, SMenubarRadioGroup,
+  SMenubarRadioItem, SMenubarLabel, SMenubarSeparator, SMenubarGroup, SparkMenubarState, SparkMenubarMenuState
+} from './src/main/ets/components/menubar/SMenubar';
+export {
+  SparkMenuHandle, SparkMenuItemPart, SparkMenuCheckboxPart, SparkMenuRadioGroupPart, SparkMenuRadioPart
+} from './src/main/ets/primitives/menu/SparkMenuParts';

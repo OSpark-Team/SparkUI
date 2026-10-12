@@ -4,6 +4,9 @@ import iconsTest from './Icons.test';
 import placementTest from './Placement.test';
 import codeHighlighterTest from './CodeHighlighter.test';
 import paginationTest from './Pagination.test';
+import dateTest from './Date.test';
+import dataTest from './Data.test';
+import commandTest from './Command.test';
 
 export default function testsuite() {
   sparkColorTest();
@@ -12,4 +15,7 @@ export default function testsuite() {
   placementTest();
   codeHighlighterTest();
   paginationTest();
+  dateTest();
+  dataTest();
+  commandTest();
 }

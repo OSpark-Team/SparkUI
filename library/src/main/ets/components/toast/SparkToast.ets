@@ -36,6 +36,8 @@ export class SparkToastItem {
   @Trace variant: SparkToastVariant;
   @Trace action: SparkToastAction | undefined;
   @Trace dragX: number = 0;
+  /** measured card height (vp), for stacking */
+  @Trace height: number = 0;
   duration: number;
   timer: number = -1;
 
@@ -279,23 +281,110 @@ struct SparkToastCard {
   }
 }
 
-/** The stack rendered inside the toast layer. */
+/** collapsed stack: vertical peek of each toast behind the front one */
+const PEEK: number = 12;
+const GAP: number = 8;
+
+/**
+ * The stack rendered inside the toast layer (Sonner style): the newest toast is in front, older ones are
+ * pushed back (smaller, peeking out above). Tap the stack (touch) or hover it (pointer) to expand it into a
+ * list. The stack reserves exactly the height it draws, so the non-modal layer never covers more of the page
+ * than the toasts themselves.
+ */
 @ComponentV2
 export struct SToastStack {
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local expanded: boolean = false;
+
+  /** current position of a toast (keyed ForEach does not refresh the index parameter when older items drop) */
+  private indexOf(t: SparkToastItem): number {
+    return SparkToaster.instance.items.indexOf(t);
+  }
+
+  /** 0 = newest (front) */
+  private depth(i: number): number {
+    return SparkToaster.instance.items.length - 1 - i;
+  }
+
+  private offsetOf(i: number): number {
+    const items = SparkToaster.instance.items;
+    const d = this.depth(i);
+    if (!this.expanded) {
+      return -d * PEEK;
+    }
+    let y = 0;
+    for (let k = i + 1; k < items.length; k++) {
+      y += items[k].height + GAP;
+    }
+    return -y;
+  }
+
+  @Computed
+  get frameHeight(): number {
+    const items = SparkToaster.instance.items;
+    if (items.length === 0) {
+      return 0;
+    }
+    if (!this.expanded) {
+      return items[items.length - 1].height + (items.length - 1) * PEEK;
+    }
+    let h = 0;
+    items.forEach((t: SparkToastItem) => {
+      h += t.height;
+    });
+    return h + (items.length - 1) * GAP;
+  }
+
+  @Monitor('frameHeight')
+  collapseWhenSingle(): void {
+    if (SparkToaster.instance.items.length <= 1 && this.expanded) {
+      this.expanded = false;
+    }
+  }
+
+  @Computed
+  get bottomInset(): number {
+    return Math.max(this.layout.env.safeArea.bottom, this.layout.env.keyboardHeight);
+  }
+
+
+  private setExpanded(v: boolean): void {
+    if (v !== this.expanded) {
+      SparkAnim.run(this.getUIContext(), this.theme, 'toast', 'normal', () => {
+        this.expanded = v;
+      });
+    }
+  }
 
   build() {
-    Column({ space: 8 }) {
+    Stack({ alignContent: Alignment.Bottom }) {
       ForEach(SparkToaster.instance.items, (t: SparkToastItem) => {
-        SparkToastCard({ item: t })
+        // stacking transform on a wrapper; the card's own drag translate stays un-animated
+        Column() {
+          SparkToastCard({ item: t })
+        }
+        .width('100%')
+        .translate({ y: this.offsetOf(this.indexOf(t)) })
+        .scale({
+          x: this.expanded ? 1 : 1 - this.depth(this.indexOf(t)) * 0.05,
+          y: this.expanded ? 1 : 1 - this.depth(this.indexOf(t)) * 0.05,
+          centerY: '100%'
+        })
+        .opacity(this.expanded || this.depth(this.indexOf(t)) < 3 ? 1 : 0)
+        .zIndex(this.indexOf(t))
+        .animation(SparkAnim.attr(this.theme, 'toast', 'normal'))
+        .onAreaChange((_: Area, n: Area) => {
+          t.height = Number(n.height);
+        })
       }, (t: SparkToastItem) => String(t.id))
     }
-    .width(this.layout.env.windowWidthClass === 'compact' ? '100%' : 356)
-    .padding({
-      left: 16,
-      right: 16,
-      bottom: 16 + Math.max(this.layout.env.safeArea.bottom, this.layout.env.keyboardHeight)
-    })
+    .width(this.layout.env.windowWidthClass === 'compact' ? '100%' : 356 + 32)
+    // height includes the padding (border-box)
+    .height(this.frameHeight > 0 ? this.frameHeight + 16 + this.bottomInset : 'auto')
+    .padding({ left: 16, right: 16, top: 0, bottom: 16 + this.bottomInset })
+    .onHover((h: boolean) => this.setExpanded(h))
+    .onClick(() => this.setExpanded(!this.expanded))
   }
 }
 

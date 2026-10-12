@@ -100,7 +100,8 @@ export struct SInputGroup {
 
   @Computed
   get colors(): InputColors {
-    return sparkInputColors(this.theme, this.state.focused && !this.state.disabled, this.state.invalid);
+    const invalid = this.invalid || (this.field !== undefined && this.field.isInvalid);
+    return sparkInputColors(this.theme, this.state.focused && !this.state.disabled, invalid);
   }
 
   build() {
