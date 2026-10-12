@@ -1,0 +1,7 @@
+node_modules/
+.vitepress/cache/
+.vitepress/dist/
+# generated from the ArkTS sources by scripts/generate.mjs (runs on every dev/build)
+.vitepress/generated/
+/components/
+/en/components/

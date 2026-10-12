@@ -1,0 +1,68 @@
+# Builds the VitePress docs site in docs/ and deploys it to GitHub Pages.
+# Settings → Pages → Build and deployment → Source: "GitHub Actions".
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'library/**'
+      - 'gallery/src/main/ets/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    env:
+      # Project pages are served from /<repository>/ (e.g. /SparkUI/). Override with a repository variable
+      # DOCS_BASE (e.g. "/" for a user/organisation page or a custom domain).
+      DOCS_BASE: ${{ vars.DOCS_BASE || format('/{0}/', github.event.repository.name) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - uses: actions/configure-pages@v5
+
+      - name: Install
+        run: npm ci
+
+      - name: Previewer smoke test
+        run: npm run test:previewer
+
+      # docs:build first regenerates the component pages, API tables, preview tokens and icons
+      # from library/ and gallery/ (scripts/generate.mjs), then runs `vitepress build`.
+      - name: Build
+        run: npm run docs:build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
