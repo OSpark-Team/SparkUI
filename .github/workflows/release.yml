@@ -102,15 +102,29 @@ jobs:
             { echo "::error::OHPM_PUBLISH_ID / OHPM_PRIVATE_KEY / OHPM_KEY_PASSPHRASE secrets are required"; exit 1; }
           sudo apt-get update -qq && sudo apt-get install -y -qq expect
           mkdir -p ~/.ssh_ohpm && chmod 700 ~/.ssh_ohpm
-          printf '%s\n' "$OHPM_PRIVATE_KEY" > ~/.ssh_ohpm/key && chmod 600 ~/.ssh_ohpm/key
+          # secrets set from Windows may carry CRLF line endings / trailing whitespace: normalise both
+          printf '%s\n' "$OHPM_PRIVATE_KEY" | tr -d '\r' > ~/.ssh_ohpm/key && chmod 600 ~/.ssh_ohpm/key
+          export OHPM_KEY_PASSPHRASE="$(printf '%s' "$OHPM_KEY_PASSPHRASE" | tr -d '\r\n')"
+          head -1 ~/.ssh_ohpm/key | grep -q -- '-----BEGIN' ||
+            { echo "::error::OHPM_PRIVATE_KEY does not look like a PEM private key (first line must be -----BEGIN ...)"; exit 1; }
+          # fail fast with a clear message when key and passphrase do not match (ohpm would just ask again)
+          openssl pkey -in ~/.ssh_ohpm/key -passin env:OHPM_KEY_PASSPHRASE -noout ||
+            { echo "::error::OHPM_KEY_PASSPHRASE does not decrypt OHPM_PRIVATE_KEY (wrong passphrase or key)"; exit 1; }
           ohpm config set key_path ~/.ssh_ohpm/key
           ohpm config set publish_id "$OHPM_PUBLISH_ID"
-          # ohpm reads the key passphrase from a TTY: drive it with expect
+          # ohpm reads the key passphrase from a TTY: drive it with expect (one retry at most, never loop)
           expect <<'EXPECT'
           set timeout 600
+          set tries 0
           spawn ohpm publish $env(HAR)
           expect {
-            -re {(?i)(pass(word|phrase)|密码)} { send -- "$env(OHPM_KEY_PASSPHRASE)\r"; exp_continue }
+            -re {(?i)(pass(word|phrase)|密码)} {
+              incr tries
+              if {$tries > 2} { puts "\nohpm keeps asking for the passphrase: rejected"; exit 1 }
+              send -- "$env(OHPM_KEY_PASSPHRASE)\r"
+              exp_continue
+            }
+            timeout { puts "\nohpm publish timed out"; exit 1 }
             eof
           }
           catch wait result
