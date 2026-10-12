@@ -669,7 +669,9 @@ export struct SSidebarMenuButton {
   get pressMod(): SparkRowPressModifier {
     const accent = this.theme.colors.sidebarAccent;
     const rest = this.variant === 'outline' ? this.theme.colors.background : TRANSPARENT;
-    return new SparkRowPressModifier(this.active || this.ix.hovered ? accent : rest, accent, 1, this.disabled);
+    const bg = this.active || this.ix.hovered ? accent : rest;
+    // selection item: pressing fades it, it never paints a second highlight next to the active one
+    return new SparkRowPressModifier(bg, bg, 0.6, this.disabled);
   }
 
   @Computed

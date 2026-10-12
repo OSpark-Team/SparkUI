@@ -119,11 +119,13 @@ export struct SPagination {
             variant: p === this.current ? 'outline' : 'ghost',
             sizing: 'icon',
             text: `${p}`,
-            label: p === this.current ? `Page ${p}, current` : `Page ${p}`
+            label: p === this.current ? `Page ${p}, current` : `Page ${p}`,
+            pressFeedback: 'opacity'
           })
             .onClick(() => this.go(p))
         }
-      }, (p: number, idx: number) => `${idx}:${p}`)
+      // page buttons are keyed by page number, so a tapped button keeps its node when the range shifts
+      }, (p: number, idx: number) => p === SPARK_PAGINATION_ELLIPSIS ? `e${idx}` : `p${p}`)
 
       SButton({
         variant: 'ghost',

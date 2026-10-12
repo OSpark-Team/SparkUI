@@ -119,10 +119,20 @@ export class ButtonVariants {
  * Applies a {@link ButtonStyle} to an ArkUI `Button`. Exported so any Button can take the same look:
  * `Button('Go').attributeModifier(new ButtonStyleModifier(ButtonVariants.resolve(theme, 'outline', 'sm')))`.
  */
+/**
+ * Press feedback of a pressable control:
+ * - `background`: pressed background + slight scale (actions: buttons)
+ * - `opacity`: fade only, no extra background (selection items: pagination pages, segments, nav rows — a
+ *   pressed background next to the selected item reads as two highlighted items)
+ * - `none`
+ */
+export type SparkPressFeedback = 'background' | 'opacity' | 'none';
+
 export class ButtonStyleModifier implements AttributeModifier<ButtonAttribute> {
   style: ButtonStyle;
   hovered: boolean;
   disabled: boolean;
+  feedback: SparkPressFeedback = 'background';
   /** scale while pressed (1 = none) */
   pressScale: number;
 
@@ -167,7 +177,11 @@ export class ButtonStyleModifier implements AttributeModifier<ButtonAttribute> {
    * linger on a previous button when tapping several buttons quickly, unlike onTouch-driven state.
    */
   applyPressedAttribute(instance: ButtonAttribute): void {
-    if (this.disabled) {
+    if (this.disabled || this.feedback === 'none') {
+      return;
+    }
+    if (this.feedback === 'opacity') {
+      instance.opacity(0.6)
       return;
     }
     const k = this.pressScale;

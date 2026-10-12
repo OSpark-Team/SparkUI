@@ -38,6 +38,15 @@ export class SparkOverlayScope {
   /** pass touches outside the content through to the page (tooltips, toasts) */
   passThrough: boolean = false;
 
+  /**
+   * Content-sized layer: the dialog frame is exactly the content (a non-modal dialog only intercepts touches
+   * inside its frame — docs "弹出框蒙层控制"). True for toasts and pass-through anchored layers; such a
+   * layer is positioned by the dialog's alignment / offset instead of inside a full-window host.
+   */
+  get contentSized(): boolean {
+    return this.presentation === 'toast' || (this.passThrough && this.presentation === 'anchored');
+  }
+
   // anchored placement
   anchor: PlacementRect | undefined = undefined;
   side: SparkSide = 'bottom';
@@ -111,6 +120,20 @@ export class SparkOverlayService {
     return e !== undefined && !e.closing;
   }
 
+  /** Move a content-sized layer: dialog offset from the TopStart alignment point (vp). */
+  static moveTo(scope: SparkOverlayScope, dx: number, dy: number): void {
+    const e = SparkOverlayService.entries.get(scope.id);
+    if (e === undefined) {
+      return;
+    }
+    try {
+      e.uiContext.getPromptAction().updateCustomDialog(e.content, { offset: { dx: dx, dy: dy } }).catch(() => {
+      });
+    } catch (err) {
+      // layer already gone
+    }
+  }
+
   /** Number of overlays currently on screen (layout inspector / tests). */
   static get openCount(): number {
     return SparkOverlayService.entries.size;
@@ -129,12 +152,12 @@ export class SparkOverlayService {
       isModal: !scope.passThrough,
       autoCancel: false,
       maskColor: Color.Transparent,
-      // A non-modal dialog only intercepts touches inside its own frame (docs: 弹出框蒙层控制), so the toast
-      // layer is content-sized and aligned by the dialog; every other layer is a full-window host.
+      // Content-sized layers (see SparkOverlayScope.contentSized) are aligned / offset by the dialog; every
+      // other layer is a full-window host. Anchored ones start off-screen until placed (moveTo).
       alignment: scope.presentation === 'toast' ?
         (scope.layout.env.windowWidthClass === 'compact' ? DialogAlignment.Bottom : DialogAlignment.BottomEnd) :
         DialogAlignment.TopStart,
-      offset: { dx: 0, dy: 0 },
+      offset: scope.contentSized && scope.presentation === 'anchored' ? { dx: 0, dy: -10000 } : { dx: 0, dy: 0 },
       transition: TransitionEffect.IDENTITY,
       keyboardAvoidMode: KeyboardAvoidMode.NONE,
       levelOrder: LevelOrder.clamp(order),

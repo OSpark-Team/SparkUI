@@ -35,6 +35,8 @@
   - 内联 `stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })`，配合组件内的 `@Styles`；
   - 或样式在 `AttributeModifier` 中时，实现 `applyPressedAttribute`（参见 `ButtonVariants.ets`）；
   - **按压态不加任何过渡动画**：不要在 pressed / stateStyles 所在的属性链上写 `.animation()`。按下和松开都要瞬时切换（与原生一致）；否则松开时的淡出会残留，快速连续点击两个按钮时，会出现两个按钮同时呈按下态（用户真机反馈过）。只有与按压无关的视觉（Switch 滑块、Accordion 箭头、Progress）可以加动画，而且这些动画要写在不会影响按压属性的节点上。
+  - **选择型控件（分段、分页页码、Tabs、ToggleGroup、导航行、Sidebar 菜单）按下时只降低透明度，不画按压背景**（`SButton({ pressFeedback: 'opacity' })`、`ToggleStyle.pressFade`，或者 `SparkRowPressModifier(bg, bg, 0.6)`）。否则手指按住 B 时，A 的选中背景加上 B 的按压背景，看起来就是两个高亮在闪（用户在真机上反馈过两次）。动作型按钮仍然使用按压背景。
+  - 按压态只走系统 pressed 状态（`stateStyles` 或 `applyPressedAttribute`），不要和变体或选中切换的动画放在一起。ForEach 的 key 要保持稳定（例如分页用页码作 key），这样被按下的节点不会被复用成别的项。
 - hover：`@Local ix: SparkInteraction = new SparkInteraction();` 再加 `.onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))`。
 - disabled：视觉 `opacity(0.5)`，用 `SparkTapBlocker` 拦截点击，并设 `focusable(false)`。
 - 无障碍：`accessibilityText`、`accessibilityRole`（18+）、`accessibilityChecked` / `accessibilitySelected`（13+）。

@@ -25,6 +25,10 @@ export struct SparkOverlayHost {
   @Local originY: number = 0;
   @Local hostX: number = 0;
   @Local hostY: number = 0;
+  /** content-sized anchored layers: dialog offset applied so far, and whether the host position is known */
+  private offX: number = 0;
+  private offY: number = -10000;
+  private areaKnown: boolean = false;
 
   aboutToAppear(): void {
     this.theme = this.scope.theme;
@@ -64,14 +68,20 @@ export struct SparkOverlayHost {
     if (!this.anchored || s.anchor === undefined || s.measuredWidth <= 0) {
       return;
     }
+    if (s.contentSized && !this.areaKnown) {
+      return;
+    }
+    // Placement frame origin in window coordinates: the full-window host itself, or — for a content-sized
+    // layer — the dialog's TopStart point (its current position minus the offset applied so far).
+    const bx = s.contentSized ? this.hostX - this.offX : this.hostX;
+    const by = s.contentSized ? this.hostY - this.offY : this.hostY;
     const env = this.layout.env;
     const r = new PlacementRequest();
-    // anchor is in window coordinates; translate into host coordinates
-    r.anchor = new PlacementRect(s.anchor.x - this.hostX, s.anchor.y - this.hostY, s.anchor.width, s.anchor.height);
+    r.anchor = new PlacementRect(s.anchor.x - bx, s.anchor.y - by, s.anchor.width, s.anchor.height);
     r.content = new PlacementRect(0, 0, s.measuredWidth, s.measuredHeight);
     const w = SparkUI.layout.root.width;
     const h = SparkUI.layout.root.height;
-    r.viewport = new PlacementRect(env.safeArea.left - this.hostX, env.safeArea.top - this.hostY,
+    r.viewport = new PlacementRect(env.safeArea.left - bx, env.safeArea.top - by,
       w - env.safeArea.left - env.safeArea.right,
       h - env.safeArea.top - Math.max(env.safeArea.bottom, env.keyboardHeight));
     r.side = s.side;
@@ -82,6 +92,11 @@ export struct SparkOverlayHost {
     s.placement = result;
     this.originX = result.originX;
     this.originY = result.originY;
+    if (s.contentSized && (Math.abs(result.x - this.offX) > 0.5 || Math.abs(result.y - this.offY) > 0.5)) {
+      this.offX = result.x;
+      this.offY = result.y;
+      SparkOverlayService.moveTo(s, result.x, result.y);
+    }
   }
 
   // ---- transition values (functions of `visible`) ----
@@ -170,7 +185,7 @@ export struct SparkOverlayHost {
       Column() {
         this.content()
       }
-      .position(this.anchored ? {
+      .position(this.anchored && !this.scope.contentSized ? {
         x: this.scope.placement?.x ?? 0,
         y: this.scope.placement?.y ?? 0
       } : undefined)
@@ -185,13 +200,14 @@ export struct SparkOverlayHost {
         this.enter();
       })
     }
-    .width(this.scope.presentation === 'toast' ? 'auto' : '100%')
-    .height(this.scope.presentation === 'toast' ? 'auto' : '100%')
+    .width(this.scope.contentSized ? 'auto' : '100%')
+    .height(this.scope.contentSized ? 'auto' : '100%')
     .padding({ bottom: this.anchored ? 0 : this.layout.env.keyboardHeight })
     .hitTestBehavior(this.scope.passThrough ? HitTestMode.Transparent : HitTestMode.Default)
     .onAreaChange((_: Area, n: Area) => {
       this.hostX = Number(n.globalPosition.x ?? 0);
       this.hostY = Number(n.globalPosition.y ?? 0);
+      this.areaKnown = true;
       this.place();
     })
   }

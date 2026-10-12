@@ -132,11 +132,12 @@ struct NavLink {
   @Styles
   normalStyle() {
     .backgroundColor(this.active || this.ix.hovered ? this.theme.colors.sidebarAccent : Color.Transparent)
+    .opacity(1)
   }
 
   @Styles
   pressedStyle() {
-    .backgroundColor(this.theme.colors.sidebarAccent)
+    .opacity(0.6)
   }
 
   build() {

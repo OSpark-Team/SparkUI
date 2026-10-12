@@ -23,6 +23,8 @@ export class ToggleStyle {
   fontWeight: number = 500;
   iconSize: number = 16;
   shadow: SparkShadow | undefined = undefined;
+  /** selection item: pressed = fade only, no pressed background (see SparkPressFeedback) */
+  pressFade: boolean = false;
 }
 
 /**
@@ -122,6 +124,10 @@ export class ToggleStyleModifier implements AttributeModifier<RowAttribute> {
 
   applyPressedAttribute(instance: RowAttribute): void {
     if (this.disabled) {
+      return;
+    }
+    if (this.style.pressFade) {
+      instance.opacity(0.6)
       return;
     }
     instance.backgroundColor(this.style.pressedBackground)

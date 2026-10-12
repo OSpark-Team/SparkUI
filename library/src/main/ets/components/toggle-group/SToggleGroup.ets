@@ -236,6 +236,10 @@ export struct SToggleGroupItem {
     const variant: ToggleVariant = this.ctx?.variant ?? 'default';
     const sizing: ToggleSize = this.ctx?.sizing ?? 'default';
     const s = ToggleVariants.resolve(this.theme, variant, sizing, this.on, this.ix.hovered && !this.inactive);
+    if (this.usesIndicator) {
+      // one sliding indicator shows the selection; pressing an item only fades it
+      s.pressFade = true;
+    }
     if (this.on && this.usesIndicator) {
       s.background = '#00000000';
     }

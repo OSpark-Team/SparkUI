@@ -4,7 +4,9 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonVariants } from './ButtonVariants';
+import {
+  ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonVariants, SparkPressFeedback
+} from './ButtonVariants';
 
 /** `block`: stretch the button to the full width of its parent (`w-full`). */
 class ButtonBlockModifier implements AttributeModifier<ButtonAttribute> {
@@ -56,6 +58,8 @@ export struct SButton {
   @Param label: string | undefined = undefined;
   /** Extra styles applied after the variant recipe (wins on conflicts). */
   @Param modifier: AttributeModifier<ButtonAttribute> = new SparkNoopModifier<ButtonAttribute>();
+  /** Press feedback: 'background' (actions, default), 'opacity' (selection items), 'none'. */
+  @Param pressFeedback: SparkPressFeedback = 'background';
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ix: SparkInteraction = new SparkInteraction();
@@ -68,8 +72,10 @@ export struct SButton {
 
   @Computed
   get recipe(): ButtonStyleModifier {
-    return new ButtonStyleModifier(this.styles, this.ix.hovered, this.disabled || this.loading,
+    const m = new ButtonStyleModifier(this.styles, this.ix.hovered, this.disabled || this.loading,
       this.styles.square ? 0.94 : 0.97);
+    m.feedback = this.pressFeedback;
+    return m;
   }
 
   aboutToAppear(): void {

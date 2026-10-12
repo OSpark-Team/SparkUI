@@ -320,23 +320,24 @@ export struct SToastStack {
     return -y;
   }
 
+  /**
+   * Extra space above the tallest card so the stacked / expanded cards (translated upwards) stay inside the
+   * layer. Reserved as top padding — never as a fixed height: cards are measured unconstrained, a fixed
+   * frame derived from their heights would clamp a new card to the old frame (it then never showed).
+   */
   @Computed
-  get frameHeight(): number {
+  get overhang(): number {
     const items = SparkToaster.instance.items;
-    if (items.length === 0) {
-      return 0;
+    let tallest = 0;
+    let top = 0;
+    for (let i = 0; i < items.length; i++) {
+      tallest = Math.max(tallest, items[i].height);
+      top = Math.max(top, -this.offsetOf(i) + items[i].height);
     }
-    if (!this.expanded) {
-      return items[items.length - 1].height + (items.length - 1) * PEEK;
-    }
-    let h = 0;
-    items.forEach((t: SparkToastItem) => {
-      h += t.height;
-    });
-    return h + (items.length - 1) * GAP;
+    return Math.max(0, top - tallest);
   }
 
-  @Monitor('frameHeight')
+  @Monitor('overhang')
   collapseWhenSingle(): void {
     if (SparkToaster.instance.items.length <= 1 && this.expanded) {
       this.expanded = false;
@@ -380,9 +381,7 @@ export struct SToastStack {
       }, (t: SparkToastItem) => String(t.id))
     }
     .width(this.layout.env.windowWidthClass === 'compact' ? '100%' : 356 + 32)
-    // height includes the padding (border-box)
-    .height(this.frameHeight > 0 ? this.frameHeight + 16 + this.bottomInset : 'auto')
-    .padding({ left: 16, right: 16, top: 0, bottom: 16 + this.bottomInset })
+    .padding({ left: 16, right: 16, top: this.overhang, bottom: 16 + this.bottomInset })
     .onHover((h: boolean) => this.setExpanded(h))
     .onClick(() => this.setExpanded(!this.expanded))
   }

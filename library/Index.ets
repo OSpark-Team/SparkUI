@@ -41,7 +41,7 @@ export { SparkIconData, scalePathCommands } from './src/main/ets/icons/SparkIcon
 // components
 export { SButton } from './src/main/ets/components/button/SButton';
 export {
-  ButtonVariants, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonSize
+  ButtonVariants, ButtonStyle, ButtonStyleModifier, ButtonVariant, ButtonSize, SparkPressFeedback
 } from './src/main/ets/components/button/ButtonVariants';
 
 // overlay base

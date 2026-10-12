@@ -214,9 +214,8 @@ export struct STabsTrigger {
   /** The active background is the list's sliding indicator; triggers only show pressed feedback. */
   @Computed
   get press(): SparkRowPressModifier {
-    const c = this.theme.colors;
-    const pressed = this.active ? '#00000000' : SparkColor.alpha(c.background, this.theme.isDark ? 0.15 : 0.5);
-    return new SparkRowPressModifier('#00000000', pressed, this.active ? 1 : 0.8, this.disabled);
+    // the sliding indicator shows the selection; pressing a trigger only fades it (no second highlight)
+    return new SparkRowPressModifier('#00000000', '#00000000', this.active ? 1 : 0.6, this.disabled);
   }
 
   @Computed
