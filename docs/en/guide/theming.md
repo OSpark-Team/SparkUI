@@ -80,6 +80,39 @@ SButton({ text: 'Pill', tokens: { radius: 999 } })
 SButton({ text: 'Custom', tokens: { background: 'oklch(0.6 0.2 250)', foreground: '#ffffff' } })
 ```
 
+- Theme-wide, set them like any other variable (`setVariable`, or a `theme.css` loaded with `loadString`). Status badges and alerts read the semantic status tokens:
+
+```arkts preview
+Column({ space: 12 }) {
+  Row({ space: 8 }) {
+    SButton({ text: 'Soft theme', variant: 'outline', sizing: 'sm' })
+      .onClick(() => SparkUI.themes.loadString(`:root {
+        --card-radius: 24px; --card-background: color-mix(in oklab, var(--primary) 4%, var(--background));
+        --button-radius: 999px; --badge-radius: 999px; --border-width: 0px; --card-shadow: none;
+      }`))
+    SButton({ text: 'Reset', variant: 'ghost', sizing: 'sm' }).onClick(() => SparkUI.themes.resetOverrides())
+  }
+  SCard() {
+    SCardHeader() {
+      SCardTitle({ text: 'Deployment' })
+      SCardDescription({ text: 'Reads --card-* and --button-* tokens' })
+    }
+    SCardContent() {
+      Row({ space: 8 }) {
+        SBadge({ text: 'Live', variant: 'success' })
+        SBadge({ text: 'Degraded', variant: 'warning' })
+        SBadge({ text: 'Info', variant: 'info' })
+      }
+    }
+    SCardFooter() {
+      SButton({ text: 'Redeploy' })
+      SButton({ text: 'Logs', variant: 'outline' })
+    }
+  }
+  .width(340)
+}
+```
+
 ## Native components
 
 `SparkProvider` mirrors the tokens into the system theme (`WithTheme` / `ThemeControl`), so native `Toggle`, `TextInput` & co. follow the accent and the colour mode too.

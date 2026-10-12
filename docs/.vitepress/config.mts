@@ -47,8 +47,7 @@ function sidebar(zh: boolean): DefaultTheme.Sidebar {
   const p = zh ? '/' : '/en/';
   return {
     [`${p}guide/`]: guideSidebar(zh),
-    [`${p}components/`]: componentSidebar(zh),
-    [`${p}playground`]: [...guideSidebar(zh), ...componentSidebar(zh)]
+    [`${p}components/`]: componentSidebar(zh)
   };
 }
 
@@ -56,8 +55,7 @@ function nav(zh: boolean): DefaultTheme.NavItem[] {
   const p = zh ? '/' : '/en/';
   return [
     { text: zh ? '指南' : 'Guide', link: `${p}guide/`, activeMatch: `^${p}guide/` },
-    { text: zh ? '组件' : 'Components', link: `${p}components/`, activeMatch: `^${p}components/` },
-    { text: zh ? '演练场' : 'Playground', link: `${p}playground` }
+    { text: zh ? '组件' : 'Components', link: `${p}components/`, activeMatch: `^${p}components/` }
   ];
 }
 
@@ -74,13 +72,15 @@ function arkDemoPlugin(md: any) {
     const rest = m[2];
     const state = /state=([\w$]+)/.exec(rest)?.[1] ?? '';
     const left = /\bleft\b/.test(rest);
+    // body=N: the preview renders the gallery's real demo body N (generated/demo-bodies/<state>.json)
+    const body = /\bbody=(\d+)/.exec(rest)?.[1];
     // optional inline demo state: ```arkts preview {"on": true}
     const json = /(\{.*\})/.exec(rest)?.[1];
     token.info = m[1];
     const html = fence(tokens, idx, options, env, self);
     token.info = info;
     const code = encodeURIComponent(token.content);
-    return `<ArkDemo code="${code}" state="${state}"${json ? ` data="${encodeURIComponent(json)}"` : ''}${left ? ' left' : ''}><template #code>${html}</template></ArkDemo>\n`;
+    return `<ArkDemo code="${code}" state="${state}"${body !== undefined ? ` body="${body}"` : ''}${json ? ` data="${encodeURIComponent(json)}"` : ''}${left ? ' left' : ''}><template #code>${html}</template></ArkDemo>\n`;
   };
 }
 

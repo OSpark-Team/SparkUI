@@ -2,6 +2,8 @@
  * Web stand-ins for the SparkUI runtime objects examples refer to: `this.theme` / `SparkUI.theme`
  * (colours resolve to the CSS variables generated from Presets.ets), `SparkColor`, `SparkToast`, `SparkUI.layout`.
  */
+import CLASSES from '../../generated/classes.json';
+import { defineClasses } from './classes.js';
 
 function kebab(name) {
   return name.replace(/([a-z])([A-Z0-9])/g, '$1-$2').toLowerCase();
@@ -63,6 +65,73 @@ function noopObject(extra = {}) {
   });
 }
 
+/** `:root { --a: b; } .dark { … }` → { root: {name: value}, dark: {…} } (enough of the SparkUI CSS subset). */
+export function parseThemeCss(css) {
+  const out = { root: {}, dark: {} };
+  const src = String(css ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const re = /(:root|\.dark)\s*\{([^}]*)\}/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const target = m[1] === ':root' ? out.root : out.dark;
+    for (const decl of m[2].split(';')) {
+      const i = decl.indexOf(':');
+      const k = decl.slice(0, i).trim();
+      if (i > 0 && k.startsWith('--')) {
+        target[k] = decl.slice(i + 1).trim();
+      }
+    }
+  }
+  return out;
+}
+
+/** SparkUI.themes stand-in: variables / dark mode apply to the preview the snippet runs in. */
+function themesApi(vars) {
+  const v = vars || { root: {}, dark: {}, mode: null };
+  const ok = () => ({ ok: true, diagnostics: [] });
+  return noopObject({
+    preset: 'neutral', accent: 'none',
+    get mode() {
+      return v.mode ?? 'system';
+    },
+    setVariable: (name, value, block = 'root') => {
+      if (typeof name === 'string' && name.startsWith('--')) {
+        const k = block === 'dark' ? 'dark' : 'root';
+        v[k] = { ...v[k], [name]: String(value) };
+      }
+      return ok();
+    },
+    removeVariable: (name, block = 'root') => {
+      const k = block === 'dark' ? 'dark' : 'root';
+      const { [name]: _, ...rest } = v[k];
+      v[k] = rest;
+      return ok();
+    },
+    loadString: (css) => {
+      const t = parseThemeCss(css);
+      v.root = { ...v.root, ...t.root };
+      v.dark = { ...v.dark, ...t.dark };
+      return ok();
+    },
+    resetOverrides: () => {
+      v.root = {};
+      v.dark = {};
+    },
+    reset: () => {
+      v.root = {};
+      v.dark = {};
+    },
+    setMode: (m) => {
+      v.mode = m === 'system' ? null : m;
+      v.flip = false;
+    },
+    toggleDark: () => {
+      // relative to whatever the preview currently shows (site mode or setMode)
+      v.flip = !v.flip;
+    },
+    exportCss: () => [':root {', ...Object.entries(v.root).map(([k, x]) => `  ${k}: ${x};`), '}'].join('\n')
+  });
+}
+
 export function createGlobals(theme, services = {}) {
   const env = {
     modality: 'pointer', posture: 'flat', windowMode: 'fullscreen', deviceType: 'web', simulated: false,
@@ -82,10 +151,10 @@ export function createGlobals(theme, services = {}) {
     info: (m, o) => toast(m, { ...(o || {}), variant: 'info' }),
     dismiss: noop
   });
-  return {
+  const globals = {
     SparkUI: {
       theme,
-      themes: noopObject({ mode: 'light', accent: 'none', preset: 'neutral', exportCss: () => '/* theme.css */' }),
+      themes: themesApi(services.themeVars),
       layout: { root: layoutRoot, env, simulate: noop }
     },
     SparkColor: {
@@ -99,4 +168,6 @@ export function createGlobals(theme, services = {}) {
     UIUtils: noopObject(),
     sparkEmptyBuilder: noop
   };
+  // library classes the snippets construct (new SparkChartSeries(...), new SparkShellNavItem(...) …)
+  return defineClasses(CLASSES, globals);
 }

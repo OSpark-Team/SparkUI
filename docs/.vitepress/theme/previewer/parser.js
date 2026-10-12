@@ -425,10 +425,11 @@ class Parser {
           this.eat(';');
           return { type: 'throw' };
         case 'break':
-        case 'continue':
-          this.next();
+        case 'continue': {
+          const kw = this.next().v;
           this.eat(';');
-          return { type: 'break' };
+          return { type: kw === 'continue' ? 'continue' : 'break' };
+        }
         case 'class':
         case 'interface':
         case 'enum':
@@ -462,6 +463,13 @@ class Parser {
       }
       if (/^[a-z_$]/.test(t.v) && this.isMethodDecl()) {
         return this.parseMethod([]);
+      }
+      // class getters (`get size(): number {`), parsed when class bodies are read as structs (classes.js)
+      if (this.inStruct && t.v === 'get' && this.peek().t === 'id' && this.peek(2).t === 'p' && this.peek(2).v === '(') {
+        this.next();
+        const m = this.parseMethod([]);
+        m.getter = true;
+        return m;
       }
     }
     const expr = this.parseExpression(true);
@@ -537,7 +545,7 @@ class Parser {
     if (after.t === 'p' && after.v === ':') {
       return true;
     }
-    return after.t === 'p' && after.v === '{' && this.tok.v === 'build';
+    return after.t === 'p' && after.v === '{' && (this.tok.v === 'build' || (this.inStruct && this.tok.v === 'constructor'));
   }
 
   parseDecorated() {
@@ -569,11 +577,16 @@ class Parser {
       return null;
     }
     if (this.is('function')) {
-      return this.parseFunctionDecl();
+      // `@Builder function emptyFrame() {}`: keep the decorators so the previewer can render it as UI
+      const fn = this.parseFunctionDecl();
+      fn.decorators = decorators;
+      return fn;
     }
     if (this.is('get') && this.peek().t === 'id') {
       this.next();
-      return this.parseMethod(decorators);
+      const m = this.parseMethod(decorators);
+      m.getter = true;
+      return m;
     }
     if (this.tok.t === 'id' && this.peek().t === 'p' && this.peek().v === '(') {
       return this.parseMethod(decorators);
@@ -685,18 +698,38 @@ class Parser {
     return { type: 'switch', disc, cases };
   }
 
+  /** `while (t) …`, `for (init; test; update) …`, `for (const x of xs) …`, `for (const k in o) …` (helper code). */
   parseLoop() {
-    // loops are not part of the UI subset: keep them opaque
-    this.next();
-    if (this.is('(')) {
-      this.skipBalanced();
+    const kw = this.next().v;
+    this.expect('(');
+    if (kw === 'while') {
+      const test = this.parseExpression();
+      this.expect(')');
+      return { type: 'loop', test, body: this.parseBlockOrStatement() };
     }
-    if (this.is('{')) {
-      this.skipBalanced();
+    const decl = this.is('const') || this.is('let') || this.is('var');
+    if (decl && this.peek().t === 'id' && (this.is('of', 2) || this.is('in', 2))) {
+      this.next();
+      const name = this.next().v;
+      const mode = this.next().v;
+      const iter = this.parseExpression();
+      this.expect(')');
+      return { type: 'forOf', name, mode, iter, body: this.parseBlockOrStatement() };
+    }
+    let init = null;
+    if (decl) {
+      init = this.parseVar(); // consumes the ';'
     } else {
-      this.skipLine();
+      if (!this.is(';')) {
+        init = { type: 'expr', expr: this.parseExpression() };
+      }
+      this.expect(';');
     }
-    return null;
+    const test = this.is(';') ? null : this.parseExpression();
+    this.expect(';');
+    const update = this.is(')') ? null : this.parseExpression();
+    this.expect(')');
+    return { type: 'loop', init, test, update, body: this.parseBlockOrStatement() };
   }
 
   parseVar() {

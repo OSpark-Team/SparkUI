@@ -7,15 +7,39 @@
  *   n.onClick, n.children() → VNode[]
  * and is rendered by the component registry (components.js) or as a labelled placeholder.
  */
-import { h, reactive, markRaw } from 'vue';
+import { h, reactive, markRaw, defineComponent, cloneVNode } from 'vue';
 import { parseProgram } from './parser.js';
 import { Interpreter, Scope, analyzeProgram, isEnumProxy } from './interp.js';
 import { createTheme, createGlobals } from './globals.js';
+import { defineClasses } from './classes.js';
 
 /** Parse + analyse once per code string. */
 export function compile(code) {
   const program = parseProgram(code);
   return analyzeProgram(program);
+}
+
+/**
+ * Analysis for the gallery's real demo body `index` of a demo bundle (generated/demo-bodies/<Doc>.json, built by
+ * scripts/lib/extract-demos.mjs): the doc struct's fields / methods, the file-level declarations, helper structs
+ * and class sources the body uses. Returns null when that demo has no usable body.
+ */
+export function bundleAnalysis(bundle, index) {
+  const ui = bundle && bundle.bodies ? bundle.bodies[index] : null;
+  if (!ui) {
+    return null;
+  }
+  const members = bundle.members || [];
+  return {
+    fields: members.filter((m) => m.type === 'field'),
+    methods: members.filter((m) => m.type === 'method'),
+    decls: bundle.decls || [],
+    ui,
+    errors: [],
+    structs: bundle.structs || {},
+    classes: bundle.classes || {},
+    real: true
+  };
 }
 
 /**
@@ -26,17 +50,58 @@ export function compile(code) {
  */
 export function createRuntime(analysis, initialState, services) {
   const theme = markRaw(createTheme());
-  const { __consts: consts, ...initial } = clone(initialState || {});
-  const state = reactive({ theme, ...initial });
-  const globals = createGlobals(theme, services);
+  const { __consts: consts, __getters: getters, ...initial } = clone(initialState || {});
+  const raw = { theme, ...initial };
+  // struct getters (`get mail(): Mail { … }` of the gallery page or the snippet) are evaluated live on `this`
+  const getterBodies = { ...(getters || {}) };
+  for (const m of analysis.methods) {
+    if (m.getter && m.params.length === 0) {
+      getterBodies[m.name] = m.body;
+    }
+  }
+  let interpRef = null;
+  let rootRef = null;
+  for (const [name, body] of Object.entries(getterBodies)) {
+    if (!(name in raw)) {
+      Object.defineProperty(raw, name, {
+        get: () => (interpRef ? interpRef.runBlock(body, rootRef.child()) : undefined),
+        enumerable: false,
+        configurable: true
+      });
+    }
+  }
+  const state = reactive(raw);
+  // theme variables set by the snippet (SparkUI.themes.setVariable / loadString / toggleDark): ArkPreview applies them
+  const themeVars = reactive({ root: {}, dark: {}, mode: null, flip: false });
+  const globals = createGlobals(theme, { ...services, themeVars });
+  if (analysis.classes) {
+    // the gallery file's own classes (`new DemoNav(…)`, `new Mail(…)`)
+    defineClasses(analysis.classes, globals);
+  }
   const interp = new Interpreter(state, globals);
   // file-level constants of the gallery page (e.g. a FRUITS array the snippet passes to ForEach)
   const root = new Scope(null, consts || {});
-  // top-level declarations (const arrays used by ForEach etc.)
-  try {
-    interp.exec(analysis.decls, root);
-  } catch (e) {
-    // ignore
+  interpRef = interp;
+  rootRef = root;
+  // top-level declarations (const arrays used by ForEach etc.); `@Builder function x()` become UI builders
+  const builderFns = {};
+  if (analysis.real) {
+    for (const d of analysis.decls) {
+      if (d.decorators?.some((x) => x.name === 'Builder') && d.init?.type === 'arrow') {
+        builderFns[d.name] = d.init;
+      }
+      try {
+        interp.exec([d], root);
+      } catch (e) {
+        // keep the constant extracted at build time (__consts), if any
+      }
+    }
+  } else {
+    try {
+      interp.exec(analysis.decls, root);
+    } catch (e) {
+      // ignore
+    }
   }
   // struct fields → state (unless the gallery demo already provided a value)
   for (const f of analysis.fields) {
@@ -63,7 +128,183 @@ export function createRuntime(analysis, initialState, services) {
       return interp.runBlock(m.body, s);
     };
   }
-  return { state, interp, root, builders, analysis };
+  // top-level theme calls of the snippet (`SparkUI.themes.setVariable('--card-radius', '24px')`) run once, so the
+  // preview shows their effect; other top-level expression statements stay inert (no toasts on page load)
+  for (const st of analysis.ui || []) {
+    if (st.type === 'expr' && isThemeCall(st.expr)) {
+      try {
+        interp.evaluate(st.expr, root.child());
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+  const rt = { state, interp, root, builders, analysis, themeVars, structs: analysis.structs || {}, builderFns, slots: {} };
+  if (analysis.real) {
+    lifecycle(analysis.methods, interp, root);
+  }
+  return rt;
+}
+
+/** Run a struct's `aboutToAppear()` once (state set-up such as `this.pct = this.initialPct`). */
+function lifecycle(methods, interp, root) {
+  const m = methods.find((x) => x.name === 'aboutToAppear' && x.params.length === 0);
+  if (m) {
+    try {
+      interp.runBlock(m.body, root.child());
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+// --------------------------------------------------------------------------------------------- helper structs
+
+const PARAM_DECORATORS = new Set(['Param', 'Prop', 'Link', 'ObjectLink', 'Event', 'Once', 'Require', 'State', 'Trace']);
+const structComponents = new WeakMap();
+
+/**
+ * A gallery helper struct (`ResizableFrame({ frameHeight: 520 }) { … }`, `MailRow({ mail })`) rendered from its own
+ * source: one Vue component per struct, so its @Local state survives re-renders. @Param / @Event fields read the
+ * caller's current props, the trailing closure (or a builder prop) fills its @BuilderParam, @Consumer theme is the
+ * preview theme, and attributes chained on the call (`.layoutWeight(1)`) style its root.
+ */
+function structComponent(def) {
+  let comp = structComponents.get(def);
+  if (comp) {
+    return comp;
+  }
+  comp = defineComponent({
+    name: `Ark${def.name}`,
+    props: { n: { type: Object, required: true }, rt: { type: Object, required: true }, registry: { type: Object, required: true } },
+    setup(props) {
+      const parent = props.rt;
+      const fields = def.members.filter((m) => m.type === 'field');
+      const methods = def.members.filter((m) => m.type === 'method');
+      const raw = { theme: parent.state.theme };
+      const local = {};
+      const interp = new Interpreter(null, parent.interp.globals);
+      const root = parent.root;
+      const slots = {};
+      let childRt = null;
+      let contentTaken = false;
+      const builderFields = fields.filter((f) => f.decorators.some((d) => d.name === 'BuilderParam'));
+      for (const f of fields) {
+        const decs = f.decorators.map((d) => d.name);
+        if ((decs.includes('Consumer') || decs.includes('Consume')) && f.name === 'theme') {
+          continue;
+        }
+        if (decs.includes('BuilderParam')) {
+          const single = builderFields.length === 1 || f.name === 'content';
+          const trailing = !contentTaken && single && props.n.hasChildren;
+          if (trailing) {
+            contentTaken = true;
+          }
+          const fallback = f.init && f.init.type === 'ident' ? f.init.name : null;
+          slots[f.name] = (...args) => {
+            const given = props.n.slots && props.n.slots[f.name];
+            if (given) {
+              return given(...args);
+            }
+            if (trailing) {
+              return props.n.children();
+            }
+            const fn = fallback && parent.builderFns && parent.builderFns[fallback];
+            return fn ? renderBuilderFn(fn, args, childRt, props.registry) : [];
+          };
+          continue;
+        }
+        let init;
+        try {
+          init = f.init ? interp.evaluate(f.init, root.child()) : undefined;
+        } catch (e) {
+          init = undefined;
+        }
+        if (decs.some((d) => PARAM_DECORATORS.has(d))) {
+          local[f.name] = init;
+          Object.defineProperty(raw, f.name, {
+            get: () => (props.n.props && props.n.props[f.name] !== undefined ? props.n.props[f.name] : local[f.name]),
+            set: (v) => {
+              local[f.name] = v;
+            },
+            enumerable: true,
+            configurable: true
+          });
+        } else {
+          raw[f.name] = init;
+        }
+      }
+      for (const m of methods) {
+        if (m.getter && m.params.length === 0) {
+          Object.defineProperty(raw, m.name, {
+            get: () => interp.runBlock(m.body, root.child()),
+            enumerable: false,
+            configurable: true
+          });
+        }
+      }
+      const state = reactive(raw);
+      interp.self = state;
+      const builders = {};
+      for (const m of methods) {
+        if (m.getter) {
+          continue;
+        }
+        if (m.decorators?.some((d) => d.name === 'Builder' || d.name === 'LocalBuilder')) {
+          builders[m.name] = m;
+        }
+        interp.methods[m.name] = (...args) => {
+          const sc = root.child();
+          m.params.forEach((p, k) => sc.vars.set(p.name, args[k]));
+          return interp.runBlock(m.body, sc);
+        };
+      }
+      const build = methods.find((m) => m.name === 'build');
+      childRt = {
+        ...parent, state, interp, builders, slots,
+        analysis: { ...parent.analysis, ui: build ? build.body : [], fields, methods }
+      };
+      lifecycle(methods, interp, root);
+      return () => {
+        let nodes;
+        try {
+          nodes = renderStatements(childRt.analysis.ui, root.child(), childRt, props.registry);
+        } catch (e) {
+          return errorBox(String(e && e.message || e));
+        }
+        const n = props.n;
+        const hasStyle = n.style && Object.keys(n.style).length > 0;
+        const hasEvents = n.events && Object.keys(n.events).length > 0;
+        if (nodes.length === 1 && nodes[0] && typeof nodes[0] === 'object' && (hasStyle || hasEvents)) {
+          return cloneVNode(nodes[0], { style: n.style, ...n.events });
+        }
+        return nodes;
+      };
+    }
+  });
+  structComponents.set(def, comp);
+  return comp;
+}
+
+/** Render a top-level `@Builder function name(params) { … }`. */
+function renderBuilderFn(fn, args, rt, registry) {
+  const s = rt.root.child();
+  fn.params.forEach((p, k) => s.vars.set(p.name, args[k]));
+  if (fn.expression) {
+    const out = [];
+    renderExpr(fn.body, s, rt, registry, out);
+    return out;
+  }
+  return renderStatements(fn.body, s, rt, registry);
+}
+
+/** `SparkUI.themes.<fn>(…)` */
+function isThemeCall(e) {
+  if (!e || e.type !== 'call' || e.callee.type !== 'member') {
+    return false;
+  }
+  const o = e.callee.object;
+  return o.type === 'member' && o.prop === 'themes' && o.object.type === 'ident' && o.object.name === 'SparkUI';
 }
 
 function clone(v) {
@@ -140,7 +381,10 @@ function renderExpr(expr, scope, rt, registry, out) {
   if (root.type === 'this' && attrs.length > 0) {
     const first = attrs[0];
     const b = rt.builders[first.name];
-    if (b) {
+    const slot = rt.slots && rt.slots[first.name];
+    if (slot) {
+      out.push(...slot(...first.args.map((a) => rt.interp.evaluate(a, scope))));
+    } else if (b) {
       const s = rt.root.child();
       const args = first.args.map((a) => rt.interp.evaluate(a, scope));
       b.params.forEach((p, k) => s.vars.set(p.name, args[k]));
@@ -155,6 +399,11 @@ function renderExpr(expr, scope, rt, registry, out) {
     return;
   }
   const name = root.callee.name;
+  // `myBuilder(x)` — a top-level @Builder function of the gallery file
+  if (rt.builderFns && rt.builderFns[name]) {
+    out.push(...renderBuilderFn(rt.builderFns[name], root.args.map((a) => rt.interp.evaluate(a, scope)), rt, registry));
+    return;
+  }
   if (name === 'ForEach' || name === 'LazyForEach') {
     const list = toArray(rt.interp.evaluate(root.args[0], scope));
     const fn = root.args[1];
@@ -181,9 +430,12 @@ function renderExpr(expr, scope, rt, registry, out) {
     return;
   }
   const n = describe(root, attrs, scope, rt, registry);
+  const def = rt.structs && rt.structs[name];
   const r = registry[name];
   let vnode;
-  if (r) {
+  if (def) {
+    vnode = h(structComponent(def), { n, rt, registry });
+  } else if (r) {
     vnode = r(n);
   } else {
     vnode = placeholder(name, n.children, n);
@@ -214,11 +466,40 @@ function describe(call, attrs, scope, rt, registry) {
   const binds = {};
   /** identifier names used as prop values (lets imitations guess sample data for unresolved `config` / `rows`) */
   const refs = {};
+  /** @BuilderParam props given as `this.someBuilder` (a @Builder / @LocalBuilder of the snippet) */
+  const slots = {};
   const first = call.args[0];
   if (first && first.type === 'object') {
     for (const p of first.props) {
       if (p.key && p.value && p.value.type === 'ident') {
         refs[p.key] = p.value.name;
+      }
+      // `config: this.series === 'desktop' ? desktopConfig : mobileConfig` → the identifier of the taken branch
+      if (p.key && p.value && p.value.type === 'cond') {
+        let branch;
+        try {
+          branch = interp.evaluate(p.value.test, scope) ? p.value.cons : p.value.alt;
+        } catch (e) {
+          branch = undefined;
+        }
+        if (branch && branch.type === 'ident') {
+          refs[p.key] = branch.name;
+        }
+      }
+      // `content: this.content` — pass a @BuilderParam of the enclosing helper struct further down
+      if (p.key && p.value && p.value.type === 'member' && p.value.object.type === 'this' && rt.slots && rt.slots[p.value.prop]) {
+        slots[p.key] = rt.slots[p.value.prop];
+      } else if (p.key && p.value && p.value.type === 'ident' && rt.builderFns && rt.builderFns[p.value.name]) {
+        const fn = rt.builderFns[p.value.name];
+        slots[p.key] = (...args) => renderBuilderFn(fn, args, rt, registry);
+      }
+      if (p.key && p.value && p.value.type === 'member' && p.value.object.type === 'this' && rt.builders[p.value.prop]) {
+        const b = rt.builders[p.value.prop];
+        slots[p.key] = (...args) => {
+          const s = rt.root.child();
+          b.params.forEach((bp, k) => s.vars.set(bp.name, args[k]));
+          return renderStatements(b.body, s, rt, registry);
+        };
       }
       if (p.key && p.value && p.value.type === 'bind') {
         const target = p.value.target;
@@ -235,13 +516,16 @@ function describe(call, attrs, scope, rt, registry) {
     args,
     binds,
     refs,
+    slots,
     attrs: evAttrs,
     attr(name) {
       const a = evAttrs.filter((x) => x.name === name).pop();
       return a ? a.args : undefined;
     },
-    children: () => (call.children ? renderStatements(call.children, scope.child(), rt, registry) : []),
-    hasChildren: !!(call.children && call.children.length),
+    // the trailing closure, or a builder passed as `content: this.someBuilder` (the same @BuilderParam in ArkUI)
+    children: () => (call.children ? renderStatements(call.children, scope.child(), rt, registry) :
+      (slots.content ? slots.content() : [])),
+    hasChildren: !!(call.children && call.children.length) || !!slots.content,
     rt
   };
   const { style, events } = attrStyle(evAttrs);

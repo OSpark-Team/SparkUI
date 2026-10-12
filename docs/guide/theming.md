@@ -80,6 +80,39 @@ SButton({ text: 'Pill', tokens: { radius: 999 } })
 SButton({ text: 'Custom', tokens: { background: 'oklch(0.6 0.2 250)', foreground: '#ffffff' } })
 ```
 
+- 全局设置时与其它变量一样（`setVariable`，或用 `loadString` 加载 `theme.css`）。状态徽章与提示读取语义状态色 Token：
+
+```arkts preview
+Column({ space: 12 }) {
+  Row({ space: 8 }) {
+    SButton({ text: 'Soft theme', variant: 'outline', sizing: 'sm' })
+      .onClick(() => SparkUI.themes.loadString(`:root {
+        --card-radius: 24px; --card-background: color-mix(in oklab, var(--primary) 4%, var(--background));
+        --button-radius: 999px; --badge-radius: 999px; --border-width: 0px; --card-shadow: none;
+      }`))
+    SButton({ text: 'Reset', variant: 'ghost', sizing: 'sm' }).onClick(() => SparkUI.themes.resetOverrides())
+  }
+  SCard() {
+    SCardHeader() {
+      SCardTitle({ text: 'Deployment' })
+      SCardDescription({ text: 'Reads --card-* and --button-* tokens' })
+    }
+    SCardContent() {
+      Row({ space: 8 }) {
+        SBadge({ text: 'Live', variant: 'success' })
+        SBadge({ text: 'Degraded', variant: 'warning' })
+        SBadge({ text: 'Info', variant: 'info' })
+      }
+    }
+    SCardFooter() {
+      SButton({ text: 'Redeploy' })
+      SButton({ text: 'Logs', variant: 'outline' })
+    }
+  }
+  .width(340)
+}
+```
+
 ## 原生组件
 
 `SparkProvider` 会把 Token 同步到系统主题（`WithTheme` / `ThemeControl`），因此原生 `Toggle`、`TextInput` 等也会跟随强调色与明暗模式。

@@ -33,6 +33,6 @@ Also: a component used with a trailing-closure slot cannot be followed by chaine
 ## About these docs
 
 - Component pages are generated from the gallery app (`gallery/`) and the library sources: examples are the gallery's `DemoBlock` code, API tables come from the `@Param` / `@Event` / `@BuilderParam` declarations.
-- Every example has an **approximate web preview** — toggle light/dark, copy the code or edit it in the [playground](/en/playground). The preview cannot reproduce ArkUI rendering 100%; see [Web Previewer](/en/guide/previewer).
+- Every example has an **approximate web preview** — toggle light/dark or copy the code (a few examples that cannot be reproduced on the web show only their code). The preview cannot reproduce ArkUI rendering 100%; see [Web Previewer](/en/guide/previewer).
 
 Next: [Installation](/en/guide/installation).

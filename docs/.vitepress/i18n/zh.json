@@ -7,7 +7,6 @@
   "Navigation": "导航",
   "Forms": "表单",
   "Overlays": "浮层",
-
   "Icons": "图标",
   "Code Block": "代码块",
   "Transition": "过渡",
@@ -82,7 +81,6 @@
   "Toast": "轻提示",
   "Toast (Sonner)": "轻提示（Sonner）",
   "Tooltip": "文字提示",
-
   "… lucide icons ship with SparkUI. Register more with SparkIcons.register(), or map a name to a HarmonyOS Symbol with SparkIcons.useSymbol().": "SparkUI 自带 … 个 lucide 图标。可以用 SparkIcons.register() 注册更多图标，或用 SparkIcons.useSymbol() 把名字映射到 HarmonyOS Symbol。",
   "Highlighted code with line numbers, highlighted lines and a copy button. Built-in languages: ArkTS / TypeScript, CSS, JSON, Bash, HTML / XML, Python, Diff — and your own grammars.": "带行号、行高亮与复制按钮的代码高亮。内置语言：ArkTS / TypeScript、CSS、JSON、Bash、HTML / XML、Python、Diff，也可以注册自己的语法。",
   "CSS theme": "CSS 主题",
@@ -94,7 +92,6 @@
   "Ordered regex rules → token types. Register by name, or pass the grammar object directly.": "按顺序匹配的正则规则 → token 类型。可以按名字注册，也可以直接传入语法对象。",
   "Register a grammar": "注册语法",
   "Extend a built-in": "扩展内置语法",
-
   "Vue-style <Transition>, keyed switchers and <TransitionGroup>, built on ArkUI component transitions (TransitionEffect.asymmetric + if / ForEach keys). Timing comes from SparkAnim: --motion-transition-* is configurable and motion off makes every switch instant.": "Vue 风格的 <Transition>、按 key 切换的视图切换器与 <TransitionGroup>，基于 ArkUI 组件转场（TransitionEffect.asymmetric + if / ForEach 的 key）。时序来自 SparkAnim：--motion-transition-* 可配置，关闭动效后所有切换立即完成。",
   "Show / hide": "显示 / 隐藏",
   "STransition mounts and removes its content with `show` (v-if). Lifecycle events: onBeforeEnter, onAfterEnter, onBeforeLeave, onAfterLeave.": "STransition 根据 `show`（相当于 v-if）挂载与移除内容。生命周期事件：onBeforeEnter、onAfterEnter、onBeforeLeave、onAfterLeave。",
@@ -106,7 +103,6 @@
   "enterEffect / leaveEffect take any TransitionEffect (inheriting the resolved duration and curve); duration and ease override the motion key per instance.": "enterEffect / leaveEffect 接受任意 TransitionEffect（继承解析出的时长与曲线）；duration 与 ease 可按实例覆盖动效 key。",
   "Transition group": "过渡组",
   "STransitionGroup animates inserted and removed items; the remaining items move to their new positions with a layout animation (Vue FLIP move).": "STransitionGroup 为插入和移除的条目做动画；其余条目通过布局动画移动到新位置（相当于 Vue 的 FLIP move）。",
-
   "Sidebar + top bar + scrolling content in one block — the layout of this gallery, driven by data. It pads immersive safe areas itself, scrolls content under a translucent top bar and scrolls back to the top when the page changes.": "侧边栏 + 顶栏 + 滚动内容合为一个区块——也就是本画廊的布局，由数据驱动。它自行处理沉浸式安全区，内容在半透明顶栏下方滚动，切换页面时回到顶部。",
   "A composable, themeable app sidebar (shadcn-vue Sidebar). It docks beside the content when there is room and turns into a sheet when there is not — measured from its own container, no breakpoints. Collapse to an icon rail or off-canvas with an animated width.": "可组合、可主题化的应用侧边栏（shadcn-vue Sidebar）。空间足够时停靠在内容旁边，不够时变成侧边面板——依据自身容器测量，没有断点。可以带宽度动画地折叠为图标栏或完全收起。",
   "Playground": "演练场",
@@ -126,7 +122,6 @@
   "Live state from SparkWindowChrome. \"Apply\" hides the system title bar of this window and shows STitleBar at the top of the gallery; it needs a free window.": "来自 SparkWindowChrome 的实时状态。“应用”会隐藏当前窗口的系统标题栏，并在画廊顶部显示 STitleBar；需要处于自由窗口中。",
   "Setup": "接入",
   "Bind the main window once, then place the bar on top of the page.": "先绑定一次主窗口，再把标题栏放在页面顶部。",
-
   "Beautiful charts drawn natively with ArkUI Path shapes, styled with the chart-1…5 tokens. Describe series once with SparkChartConfig; every chart measures its own width, thins its labels, animates in with motion key \"chart\", and shows a shadcn tooltip on hover, tap or horizontal pan.": "用 ArkUI Path 原生绘制的精美图表，使用 chart-1…5 Token 着色。用 SparkChartConfig 描述一次数据系列；每个图表都会测量自身宽度、自动稀疏标签、以动效 key \"chart\" 入场，并在悬停、点按或横向拖动时显示 shadcn 风格的提示框。",
   "Responsive": "响应式",
   "No breakpoints: cartesian charts default to a 16:9 box of their own width (160–320vp), skip category labels that would overlap and adapt the number of value ticks to the height.": "没有断点：直角坐标图默认采用自身宽度的 16:9 区域（160–320vp），跳过会重叠的类目标签，并根据高度调整数值刻度的数量。",
@@ -162,7 +157,6 @@
   "Text": "文字",
   "Shape": "形状",
   "Partial sweep, square ends, no track.": "部分扫角、方形端点、无轨道。",
-
   "Displays a callout for user attention.": "显示一条引起用户注意的提示。",
   "Status variants": "状态变体",
   "success | warning | info (+ destructive), plain or soft.": "success | warning | info（以及 destructive），普通或柔和样式。",
@@ -223,7 +217,6 @@
   "Data form": "数据形式",
   "Pass rows: string[][] (and footer) instead of slots. adaptive: 'table' keeps the table and scrolls horizontally when it does not fit.": "用 rows: string[][]（以及 footer）代替插槽。adaptive: 'table' 会保持表格形态，放不下时横向滚动。",
   "Styles for headings, paragraphs, lists… as components.": "标题、段落、列表等排版样式，以组件形式提供。",
-
   "A vertically stacked set of interactive headings that each reveal a section of content.": "一组纵向排列的可交互标题，每个标题展开一段内容。",
   "Multiple & controlled": "多项展开与受控",
   "type: 'multiple' keeps several items open. Bind the open items with !!.": "type: 'multiple' 允许同时展开多项。用 !! 绑定展开的项。",
@@ -250,7 +243,6 @@
   "Bind pressed with !! like v-model:pressed.": "像 v-model:pressed 一样用 !! 绑定 pressed。",
   "A set of two-state buttons joined into one control. value is a string array for both single and multiple groups.": "把一组双态按钮拼接成一个控件。无论单选还是多选，value 都是字符串数组。",
   "Toggle Group — controlled": "切换按钮组——受控",
-
   "A date field component that allows users to enter and edit date. Cells grow with the space they get; swipe the grid or use PageUp / PageDown to change months, arrow keys to move between days.": "用于输入与编辑日期的日期组件。单元格随可用空间放大；滑动网格或使用 PageUp / PageDown 切换月份，方向键在日期间移动。",
   "mode: 'multiple' — tap days to toggle them.": "mode: 'multiple'——点按日期即可切换选中。",
   "Range": "范围",
@@ -314,7 +306,6 @@
   "Displays a form textarea. It grows with its content (min-h-16); cap it with maxHeight.": "显示一个多行文本框。高度随内容增长（min-h-16），可用 maxHeight 限制。",
   "Character counter": "字数统计",
   "showCount draws length/maxLength in the corner.": "showCount 在角落显示 长度/最大长度。",
-
   "A modal dialog that interrupts the user with important content and expects a response. Becomes a bottom drawer on compact touch screens.": "以重要内容打断用户并等待回应的模态对话框。在紧凑触屏上变为底部抽屉。",
   "Autocomplete input and command palette with a list of suggestions. Anchored below the trigger (at least as wide as it) on pointer / wide screens; a bottom sheet on compact touch screens.": "带建议列表的自动补全输入与命令面板。在指针设备 / 宽屏上锚定在触发器下方（至少与其等宽）；在紧凑触屏上为底部面板。",
   "Fast, composable command menu. Type to filter (prefix, substring or fuzzy subsequence, plus keywords); ↑ / ↓ move the highlight and Enter selects it.": "快速、可组合的命令菜单。输入即可过滤（前缀、子串或模糊子序列，以及关键词）；↑ / ↓ 移动高亮，回车选中。",
@@ -336,5 +327,26 @@
   "An opinionated toast. Bottom-right on wide windows, bottom-centre on compact ones. Swipe sideways to dismiss; touches outside the toasts go straight to the page.": "一套开箱即用的轻提示。宽窗口显示在右下角，紧凑窗口显示在底部居中。左右滑动即可关闭；轻提示之外的触摸直接作用于页面。",
   "Duration": "时长",
   "Each toast auto-dismisses after its duration (default 4 s). Pass duration: 0 to keep it until it is swiped away or dismissed; SparkToast.configure() sets the defaults.": "每条轻提示在时长结束后自动消失（默认 4 秒）。传入 duration: 0 可一直保留，直到被滑走或关闭；SparkToast.configure() 设置默认值。",
-  "Shows information on hover (mouse / touchpad) or on long-press (touch). Flips to stay on screen.": "在悬停（鼠标 / 触控板）或长按（触屏）时显示信息。会自动翻转以保持在屏幕内。"
+  "Shows information on hover (mouse / touchpad) or on long-press (touch). Flips to stay on screen.": "在悬停（鼠标 / 触控板）或长按（触屏）时显示信息。会自动翻转以保持在屏幕内。",
+  "ArkTS": "ArkTS",
+  "ClickCounter.ets": "ClickCounter.ets",
+  "theme.css": "theme.css",
+  "theme.json": "theme.json",
+  "Diff": "Diff",
+  "app.ini": "app.ini",
+  "CodeHighlighter.extend(base, { keywords, before, after, exclude })": "CodeHighlighter.extend(base, { keywords, before, after, exclude })",
+  "Tokens": "Token",
+  "The look is themeable through --sidebar-* component tokens (ADR D13) on top of the semantic --sidebar / --sidebar-accent colours: background, border, widths, menu radius / height / active / hover colours, group label colour, floating and inset frames. Per instance: SSidebarProvider({ tokens }). The switches write theme variables, so they restyle the playground above and this gallery's own sidebar.": "外观可通过 --sidebar-* 组件 Token（ADR D13）在语义色 --sidebar / --sidebar-accent 之上主题化：背景、边框、宽度、菜单圆角 / 高度 / 激活与悬停颜色、分组标签颜色、浮动与内嵌框。可按实例设置：SSidebarProvider({ tokens })。开关会写入主题变量，因此会同时改变上方的演练场与本画廊自身的侧边栏。",
+  "Large data": "大数据量",
+  "The data form is virtualized (List + Repeat.virtualScroll()): only the rows in view exist and scrolled-out rows are reused, so 10 000 rows open and scroll like 10. Narrow the frame to see the virtualized card layout.": "数据形式是虚拟化的（List + Repeat.virtualScroll()）：只存在可见的行，滚出视野的行会被复用，因此 10 000 行的打开与滚动速度与 10 行相当。收窄框架即可看到虚拟化的卡片布局。",
+  "BIG_ROWS.length rows · frame = full": "BIG_ROWS.length 行 · frame = full",
+  "Long lists": "长列表",
+  "Results are virtualized: options that do not match the query are never built, and of the matches only the rows in view are. Try \"north 7\" or \"brk\".": "结果是虚拟化的：与查询不匹配的选项从不会被构建，匹配的选项中也只构建可见的行。试试输入 \"north 7\" 或 \"brk\"。",
+  "MANY_PLACES.length options · place = …": "MANY_PLACES.length 个选项 · place = …",
+  "The data form is virtualized: only the rows in view exist, scrolled-out rows are reused, and the list opens at the selected option. Every 97th item is disabled.": "数据形式是虚拟化的：只存在可见的行，滚出视野的行会被复用，列表会在所选选项处打开。每第 97 项被禁用。",
+  "MANY_OPTIONS.length options · item = …": "MANY_OPTIONS.length 个选项 · item = …",
+  "Long lists (data mode)": "长列表（数据模式）",
+  "Pass items instead of slot content: the results are virtualized, so items that do not match are never built and only the matches in view are. Try \"echo 42\", \"set 19\" or \"dlt\".": "传入 items 代替插槽内容：结果列表是虚拟化的，不匹配的项根本不会构建，匹配项中也只构建可见的那些。试试输入 \"echo 42\"、\"set 19\" 或 \"dlt\"。",
+  "MANY_COMMANDS.length items · query = \"…\" · selected = …": "MANY_COMMANDS.length 项 · query = \"…\" · selected = …",
+  "The trailing closure holds the actions; sidebarController adds a sidebar toggle at the start; startBuilder / leadingBuilder / centerBuilder take wrapBuilder(globalBuilder) for anything else. Regions never start a window drag; the free space around them does.": "尾随闭包放操作按钮；sidebarController 会在最左侧加上侧边栏切换按钮；其他内容通过 startBuilder / leadingBuilder / centerBuilder 传入 wrapBuilder(globalBuilder)。这些区域不会触发窗口拖动，它们周围的空白处才会。"
 }

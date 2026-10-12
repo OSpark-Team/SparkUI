@@ -33,6 +33,17 @@
   color: var(--vp-c-text-2);
 }
 
+/* pages whose examples are code only (scripts/lib/pages-config.mjs CODE_ONLY) */
+.doc-note {
+  padding: 10px 14px;
+  border-left: 3px solid var(--vp-c-warning-1);
+  border-radius: 6px;
+  background: var(--vp-c-warning-soft);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
 /* ------------------------------------------------------------ demo block */
 
 .ark-demo {
@@ -235,7 +246,7 @@
   color: var(--vp-c-text-2);
 }
 
-/* ------------------------------------------------------------ playground / theme picker */
+/* ------------------------------------------------------------ theme picker */
 
 .ark-theme-picker {
   display: flex;
@@ -262,54 +273,4 @@
 
 .ark-theme-picker-note {
   color: var(--vp-c-text-3);
-}
-
-.ark-playground-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 960px) {
-  .ark-playground-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.ark-playground-label {
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--vp-c-text-2);
-}
-
-.ark-playground-editor textarea {
-  width: 100%;
-  min-height: 460px;
-  padding: 12px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 10px;
-  background: var(--vp-c-bg-soft);
-  color: var(--vp-c-text-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  tab-size: 2;
-}
-
-.ark-playground-errors {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--vp-c-danger-1);
-}
-
-.ark-playground-output .ark-preview {
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.ark-playground-output .ark-stage {
-  min-height: 460px;
 }

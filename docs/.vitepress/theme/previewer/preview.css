@@ -1,18 +1,14 @@
 /* Web imitation of SparkUI components. Colours come from the generated tokens (.ark-theme.ark-preset-* …). */
 
 .ark-theme {
-  --success: oklch(0.596 0.145 163.225);
-  --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.666 0.179 58.318);
-  --warning-foreground: oklch(0.216 0.006 56.043);
-  --info: oklch(0.588 0.158 241.966);
-  --info-foreground: oklch(1 0 0);
-  --ark-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --ark-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --ark-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --ark-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --ark-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --ark-shadow-xxl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  /* status colours (--success / --warning / --info + -foreground) come from the generated preset CSS;
+     shadows follow theme `--shadow-*` variables when a snippet sets them */
+  --ark-shadow-xs: var(--shadow-xs, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+  --ark-shadow-sm: var(--shadow-sm, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1));
+  --ark-shadow-md: var(--shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1));
+  --ark-shadow-lg: var(--shadow-lg, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1));
+  --ark-shadow-xl: var(--shadow-xl, 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1));
+  --ark-shadow-xxl: var(--shadow-2xl, 0 25px 50px -12px rgb(0 0 0 / 0.25));
   --ark-radius-sm: calc(var(--radius) - 4px);
   --ark-radius-md: calc(var(--radius) - 2px);
   --ark-radius-lg: var(--radius);
@@ -23,11 +19,6 @@
   line-height: 1.43;
 }
 
-.ark-theme.dark {
-  --success: oklch(0.696 0.17 162.48);
-  --warning: oklch(0.769 0.188 70.08);
-  --info: oklch(0.685 0.169 237.323);
-}
 
 :where(.ark-theme) *,
 :where(.ark-theme) *::before,
@@ -2265,10 +2256,6 @@ input.ark-input {
   font-size: 12px;
 }
 
-.ark-sparkline {
-  display: block;
-}
-
 .ark-calendar {
   display: inline-flex;
   flex-direction: column;
@@ -2783,91 +2770,6 @@ input.ark-input {
     opacity: 0;
     transform: translateY(12px);
   }
-}
-
-/* dashboard tiles */
-
-.ark-tile {
-  gap: 4px;
-  padding: 16px 20px;
-}
-
-.ark-tile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-}
-
-.ark-tile-value {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.ark-tile-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-}
-
-/* charts */
-
-.ark-chart {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  max-width: 560px;
-}
-
-.ark-chart-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ark-chart-tick {
-  font-size: 10px;
-  fill: var(--muted-foreground);
-}
-
-.ark-chart-center {
-  font-size: 22px;
-  font-weight: 700;
-  fill: var(--foreground);
-}
-
-.ark-chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-
-.ark-chart-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ark-chart-legend i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-
-.ark-chart-empty {
-  justify-content: center;
-  min-height: 160px;
-  font-size: 14px;
-  color: var(--muted-foreground);
-  border: 1px dashed var(--border);
-  border-radius: var(--ark-radius-lg);
 }
 
 .ark-switch.lg {

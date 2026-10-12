@@ -1,9 +1,13 @@
 <script setup>
 // Preview / Code tabs around one example, like the gallery's DemoBlock.
-import { computed, ref } from 'vue';
-import { useData, withBase } from 'vitepress';
+import { computed, ref, shallowRef, watchEffect } from 'vue';
+import { useData } from 'vitepress';
 import ArkPreview from './ArkPreview.vue';
 import DEMO_STATE from '../../generated/demo-state.json';
+import { bundleAnalysis } from '../previewer/runtime.js';
+
+/** the gallery's real demo bodies, one lazily loaded chunk per doc struct (scripts/lib/extract-demos.mjs) */
+const BUNDLES = import.meta.glob('../../generated/demo-bodies/*.json', { import: 'default' });
 
 const props = defineProps({
   /** encodeURIComponent(code) — produced by the markdown plugin */
@@ -12,7 +16,9 @@ const props = defineProps({
   state: { type: String, default: '' },
   left: { type: Boolean, default: false },
   /** encodeURIComponent(JSON) inline demo state from the fence info: ```arkts preview {"on":true} */
-  data: { type: String, default: '' }
+  data: { type: String, default: '' },
+  /** index of the gallery's real demo body to preview (the Code tab keeps showing `code`) */
+  body: { type: String, default: '' }
 });
 
 const { lang, isDark } = useData();
@@ -26,6 +32,23 @@ const demoState = computed(() => {
     inline = {};
   }
   return { ...((props.state && DEMO_STATE[props.state]) || {}), ...inline };
+});
+/** analysis of the real body once its bundle has loaded; null → preview the snippet */
+const real = shallowRef(null);
+const loading = ref(props.body !== '' && !!props.state);
+watchEffect(async () => {
+  const load = props.body !== '' && props.state ? BUNDLES[`../../generated/demo-bodies/${props.state}.json`] : null;
+  if (!load) {
+    real.value = null;
+    loading.value = false;
+    return;
+  }
+  try {
+    real.value = bundleAnalysis(await load(), Number(props.body));
+  } catch (e) {
+    real.value = null;
+  }
+  loading.value = false;
 });
 const tab = ref('preview');
 const forced = ref(null);
@@ -45,11 +68,6 @@ async function copy() {
     // clipboard unavailable
   }
 }
-
-const playground = computed(() => {
-  const base = zh.value ? '/playground' : '/en/playground';
-  return withBase(`${base}#code=${encodeURIComponent(source.value)}${props.state ? `&state=${props.state}` : ''}`);
-});
 </script>
 
 <template>
@@ -60,9 +78,6 @@ const playground = computed(() => {
         <button :class="{ active: tab === 'code' }" role="tab" @click="tab = 'code'">{{ zh ? '代码' : 'Code' }}</button>
       </div>
       <div class="ark-demo-actions">
-        <a class="ark-demo-icon" :href="playground" :title="zh ? '在演练场中打开' : 'Open in playground'">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
-        </a>
         <button class="ark-demo-icon" :title="zh ? '切换预览明暗' : 'Toggle preview theme'" @click="toggleDark">
           <svg v-if="dark" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
           <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>
@@ -74,7 +89,7 @@ const playground = computed(() => {
       </div>
     </div>
     <ClientOnly>
-      <ArkPreview v-show="tab === 'preview'" :code="source" :state="demoState" :dark="dark" :left="left" />
+      <ArkPreview v-if="!loading" v-show="tab === 'preview'" :code="source" :analysis="real" :state="demoState" :dark="dark" :left="left" />
     </ClientOnly>
     <div v-show="tab === 'code'" class="ark-demo-code">
       <slot name="code" />

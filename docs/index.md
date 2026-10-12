@@ -15,9 +15,6 @@ hero:
     - theme: alt
       text: 浏览组件
       link: /components/
-    - theme: alt
-      text: 演练场
-      link: /playground
 
 features:
   - icon: 🎨
@@ -37,7 +34,7 @@ features:
     details: Dialog、Popover、Menu、Select、Sheet、Toast……在紧凑触屏上自动转换为底部抽屉。
   - icon: 🖥️
     title: 网页预览
-    details: 文档中的每个示例都可在浏览器里近似渲染并交互，还可以在演练场中改代码。
+    details: 文档中的每个示例都可在浏览器里近似渲染并交互。
 ---
 
 ## 30 秒上手

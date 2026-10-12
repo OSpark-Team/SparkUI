@@ -10,7 +10,9 @@ import {
 import { icon } from './icons.js';
 import { len, color, flexAlign } from './runtime.js';
 import { isEnumProxy } from './interp.js';
-import { cartesian, pie, radial, radar, chartContainer } from './charts.js';
+import { charts } from './charts.js';
+import { blocks } from './blocks.js';
+import { tokenVars } from './tokens.js';
 
 // ------------------------------------------------------------------------------------------------ helpers
 
@@ -241,23 +243,14 @@ function SButton(n) {
   const variant = o.variant || 'default';
   const sz = BUTTON_SIZES[o.sizing] || BUTTON_SIZES.default;
   const disabled = o.disabled || o.loading;
-  const style = { height: `${sz.h}px`, padding: `0 ${sz.px}px` };
+  const suffix = /sm$/.test(o.sizing || '') ? '-sm' : /lg$/.test(o.sizing || '') ? '-lg' : '';
+  const height = `var(--button-height${suffix}, ${sz.h}px)`;
+  const style = { ...tokenVars('button', o.tokens, variant), height, padding: sz.square ? 0 : `0 var(--button-padding-x${suffix}, ${sz.px}px)` };
   if (sz.square) {
-    style.width = `${sz.h}px`;
+    style.width = height;
   }
   if (o.block) {
     style.width = '100%';
-  }
-  if (o.tokens && typeof o.tokens === 'object') {
-    if (o.tokens.radius !== undefined) {
-      style.borderRadius = len(o.tokens.radius);
-    }
-    if (o.tokens.background !== undefined) {
-      style.background = color(o.tokens.background);
-    }
-    if (o.tokens.foreground !== undefined) {
-      style.color = color(o.tokens.foreground);
-    }
   }
   const events = disabled ? {} : n.events;
   return h('button', {
@@ -303,7 +296,7 @@ function SBadge(n) {
     kids.push(h('span', { class: 'ark-badge-x', onClick: (e) => { e.stopPropagation(); call(o.onRemove); } }, icon('x', 12)));
   }
   return h('span', rootProps(n, ['ark-badge', `ark-badge-${v}`, o.soft && 'soft', o.pill && 'pill', `size-${o.sizing || 'default'}`,
-    o.count !== undefined && 'count']), kids);
+    o.count !== undefined && 'count'], tokenVars('badge', o.tokens, v)), kids);
 }
 
 // ------------------------------------------------------------------------------------------------ Card
@@ -315,7 +308,8 @@ function SCard(n) {
     kids.push(h('div', { class: 'ark-card-image', style: { height: len(o.imageHeight ?? 160) } }, icon('image', 24)));
   }
   kids.push(...n.children());
-  return h('div', rootProps(n, ['ark-card', `ark-card-${o.variant || 'default'}`, o.sizing === 'sm' && 'sm', o.interactive && 'interactive']), kids);
+  return h('div', rootProps(n, ['ark-card', `ark-card-${o.variant || 'default'}`, o.sizing === 'sm' && 'sm', o.interactive && 'interactive'],
+    tokenVars('card', o.tokens, o.variant || 'default')), kids);
 }
 
 const SCardHeader = (n) => h('div', rootProps(n, 'ark-card-header'), n.children());
@@ -359,7 +353,8 @@ const SInput = def('SInput', (props) => {
     if (o.showCount && o.maxLength) {
       kids.push(h('span', { class: 'ark-input-count' }, `${String(value.value || '').length}/${o.maxLength}`));
     }
-    return h('label', rootProps(n, ['ark-input', `size-${o.sizing || 'default'}`, o.invalid && 'invalid', o.disabled && 'disabled']), kids);
+    return h('label', rootProps(n, ['ark-input', `size-${o.sizing || 'default'}`, o.invalid && 'invalid', o.disabled && 'disabled'],
+      tokenVars('input', o.tokens)), kids);
   };
 });
 
@@ -367,7 +362,7 @@ const STextarea = def('STextarea', (props) => {
   const [value, set] = useModel(props, 'value', 'defaultValue', '', 'onValueChange');
   return () => {
     const o = props.n.props;
-    return h('div', rootProps(props.n, ['ark-textarea-wrap', o.invalid && 'invalid']), [
+    return h('div', rootProps(props.n, ['ark-textarea-wrap', o.invalid && 'invalid'], tokenVars('input', o.tokens)), [
       h('textarea', {
         class: 'ark-input ark-textarea', placeholder: txt(o.placeholder), value: value.value, disabled: o.disabled,
         maxlength: o.maxLength, onInput: (e) => set(e.target.value)
@@ -412,7 +407,7 @@ const SSwitch = def('SSwitch', (props) => {
       class: ['ark-switch', 'ark-choice-control', checked.value && 'checked', o.sizing === 'sm' && 'sm', o.sizing === 'lg' && 'lg', o.disabled && 'disabled'],
       role: 'switch', 'aria-checked': String(!!checked.value), onClick: toggle
     }, h('span', { class: 'ark-switch-thumb' }));
-    return choiceLabel(o, control, toggle, props.n, 'switch-row');
+    return choiceLabel(o, h('span', { class: 'ark-token-scope', style: tokenVars('switch', o.tokens) }, control), toggle, props.n, 'switch-row');
   };
 });
 
@@ -426,7 +421,7 @@ const SCheckbox = def('SCheckbox', (props) => {
       class: ['ark-checkbox', 'ark-choice-control', on && 'checked', o.invalid && 'invalid', o.disabled && 'disabled', o.sizing === 'sm' && 'sm', o.sizing === 'lg' && 'lg'],
       role: 'checkbox', onClick: toggle
     }, on ? icon(o.indeterminate && !checked.value ? 'minus' : 'check', 12, 'currentColor', 3) : null);
-    return choiceLabel(o, control, toggle, props.n);
+    return choiceLabel(o, h('span', { class: 'ark-token-scope', style: tokenVars('checkbox', o.tokens) }, control), toggle, props.n);
   };
 });
 
@@ -527,7 +522,8 @@ function SProgress(n) {
     ]);
   }
   const height = o.thickness ?? (o.sizing === 'sm' ? 4 : o.sizing === 'lg' ? 12 : 8);
-  const bar = h('div', { class: 'ark-progress', style: { height: `${height}px` } }, [
+  const bar = h('div', { class: 'ark-progress', style: { height: o.thickness === undefined && !o.sizing ? 'var(--progress-height, 8px)' : `${height}px`,
+    ...tokenVars('progress', o.tokens) } }, [
     o.buffer !== undefined ? h('div', { class: 'ark-progress-buffer', style: { width: `${(o.buffer / max) * 100}%` } }) : null,
     h('div', { class: ['ark-progress-bar', o.indeterminate && 'indeterminate', o.striped && 'striped'], style: { width: o.indeterminate ? '40%' : `${p}%`, background: tone } })
   ]);
@@ -548,7 +544,7 @@ const TABS_KEY = Symbol('tabs');
 const STabs = def('STabs', (props) => {
   const [value, set] = useModel(props, 'value', 'defaultValue', '', 'onValueChange');
   provide(TABS_KEY, { value, set });
-  return () => h('div', rootProps(props.n, 'ark-tabs'), props.n.children());
+  return () => h('div', rootProps(props.n, 'ark-tabs', tokenVars('tabs', props.n.props.tokens)), props.n.children());
 });
 
 const STabsList = (n) => h('div', rootProps(n, 'ark-tabs-list', {}, { role: 'tablist' }), n.children());
@@ -644,7 +640,8 @@ const SToggle = def('SToggle', (props) => {
   const [pressed, set] = useModel(props, 'pressed', 'defaultPressed', false, 'onPressedChange');
   return () => {
     const o = props.n.props;
-    return h('button', rootProps(props.n, ['ark-toggle', `ark-toggle-${o.variant || 'default'}`, `size-${o.sizing || 'default'}`, pressed.value && 'on'], {}, {
+    return h('button', rootProps(props.n, ['ark-toggle', `ark-toggle-${o.variant || 'default'}`, `size-${o.sizing || 'default'}`, pressed.value && 'on'],
+      tokenVars('toggle', o.tokens), {
       disabled: o.disabled, 'aria-pressed': String(!!pressed.value), onClick: () => set(!pressed.value)
     }), [o.icon ? icon(o.icon, 16) : null, o.text !== undefined ? txt(o.text) : null, ...props.n.children()]);
   };
@@ -727,7 +724,8 @@ const SAlert = def('SAlert', (props) => {
     if (o.dismissible) {
       kids.push(h('button', { class: 'ark-alert-x', onClick: () => { dismissed.value = true; call(o.onDismiss); } }, icon('x', 14)));
     }
-    return h('div', rootProps(n, ['ark-alert', `ark-alert-${v}`, o.soft && 'soft', o.compact && 'compact'], {}, { role: 'alert' }), kids);
+    return h('div', rootProps(n, ['ark-alert', `ark-alert-${v}`, o.soft && 'soft', o.compact && 'compact'], tokenVars('alert', o.tokens, v),
+      { role: 'alert' }), kids);
   };
 });
 
@@ -958,7 +956,29 @@ const SColumns = (n) => h('div', rootProps(n, 'ark-columns', { gap: len(n.props.
 const SColumn = (n) => h('div', rootProps(n, 'ark-column', { flex: `${n.props.weight ?? 1} 1 var(--min-col, 280px)` }), n.children());
 
 // Table (composition API)
-const STable = (n) => h('div', rootProps(n, 'ark-table-wrap'), h('table', { class: 'ark-table' }, n.children()));
+/** STable({ columns, rows, footer, bodyHeight, caption }) data-driven, or with slot rows (STableHeader / STableBody …). */
+const STable = (n) => {
+  const p = n.props;
+  const columns = Array.isArray(p.columns) ? p.columns : [];
+  const caption = p.caption ? h('caption', { class: 'ark-table-caption' }, txt(p.caption)) : null;
+  if (!columns.length || !Array.isArray(p.rows)) {
+    // slot rows (STableHeader / STableBody / … children)
+    return h('div', rootProps(n, 'ark-table-wrap'), h('table', { class: 'ark-table' }, [caption, ...n.children()]));
+  }
+  const cellStyle = (c) => ({
+    textAlign: c.alignment === 'end' ? 'right' : c.alignment === 'center' ? 'center' : undefined,
+    width: c.fixedWidth !== undefined ? `${c.fixedWidth}px` : undefined,
+    minWidth: c.minWidth !== undefined ? `${c.minWidth}px` : undefined
+  });
+  const rows = p.rows.slice(0, 200);
+  const head = h('thead', h('tr', columns.map((c) => h('th', { style: cellStyle(c) }, txt(c.title ?? c.key)))));
+  const body = h('tbody', rows.map((r) => h('tr', columns.map((c, i) => h('td', { style: cellStyle(c) },
+    txt(Array.isArray(r) ? r[i] : r?.[c.key]))))));
+  const foot = Array.isArray(p.footer) ?
+    h('tfoot', h('tr', columns.map((c, i) => h('td', { style: cellStyle(c) }, txt(p.footer[i]))))) : null;
+  const wrapStyle = p.bodyHeight ? { maxHeight: `${Number(p.bodyHeight) + 80}px`, overflow: 'auto' } : {};
+  return h('div', rootProps(n, 'ark-table-wrap', wrapStyle), h('table', { class: 'ark-table' }, [caption, head, body, foot]));
+};
 const STableCaption = (n) => h('caption', rootProps(n, 'ark-table-caption'), [txt(n.props.text), ...n.children()]);
 const STableHeader = (n) => h('thead', rootProps(n), n.children());
 const STableBody = (n) => h('tbody', rootProps(n), n.children());
@@ -1110,25 +1130,6 @@ function SCodeBlock(n) {
   ]);
 }
 
-function SSparkline(n) {
-  const o = n.props;
-  const vals = (o.values || []).map(Number);
-  const w = parseFloat(n.style.width) || 120;
-  const hh = o.chartHeight ?? 32;
-  if (vals.length < 2) {
-    return h('div', rootProps(n, 'ark-sparkline', { width: `${w}px`, height: `${hh}px` }));
-  }
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const pts = vals.map((v, i) => [(i / (vals.length - 1)) * w, hh - 2 - ((v - min) / (max - min || 1)) * (hh - 4)]);
-  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-  const c = String(o.color || 'chart-1').startsWith('var(') ? o.color : `var(--${o.color || 'chart-1'})`;
-  return h('svg', rootProps(n, 'ark-sparkline', { width: `${w}px`, height: `${hh}px` }, { viewBox: `0 0 ${w} ${hh}` }), [
-    o.filled !== false ? h('path', { d: `${d} L${w} ${hh} L0 ${hh} Z`, fill: c, opacity: 0.15 }) : null,
-    h('path', { d, fill: 'none', stroke: c, 'stroke-width': o.lineWidth ?? 1.5 })
-  ]);
-}
-
 // ------------------------------------------------------------------------------------------------ Overlays
 
 const OVERLAY_KEY = Symbol('overlay');
@@ -1207,20 +1208,23 @@ function modalContent(name, variant) {
   return def(name, (props) => {
     const o = inject(OVERLAY_KEY, null);
     const themeClass = inject(THEME_KEY, ref('ark-theme'));
+    const themeStyle = inject('arkThemeStyle', ref({}));
     return () => {
       if (!o || !o.open.value) {
         return null;
       }
       const c = props.n.props;
       const side = variant === 'sheet' ? (c.side || 'right') : variant === 'drawer' ? 'bottom' : 'center';
+      const comp = variant === 'sheet' ? 'sheet' : variant === 'drawer' ? 'drawer' : 'dialog';
       const dismiss = () => {
         if (c.dismissOnOutside !== false && name !== 'SAlertDialogContent') {
           o.set(false);
         }
       };
-      return h(Teleport, { to: 'body' }, h('div', { class: [themeClass.value, 'ark-modal-layer'] }, [
+      return h(Teleport, { to: 'body' }, h('div', { class: [themeClass.value, 'ark-modal-layer', `ark-modal-${comp}`],
+        style: [themeStyle.value, tokenVars(comp, c.tokens)] }, [
         h('div', { class: 'ark-modal-backdrop', onClick: dismiss }),
-        h('div', { class: ['ark-modal-panel', `side-${side}`], role: 'dialog', style: props.n.style }, [
+        h('div', { class: ['ark-modal-panel', `ark-${comp}-panel`, `side-${side}`], role: 'dialog', style: props.n.style }, [
           variant === 'drawer' ? h('div', { class: 'ark-drawer-handle' }) : null,
           ...props.n.children(),
           c.showCloseButton !== false && variant !== 'drawer' && name !== 'SAlertDialogContent' ?
@@ -1537,20 +1541,6 @@ const SCalendar = def('SCalendar', (props) => {
   };
 });
 
-// Dashboard tiles
-const SDashboardGrid = (n) => SGrid({ ...n, props: { minItemWidth: n.props.minTileWidth ?? n.props.minItemWidth ?? 200, gap: n.props.gap ?? 16 } });
-function SDashboardTile(n) {
-  const o = n.props;
-  const trend = o.trend === 'up' ? 'var(--success)' : o.trend === 'down' ? 'var(--destructive)' : 'var(--muted-foreground)';
-  return h('div', rootProps(n, 'ark-card ark-tile', { gridColumn: o.full ? '1 / -1' : o.span > 1 ? `span ${o.span}` : undefined }), [
-    h('div', { class: 'ark-tile-head' }, [h('span', txt(o.title)), o.icon ? icon(o.icon, 16) : null]),
-    o.value !== undefined ? h('div', { class: 'ark-tile-value' }, txt(o.value)) : null,
-    o.delta !== undefined ? h('div', { class: 'ark-tile-delta', style: { color: trend } }, [
-      o.trend === 'up' ? icon('trending-up', 14) : o.trend === 'down' ? icon('trending-down', 14) : null, txt(o.delta)]) : null,
-    ...n.children()
-  ]);
-}
-
 // Date picker: trigger + popover calendar
 const SDatePicker = def('SDatePicker', (props) => {
   const open = ref(false);
@@ -1623,13 +1613,10 @@ export function createRegistry() {
     STable, STableCaption, STableHeader, STableBody, STableFooter, STableRow, STableHead, STableCell,
     SAspectRatio, SScrollArea, SNumberField: C(SNumberField), SPinInput: C(SPinInput), STagsInput: C(STagsInput),
     SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput: C(SInputGroupInput),
-    SStepper: C(SStepper), SStepperItem: C(SStepperItem), SCodeBlock, SSparkline, SCalendar: C(SCalendar),
+    SStepper: C(SStepper), SStepperItem: C(SStepperItem), SCodeBlock, SCalendar: C(SCalendar),
     SRangeCalendar: C(SCalendar), SDatePicker: C(SDatePicker), SDateRangePicker: C(SDatePicker),
-    SDashboardGrid, SDashboardTile,
-    SLineChart: cartesian('line'), SAreaChart: cartesian('area'), SBarChart: cartesian('bar'), SPieChart: pie(false),
-    SDonutChart: pie(true), SRadialChart: radial, SRadarChart: radar, SChartContainer: chartContainer,
-    // transitions: children render without the animation
-    STransition: passthrough, STransitionGroup: passthrough, SSwitchTransition: passthrough, SPageTransition: passthrough,
+    // charts (charts.js), layout blocks (blocks.js)
+    ...charts,
 
     // overlays
     SPopover: C(PopRoot), SPopoverTrigger: C(OverlayTrigger), SPopoverClose: C(OverlayClose),
@@ -1682,7 +1669,8 @@ export function createRegistry() {
       }
     })
   };
+  Object.assign(reg, blocks(reg));
   return reg;
 }
 
-export { Fragment, computed };
+export { Fragment, computed, rootProps, txt, en, def, C, useModel, call, SButton, SAvatar, SCard, SCardContent, SGrid, SGridItem };

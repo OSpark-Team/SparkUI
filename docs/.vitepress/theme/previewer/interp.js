@@ -98,6 +98,9 @@ const SAFE_GLOBALS = {
 const BLOCKED_PROPS = new Set(['constructor', '__proto__', 'prototype', '__defineGetter__', '__defineSetter__']);
 
 const BREAK = { break: true };
+const CONTINUE = { continue: true };
+/** loops in helper code run at most this many iterations (the previewer must never hang a page) */
+const MAX_ITERATIONS = 20000;
 
 class ReturnSignal {
   constructor(value) {
@@ -122,6 +125,14 @@ export class Interpreter {
     }
     switch (node.type) {
       case 'lit':
+        // a regex literal shipped as JSON (generated demo bodies): { __re: [body, flags] }
+        if (node.value && typeof node.value === 'object' && Array.isArray(node.value.__re)) {
+          try {
+            return new RegExp(node.value.__re[0], node.value.__re[1]);
+          } catch (e) {
+            return undefined;
+          }
+        }
         return node.value;
       case 'tpl': {
         let s = node.quasis[0];
@@ -446,6 +457,40 @@ export class Interpreter {
     return undefined;
   }
 
+  /** `for (init; test; update)` / `while (test)` */
+  loop(st, scope) {
+    const s = scope.child();
+    if (st.init) {
+      this.exec([st.init], s);
+    }
+    for (let k = 0; k < MAX_ITERATIONS; k++) {
+      if (st.test && !this.evaluate(st.test, s)) {
+        return;
+      }
+      if (this.iteration(st.body, s.child())) {
+        return;
+      }
+      if (st.update) {
+        this.evaluate(st.update, s);
+      }
+    }
+  }
+
+  /** One loop iteration; true when the body hit `break`. */
+  iteration(body, scope) {
+    try {
+      this.exec(body, scope);
+    } catch (e) {
+      if (e === BREAK) {
+        return true;
+      }
+      if (e !== CONTINUE) {
+        throw e;
+      }
+    }
+    return false;
+  }
+
   exec(stmts, scope) {
     for (const st of stmts) {
       switch (st.type) {
@@ -471,13 +516,33 @@ export class Interpreter {
           throw new ReturnSignal(this.evaluate(st.arg, scope));
         case 'break':
           throw BREAK;
+        case 'continue':
+          throw CONTINUE;
+        case 'loop':
+          this.loop(st, scope);
+          break;
+        case 'forOf': {
+          const v = this.evaluate(st.iter, scope);
+          let items = [];
+          if (st.mode === 'in') {
+            items = v && typeof v === 'object' ? Object.keys(v) : [];
+          } else if (v && typeof v[Symbol.iterator] === 'function') {
+            items = [...v];
+          }
+          for (const item of items.slice(0, MAX_ITERATIONS)) {
+            if (this.iteration(st.body, scope.child({ [st.name]: item }))) {
+              break;
+            }
+          }
+          break;
+        }
         case 'throw':
           throw new Error('thrown');
         case 'try':
           try {
             this.exec(st.block, scope.child());
           } catch (e) {
-            if (e instanceof ReturnSignal || e === BREAK || !st.handler) {
+            if (e instanceof ReturnSignal || e === BREAK || e === CONTINUE || !st.handler) {
               throw e;
             }
             this.exec(st.handler, scope.child(st.param ? { [st.param]: e } : {}));

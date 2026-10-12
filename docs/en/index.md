@@ -15,9 +15,6 @@ hero:
     - theme: alt
       text: Components
       link: /en/components/
-    - theme: alt
-      text: Playground
-      link: /en/playground
 
 features:
   - icon: 🎨
@@ -37,7 +34,7 @@ features:
     details: Dialog, Popover, Menu, Select, Sheet, Toast… turn into bottom drawers on compact touch screens.
   - icon: 🖥️
     title: Web previews
-    details: Every example in these docs renders (approximately) and responds in the browser — edit them in the playground.
+    details: Every example in these docs renders (approximately) and responds in the browser.
 ---
 
 ## In 30 seconds

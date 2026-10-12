@@ -1,0 +1,1076 @@
+/* Charts (charts.js), layout blocks (blocks.js) and gallery demo helpers (helpers.js).
+   Block colours / sizes read the D13 component tokens (`--sidebar-*`, `--topbar-*`, `--titlebar-*`,
+   `--list-detail-*`, `--supporting-pane-*`, `--app-shell-*`) with the library recipe as fallback. */
+
+/* ---------------------------------------------------------------- charts */
+
+.ark-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ark-stage:not(.left) > .ark-chart,
+.ark-stage:not(.left) > .ark-chart-container {
+  max-width: 560px;
+}
+
+.ark-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ark-chart-box {
+  position: relative;
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.ark-chart-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+.ark-chart-grid {
+  fill: none;
+  stroke: color-mix(in oklab, var(--border) 70%, transparent);
+  stroke-width: 1;
+}
+
+.ark-chart-grid.solid {
+  stroke: var(--border);
+}
+
+.ark-chart-line {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ark-chart-cursor-band {
+  fill: color-mix(in oklab, var(--muted) 80%, transparent);
+}
+
+.ark-chart-cursor-line {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.ark-chart-active-dot {
+  stroke: var(--background);
+  stroke-width: 2;
+}
+
+.ark-chart-track {
+  fill: var(--muted);
+}
+
+.ark-chart-slice {
+  transition: fill-opacity 0.15s;
+}
+
+.ark-chart-axis-label {
+  position: absolute;
+  height: 16px;
+  line-height: 16px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.ark-chart-axis-label.end {
+  text-align: right;
+}
+
+.ark-chart-tip-pos {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transition: left 0.08s ease-out, top 0.08s ease-out;
+}
+
+.ark-chart-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 128px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+  border-radius: var(--ark-radius-lg);
+  background: var(--background);
+  box-shadow: var(--ark-shadow-xl);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.ark-chart-tip-title {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.ark-chart-tip-rows {
+  display: grid;
+  gap: 6px;
+}
+
+.ark-chart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 16px;
+}
+
+.ark-chart-tip-label {
+  flex: 1;
+  color: var(--muted-foreground);
+}
+
+.ark-chart-tip-value {
+  margin-left: 16px;
+  font-weight: 500;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.ark-chart-tip-mark {
+  flex-shrink: 0;
+}
+
+.ark-chart-tip-mark.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.ark-chart-tip-mark.line {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.ark-chart-tip-mark.dashed {
+  width: 0;
+  height: 14px;
+  border-left: 1.5px dashed var(--c);
+}
+
+.ark-chart-center {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.ark-chart-center-value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.ark-chart-center-value.xl {
+  font-size: 36px;
+}
+
+.ark-chart-center-label {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.ark-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  width: 100%;
+}
+
+.ark-chart-legend.compact {
+  gap: 4px;
+}
+
+.ark-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--ark-radius-sm);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 16px;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.ark-chart-legend-item.interactive {
+  cursor: pointer;
+}
+
+.ark-chart-legend-item.interactive:hover {
+  background: var(--accent);
+}
+
+.ark-chart-legend-item.muted {
+  opacity: 0.45;
+  color: var(--muted-foreground);
+}
+
+.ark-chart-legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.ark-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.ark-chart-empty-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.ark-sparkline {
+  position: relative;
+  display: block;
+}
+
+/* enter animations (the library morphs from a collapsed shape; replayed when the data changes) */
+.enter-draw .ark-chart-line {
+  stroke-dasharray: 1;
+  animation: ark-chart-draw 0.8s ease-out both;
+}
+
+.enter-draw .ark-chart-dots,
+.enter-reveal + .ark-chart-dots {
+  animation: ark-fade 0.4s 0.5s ease-out both;
+}
+
+.enter-reveal {
+  animation: ark-chart-reveal 0.8s ease-out both;
+}
+
+.enter-grow-y,
+.enter-grow-x,
+.enter-scale {
+  transform-box: view-box;
+}
+
+.enter-grow-y {
+  animation: ark-chart-grow-y 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.enter-grow-x {
+  animation: ark-chart-grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.enter-scale {
+  animation: ark-chart-scale 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ark-chart-sweep {
+  animation: ark-chart-sweep 0.8s ease-out both;
+}
+
+@keyframes ark-chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ark-chart-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes ark-chart-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes ark-chart-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes ark-chart-scale {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes ark-chart-sweep {
+  from {
+    stroke-dashoffset: var(--c);
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ark-chart *,
+  .ark-sparkline * {
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------- frames around blocks inside a preview stage */
+
+.ark-stage > .ark-sb-provider,
+.ark-stage > .ark-ld,
+.ark-stage > .ark-topbar {
+  border: 1px solid var(--border);
+  border-radius: var(--ark-radius-lg);
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.ark-sb-provider {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  text-align: left;
+}
+
+.ark-sb-provider.side-right {
+  flex-direction: row-reverse;
+}
+
+.ark-sb-provider.variant-inset {
+  background: var(--sidebar-background, var(--sidebar));
+}
+
+.ark-sb-dock {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.ark-sb-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sidebar-background, var(--sidebar));
+  color: var(--sidebar-foreground);
+}
+
+.ark-sb-panel.variant-sidebar {
+  border-right: var(--sidebar-border-width, var(--border-width, 1px)) solid var(--sidebar-border-color, var(--sidebar-border));
+}
+
+.side-right .ark-sb-panel.variant-sidebar {
+  border-right: 0;
+  border-left: var(--sidebar-border-width, var(--border-width, 1px)) solid var(--sidebar-border-color, var(--sidebar-border));
+}
+
+.ark-sb-panel.variant-floating {
+  border: var(--sidebar-border-width, var(--border-width, 1px)) solid var(--sidebar-border-color, var(--sidebar-border));
+  border-radius: var(--sidebar-floating-radius, var(--ark-radius-lg));
+  box-shadow: var(--sidebar-floating-shadow, var(--ark-shadow-sm));
+}
+
+.ark-sb-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.ark-sb-header,
+.ark-sb-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ark-sb-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.ark-sb-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px;
+}
+
+.ark-sb-group-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ark-sb-group-label {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--sidebar-group-label-color, color-mix(in oklab, var(--sidebar-foreground) 70%, transparent));
+  transition: height 0.2s, opacity 0.2s;
+}
+
+.ark-sb-group-label.hidden {
+  height: 0;
+  opacity: 0;
+}
+
+.ark-sb-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.ark-sb-menu-item {
+  width: 100%;
+}
+
+.ark-sb-menu-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: var(--sidebar-menu-height, 32px);
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--sidebar-menu-radius, var(--ark-radius-md));
+  background: transparent;
+  color: var(--sidebar-menu-foreground, var(--sidebar-foreground));
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ark-sb-menu-button.size-sm {
+  height: var(--sidebar-menu-height-sm, 28px);
+  font-size: 12px;
+}
+
+.ark-sb-menu-button.size-lg {
+  height: var(--sidebar-menu-height-lg, 48px);
+}
+
+.ark-sb-menu-button.variant-outline {
+  background: var(--sidebar-menu-outline-background, var(--background));
+  box-shadow: inset 0 0 0 var(--sidebar-border-width, var(--border-width, 1px)) var(--sidebar-border-color, var(--sidebar-border));
+}
+
+.ark-sb-menu-button:hover {
+  background: var(--sidebar-menu-hover-background, var(--sidebar-accent));
+  color: var(--sidebar-accent-foreground);
+}
+
+.ark-sb-menu-button.active {
+  background: var(--sidebar-menu-active-background, var(--sidebar-accent));
+  color: var(--sidebar-menu-active-foreground, var(--sidebar-accent-foreground));
+  font-weight: 500;
+}
+
+.ark-sb-menu-button:active {
+  opacity: var(--sidebar-menu-pressed-opacity, 0.6);
+}
+
+.ark-sb-menu-button.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ark-sb-menu-button > .ark-icon {
+  flex-shrink: 0;
+}
+
+.ark-sb-menu-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ark-sb-menu-badge {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ark-sb-menu-button.icon-only .ark-sb-menu-text,
+.ark-sb-menu-button.icon-only .ark-sb-menu-badge {
+  opacity: 0;
+}
+
+.ark-sb-separator {
+  height: 1px;
+  margin: 0 8px;
+  background: var(--sidebar-border-color, var(--sidebar-border));
+}
+
+.ark-sb-trigger {
+  display: inline-flex;
+}
+
+.ark-sb-sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+.ark-sb-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--sheet-overlay, var(--overlay-backdrop, rgb(0 0 0 / 0.5)));
+  animation: ark-fade 0.15s ease-out;
+}
+
+.ark-sb-sheet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  box-shadow: var(--sidebar-sheet-shadow, var(--ark-shadow-lg));
+  animation: ark-sb-in-left 0.22s ease-out;
+}
+
+.ark-sb-sheet.side-right {
+  left: auto;
+  right: 0;
+  animation-name: ark-sb-in-right;
+}
+
+@keyframes ark-sb-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes ark-sb-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.ark-sb-inset {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.ark-sb-inset.framed {
+  background: var(--sidebar-inset-background, var(--background));
+  border-radius: var(--sidebar-inset-radius, var(--ark-radius-xl));
+  box-shadow: var(--sidebar-inset-shadow, var(--ark-shadow-sm));
+}
+
+.ark-sb-inset > .ark-page,
+.ark-sb-inset > .ark-col {
+  padding: 16px;
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.ark-topbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: var(--topbar-height, 56px);
+  padding: 0 var(--topbar-padding-x, 16px);
+  border-bottom: var(--topbar-border-width, var(--border-width, 1px)) solid var(--topbar-border-color, var(--border));
+  background: var(--topbar-background, var(--background));
+  color: var(--foreground);
+}
+
+.ark-topbar.condensed {
+  height: var(--topbar-height-condensed, 48px);
+  padding: 0 var(--topbar-padding-x-condensed, 8px);
+}
+
+.ark-topbar.translucent {
+  background: var(--topbar-translucent-background, color-mix(in oklab, var(--topbar-background, var(--background)) 80%, transparent));
+  backdrop-filter: blur(var(--topbar-translucent-blur, 20px));
+}
+
+.ark-topbar.borderless {
+  border-bottom: 0;
+}
+
+.ark-topbar-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--topbar-border-color, var(--border));
+}
+
+.ark-topbar-titles {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ark-topbar-title,
+.ark-topbar-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ark-topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--topbar-title-color, var(--foreground));
+}
+
+.ark-topbar-title.condensed {
+  font-size: 14px;
+}
+
+.ark-topbar-subtitle {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--topbar-subtitle-color, var(--muted-foreground));
+}
+
+.ark-topbar-grow {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ark-topbar-search .ark-input {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- app shell */
+
+.ark-shell-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ark-shell-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.ark-shell-content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--app-shell-content-padding, 24px);
+}
+
+.ark-shell-footer {
+  padding: 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.ark-shell-brand,
+.ark-shell-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  overflow: hidden;
+}
+
+.ark-shell-brand-icon {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ark-radius-md);
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+}
+
+.ark-shell-user > .ark-avatar-host {
+  flex: 0 0 auto;
+}
+
+.ark-shell-brand-text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.ark-shell-brand-name,
+.ark-shell-user-name,
+.ark-shell-brand-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sidebar-foreground);
+}
+
+.ark-shell-brand-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ark-shell-user-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ark-shell-brand-detail {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------- list / detail */
+
+.ark-ld {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--list-detail-list-background, var(--background));
+  text-align: left;
+}
+
+.ark-ld-list {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--list-detail-list-background, var(--background));
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.ark-ld-list.wide {
+  border-right: 1px solid var(--list-detail-divider-color, var(--border));
+}
+
+.ark-ld-list.covered {
+  transform: translateX(-25%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.ark-ld-detail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--list-detail-detail-background, var(--background));
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.ark-ld-detail.narrow {
+  transform: translateX(100%);
+}
+
+.ark-ld-detail.narrow.shown {
+  transform: none;
+  box-shadow: var(--list-detail-detail-shadow, var(--ark-shadow-lg));
+}
+
+.ark-ld-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  height: var(--list-detail-header-height, 48px);
+  padding: 0 16px 0 8px;
+  border-bottom: 1px solid var(--list-detail-divider-color, var(--border));
+}
+
+.ark-ld-header.wide {
+  padding-left: 16px;
+}
+
+.ark-ld-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ark-ld-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.ark-ld-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+/* ---------------------------------------------------------------- supporting pane */
+
+.ark-sp {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+}
+
+.ark-sp.narrow {
+  flex-direction: column;
+}
+
+.ark-sp-main,
+.ark-sp-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ark-sp-aside {
+  background: var(--supporting-pane-background, transparent);
+}
+
+.ark-sp-aside.wide {
+  align-self: stretch;
+  padding-left: 24px;
+  border-left: var(--supporting-pane-divider-width, var(--border-width, 1px)) solid var(--supporting-pane-divider-color, var(--border));
+}
+
+.ark-sp-aside.below {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: var(--supporting-pane-divider-width, var(--border-width, 1px)) solid var(--supporting-pane-divider-color, var(--border));
+}
+
+.ark-sp-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ark-sp-sheet-layer {
+  align-items: flex-end;
+}
+
+.ark-sp-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-height: 80%;
+  padding: 8px 16px 16px;
+  border-top: var(--border-width, 1px) solid var(--border);
+  border-radius: var(--supporting-pane-sheet-radius, var(--ark-radius-xl)) var(--supporting-pane-sheet-radius, var(--ark-radius-xl)) 0 0;
+  background: var(--supporting-pane-sheet-background, var(--background));
+  color: var(--foreground);
+  box-shadow: var(--supporting-pane-sheet-shadow, var(--ark-shadow-lg));
+  animation: ark-sp-up 0.22s ease-out;
+}
+
+@keyframes ark-sp-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.ark-sp-handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--supporting-pane-handle-background, var(--muted));
+}
+
+.ark-sp-sheet-head {
+  display: flex;
+  align-items: center;
+}
+
+.ark-sp-sheet-title {
+  flex: 1;
+}
+
+.ark-sp-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------- dashboard */
+
+.ark-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.ark-dash-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ark-dash-titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ark-dash-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ark-dash-description {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.ark-dash-grid {
+  display: grid;
+  width: 100%;
+}
+
+.ark-dash-cell {
+  display: flex;
+  min-width: 0;
+}
+
+.ark-dash-cell > .ark-tile {
+  flex: 1;
+}
+
+.ark-tile-content {
+  gap: 4px;
+}
+
+.ark-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ark-tile-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ark-tile-icon {
+  display: inline-flex;
+  color: var(--muted-foreground);
+}
+
+.ark-tile-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ark-tile-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}

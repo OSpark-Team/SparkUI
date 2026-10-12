@@ -1,0 +1,531 @@
+/* Component tokens (ADR D13, library/src/main/ets/theme/tokens/SparkComponentTokens.ets) for the web previewer.
+   Every rule reads `var(--<component>-<property>, <recipe value>)`: unset tokens change nothing, theme-level
+   tokens (SparkUI.themes.setVariable / loadString in a snippet) apply through the cascade and a per-instance
+   `tokens: { … }` arrives as inline custom properties (tokens.js). Variants read `--<component>-<variant>-<prop>`.
+   Loaded after preview.css; the `.ark-theme` prefix keeps these rules ahead of the base ones. */
+
+.ark-theme {
+  --ark-bw: var(--border-width, 1px);
+}
+
+/* ---------------------------------------------------------------- button */
+
+.ark-theme .ark-btn {
+  gap: var(--button-gap, 8px);
+  border-width: var(--button-border-width, var(--ark-bw));
+  border-radius: var(--button-radius, var(--ark-radius-md));
+  font-size: var(--button-font-size, 14px);
+  font-weight: var(--button-font-weight, 500);
+}
+
+.ark-theme .ark-btn:active {
+  transform: scale(var(--button-pressed-scale, 1));
+}
+
+.ark-theme .ark-btn > .ark-icon {
+  width: var(--button-icon-size, 16px);
+  height: var(--button-icon-size, 16px);
+}
+
+.ark-theme .ark-btn-default {
+  background: var(--button-background, var(--primary));
+  color: var(--button-foreground, var(--primary-foreground));
+  border-color: var(--button-border-color, transparent);
+  box-shadow: var(--button-shadow, var(--ark-shadow-xs));
+}
+
+.ark-theme .ark-btn-default:hover {
+  background: var(--button-hover-background, color-mix(in oklab, var(--button-background, var(--primary)) 90%, transparent));
+}
+
+.ark-theme .ark-btn-default:active {
+  background: var(--button-pressed-background, color-mix(in oklab, var(--button-background, var(--primary)) 80%, transparent));
+}
+
+.ark-theme .ark-btn-secondary {
+  background: var(--button-secondary-background, var(--secondary));
+  color: var(--button-secondary-foreground, var(--secondary-foreground));
+  border-color: var(--button-secondary-border-color, transparent);
+  border-width: var(--button-secondary-border-width, var(--button-border-width, var(--ark-bw)));
+  box-shadow: var(--button-secondary-shadow, var(--button-shadow, var(--ark-shadow-xs)));
+}
+
+.ark-theme .ark-btn-secondary:hover {
+  background: var(--button-secondary-hover-background, color-mix(in oklab, var(--button-secondary-background, var(--secondary)) 80%, transparent));
+}
+
+.ark-theme .ark-btn-secondary:active {
+  background: var(--button-secondary-pressed-background, color-mix(in oklab, var(--button-secondary-background, var(--secondary)) 70%, transparent));
+}
+
+.ark-theme .ark-btn-destructive {
+  background: var(--button-destructive-background, var(--destructive));
+  color: var(--button-destructive-foreground, #fff);
+  border-color: var(--button-destructive-border-color, transparent);
+  border-width: var(--button-destructive-border-width, var(--button-border-width, var(--ark-bw)));
+  box-shadow: var(--button-destructive-shadow, var(--button-shadow, var(--ark-shadow-xs)));
+}
+
+.ark-theme .ark-btn-destructive:hover {
+  background: var(--button-destructive-hover-background, color-mix(in oklab, var(--button-destructive-background, var(--destructive)) 90%, transparent));
+}
+
+.ark-theme .ark-btn-destructive:active {
+  background: var(--button-destructive-pressed-background, color-mix(in oklab, var(--button-destructive-background, var(--destructive)) 80%, transparent));
+}
+
+.ark-theme .ark-btn-outline {
+  background: var(--button-outline-background, var(--background));
+  color: var(--button-outline-foreground, var(--foreground));
+  border-color: var(--button-outline-border-color, var(--border));
+  border-width: var(--button-outline-border-width, var(--button-border-width, var(--ark-bw)));
+  box-shadow: var(--button-outline-shadow, var(--button-shadow, var(--ark-shadow-xs)));
+}
+
+.ark-theme.dark .ark-btn-outline,
+.dark .ark-theme .ark-btn-outline {
+  background: var(--button-outline-background, color-mix(in oklab, var(--input) 30%, transparent));
+  border-color: var(--button-outline-border-color, var(--input));
+}
+
+.ark-theme .ark-btn-outline:hover {
+  background: var(--button-outline-hover-background, var(--accent));
+  color: var(--button-outline-foreground, var(--accent-foreground));
+}
+
+.ark-theme .ark-btn-outline:active {
+  background: var(--button-outline-pressed-background, color-mix(in oklab, var(--accent) 85%, var(--foreground)));
+}
+
+.ark-theme .ark-btn-ghost {
+  background: var(--button-ghost-background, transparent);
+  color: var(--button-ghost-foreground, var(--foreground));
+  border-color: var(--button-ghost-border-color, transparent);
+  border-width: var(--button-ghost-border-width, var(--button-border-width, var(--ark-bw)));
+  box-shadow: var(--button-ghost-shadow, none);
+}
+
+.ark-theme .ark-btn-ghost:hover {
+  background: var(--button-ghost-hover-background, var(--accent));
+  color: var(--button-ghost-foreground, var(--accent-foreground));
+}
+
+.ark-theme .ark-btn-ghost:active {
+  background: var(--button-ghost-pressed-background, color-mix(in oklab, var(--accent) 85%, var(--foreground)));
+}
+
+.ark-theme .ark-btn-link {
+  background: var(--button-link-background, transparent);
+  color: var(--button-link-foreground, var(--primary));
+  border-color: var(--button-link-border-color, transparent);
+  box-shadow: var(--button-link-shadow, none);
+}
+
+/* ---------------------------------------------------------------- card */
+
+.ark-theme .ark-card {
+  gap: var(--card-padding, 24px);
+  padding: var(--card-padding, 24px) 0;
+  border-width: var(--card-border-width, var(--ark-bw));
+  border-radius: var(--card-radius, var(--ark-radius-xl));
+}
+
+.ark-theme .ark-card > .ark-card-header,
+.ark-theme .ark-card > .ark-card-content,
+.ark-theme .ark-card > .ark-card-footer {
+  padding-left: var(--card-padding, 24px);
+  padding-right: var(--card-padding, 24px);
+}
+
+.ark-theme .ark-card.sm {
+  gap: var(--card-padding-sm, 16px);
+  padding: var(--card-padding-sm, 16px) 0;
+}
+
+.ark-theme .ark-card.sm > .ark-card-header,
+.ark-theme .ark-card.sm > .ark-card-content,
+.ark-theme .ark-card.sm > .ark-card-footer {
+  padding-left: var(--card-padding-sm, 16px);
+  padding-right: var(--card-padding-sm, 16px);
+}
+
+.ark-theme .ark-card-default {
+  background: var(--card-background, var(--card));
+  border-color: var(--card-border-color, var(--border));
+  box-shadow: var(--card-shadow, var(--ark-shadow-sm));
+}
+
+.ark-theme .ark-card-outline {
+  background: var(--card-outline-background, var(--card-background, var(--card)));
+  border-color: var(--card-outline-border-color, var(--card-border-color, var(--border)));
+  box-shadow: var(--card-outline-shadow, none);
+}
+
+.ark-theme .ark-card-elevated {
+  background: var(--card-elevated-background, var(--card-background, var(--card)));
+  border-color: var(--card-elevated-border-color, transparent);
+  box-shadow: var(--card-elevated-shadow, var(--ark-shadow-lg));
+}
+
+.ark-theme .ark-card-ghost {
+  background: var(--card-ghost-background, transparent);
+  border-color: var(--card-ghost-border-color, transparent);
+  box-shadow: var(--card-ghost-shadow, none);
+}
+
+.ark-theme .ark-card-filled {
+  background: var(--card-filled-background, var(--muted));
+  border-color: var(--card-filled-border-color, transparent);
+  box-shadow: var(--card-filled-shadow, none);
+}
+
+.ark-theme .ark-card.interactive:hover {
+  background: var(--card-hover-background, color-mix(in oklab, var(--accent) 50%, var(--card-background, var(--card))));
+  box-shadow: var(--card-hover-shadow, var(--card-shadow, var(--ark-shadow-sm)));
+}
+
+.ark-theme .ark-card.interactive:active {
+  background: var(--card-pressed-background, color-mix(in oklab, var(--accent) 80%, var(--card-background, var(--card))));
+}
+
+/* ---------------------------------------------------------------- input / textarea */
+
+.ark-theme .ark-input {
+  border: var(--input-border-width, var(--ark-bw)) solid var(--input-border-color, var(--input));
+  border-radius: var(--input-radius, var(--ark-radius-md));
+  background: var(--input-background, transparent);
+  color: var(--input-foreground, inherit);
+}
+
+.ark-theme .ark-input:not(.ark-textarea, .ark-tags, .ark-number, .ark-input-group) {
+  height: var(--input-height, 36px);
+  padding: 0 var(--input-padding-x, 12px);
+}
+
+.ark-theme .ark-textarea {
+  padding: 8px var(--input-padding-x, 12px);
+}
+
+.ark-theme.dark .ark-input,
+.dark .ark-theme .ark-input {
+  background: var(--input-background, color-mix(in oklab, var(--input) 30%, transparent));
+}
+
+.ark-theme .ark-input.size-sm:not(.ark-textarea, .ark-tags, .ark-number, .ark-input-group) {
+  height: var(--input-height-sm, 32px);
+}
+
+.ark-theme .ark-input.size-lg:not(.ark-textarea, .ark-tags, .ark-number, .ark-input-group) {
+  height: var(--input-height-lg, 40px);
+}
+
+.ark-theme .ark-input:focus-within {
+  border-color: var(--input-focus-border-color, var(--ring));
+  box-shadow: 0 0 0 var(--input-ring-width, 3px) var(--input-ring-color, color-mix(in oklab, var(--ring) 50%, transparent));
+}
+
+.ark-theme .ark-input.invalid,
+.ark-theme .ark-textarea-wrap.invalid .ark-input {
+  border-color: var(--input-invalid-border-color, var(--destructive));
+}
+
+.ark-theme .ark-input.invalid:focus-within {
+  box-shadow: 0 0 0 var(--input-ring-width, 3px) var(--input-invalid-ring-color, color-mix(in oklab, var(--destructive) 20%, transparent));
+}
+
+.ark-theme .ark-input-inner::placeholder,
+.ark-theme .ark-input::placeholder {
+  color: var(--input-placeholder-color, var(--muted-foreground));
+}
+
+/* ---------------------------------------------------------------- badge */
+
+.ark-theme .ark-badge {
+  padding: 0 var(--badge-padding-x, 8px);
+  border-width: var(--badge-border-width, var(--ark-bw));
+  border-radius: var(--badge-radius, var(--ark-radius-md));
+  font-weight: var(--badge-font-weight, 500);
+}
+
+.ark-theme .ark-badge.pill,
+.ark-theme .ark-badge.count {
+  border-radius: 999px;
+}
+
+.ark-theme .ark-badge-default:not(.soft) {
+  background: var(--badge-background, var(--primary));
+  color: var(--badge-foreground, var(--primary-foreground));
+  border-color: var(--badge-border-color, transparent);
+}
+
+.ark-theme .ark-badge-secondary {
+  background: var(--badge-secondary-background, var(--secondary));
+  color: var(--badge-secondary-foreground, var(--secondary-foreground));
+  border-color: var(--badge-secondary-border-color, transparent);
+}
+
+.ark-theme .ark-badge-destructive:not(.soft) {
+  background: var(--badge-destructive-background, var(--destructive));
+  color: var(--badge-destructive-foreground, #fff);
+  border-color: var(--badge-destructive-border-color, transparent);
+}
+
+.ark-theme .ark-badge-outline {
+  background: var(--badge-outline-background, transparent);
+  color: var(--badge-outline-foreground, var(--foreground));
+  border-color: var(--badge-outline-border-color, var(--border));
+}
+
+.ark-theme .ark-badge-success:not(.soft) {
+  background: var(--badge-success-background, var(--success));
+  color: var(--badge-success-foreground, var(--success-foreground));
+  border-color: var(--badge-success-border-color, transparent);
+}
+
+.ark-theme .ark-badge-warning:not(.soft) {
+  background: var(--badge-warning-background, var(--warning));
+  color: var(--badge-warning-foreground, var(--warning-foreground));
+  border-color: var(--badge-warning-border-color, transparent);
+}
+
+.ark-theme .ark-badge-info:not(.soft) {
+  background: var(--badge-info-background, var(--info));
+  color: var(--badge-info-foreground, var(--info-foreground));
+  border-color: var(--badge-info-border-color, transparent);
+}
+
+/* ---------------------------------------------------------------- alert */
+
+.ark-theme .ark-alert {
+  padding: var(--alert-padding-y, 12px) var(--alert-padding-x, 16px);
+  border: var(--alert-border-width, var(--ark-bw)) solid var(--alert-border-color, var(--border));
+  border-radius: var(--alert-radius, var(--ark-radius-lg));
+  background: var(--alert-background, var(--card));
+  color: var(--alert-foreground, var(--card-foreground));
+}
+
+.ark-theme .ark-alert-default .ark-alert-description {
+  color: var(--alert-description-color, var(--muted-foreground));
+}
+
+.ark-theme .ark-alert-destructive {
+  color: var(--alert-destructive-foreground, var(--destructive));
+  background: var(--alert-destructive-background, var(--alert-background, var(--card)));
+  border-color: var(--alert-destructive-border-color, var(--alert-border-color, var(--border)));
+}
+
+.ark-theme .ark-alert-success {
+  color: var(--alert-success-foreground, var(--success));
+  background: var(--alert-success-background, var(--alert-background, var(--card)));
+  border-color: var(--alert-success-border-color, var(--alert-border-color, var(--border)));
+}
+
+.ark-theme .ark-alert-warning {
+  color: var(--alert-warning-foreground, var(--warning));
+  background: var(--alert-warning-background, var(--alert-background, var(--card)));
+  border-color: var(--alert-warning-border-color, var(--alert-border-color, var(--border)));
+}
+
+.ark-theme .ark-alert-info {
+  color: var(--alert-info-foreground, var(--info));
+  background: var(--alert-info-background, var(--alert-background, var(--card)));
+  border-color: var(--alert-info-border-color, var(--alert-border-color, var(--border)));
+}
+
+.ark-theme .ark-alert.soft {
+  border-color: color-mix(in oklab, currentColor 30%, transparent);
+  background: color-mix(in oklab, currentColor 8%, var(--card));
+}
+
+/* ---------------------------------------------------------------- switch / checkbox / progress */
+
+.ark-token-scope {
+  display: inline-flex;
+}
+
+.ark-theme .ark-switch {
+  background: var(--switch-background, var(--input));
+  box-shadow: var(--switch-shadow, none);
+}
+
+.ark-theme .ark-switch.checked {
+  background: var(--switch-checked-background, var(--primary));
+}
+
+.ark-theme .ark-switch-thumb {
+  background: var(--switch-thumb, var(--background));
+}
+
+.ark-theme .ark-switch.checked .ark-switch-thumb {
+  background: var(--switch-checked-thumb, var(--background));
+}
+
+.ark-theme.dark .ark-switch:not(.checked) .ark-switch-thumb,
+.dark .ark-theme .ark-switch:not(.checked) .ark-switch-thumb {
+  background: var(--switch-thumb, var(--foreground));
+}
+
+.ark-theme.dark .ark-switch.checked .ark-switch-thumb,
+.dark .ark-theme .ark-switch.checked .ark-switch-thumb {
+  background: var(--switch-checked-thumb, var(--primary-foreground));
+}
+
+.ark-theme .ark-checkbox {
+  border: var(--checkbox-border-width, var(--ark-bw)) solid var(--checkbox-border-color, var(--input));
+  border-radius: var(--checkbox-radius, 4px);
+  background: var(--checkbox-background, transparent);
+}
+
+.ark-theme .ark-checkbox.checked {
+  background: var(--checkbox-checked-background, var(--primary));
+  border-color: var(--checkbox-checked-border-color, var(--checkbox-checked-background, var(--primary)));
+  color: var(--checkbox-checked-foreground, var(--primary-foreground));
+}
+
+.ark-theme .ark-progress {
+  border-radius: var(--progress-radius, 999px);
+  background: var(--progress-track-background, color-mix(in oklab, var(--primary) 20%, transparent));
+}
+
+.ark-theme .ark-progress-bar {
+  border-radius: var(--progress-radius, 999px);
+  background: var(--progress-indicator-background, var(--primary));
+}
+
+/* ---------------------------------------------------------------- tabs / toggle */
+
+.ark-theme .ark-tabs-list {
+  height: var(--tabs-height, 36px);
+  padding: var(--tabs-list-padding, 3px);
+  border-radius: var(--tabs-list-radius, var(--ark-radius-lg));
+  background: var(--tabs-list-background, var(--muted));
+}
+
+.ark-theme .ark-tabs-trigger {
+  border-radius: var(--tabs-indicator-radius, var(--ark-radius-md));
+  color: var(--tabs-trigger-foreground, var(--foreground));
+}
+
+.ark-theme .ark-tabs-trigger.active {
+  background: var(--tabs-indicator-background, var(--background));
+  border: var(--tabs-indicator-border-width, var(--ark-bw)) solid var(--tabs-indicator-border-color, transparent);
+  box-shadow: var(--tabs-indicator-shadow, var(--ark-shadow-sm));
+  color: var(--tabs-trigger-active-foreground, var(--foreground));
+}
+
+.ark-theme.dark .ark-tabs-trigger.active,
+.dark .ark-theme .ark-tabs-trigger.active {
+  background: var(--tabs-indicator-background, color-mix(in oklab, var(--input) 30%, transparent));
+  border-color: var(--tabs-indicator-border-color, var(--input));
+}
+
+.ark-theme .ark-toggle {
+  height: var(--toggle-height, 36px);
+  border-width: var(--toggle-border-width, var(--ark-bw));
+  border-radius: var(--toggle-radius, var(--ark-radius-md));
+}
+
+.ark-theme .ark-toggle.size-sm {
+  height: var(--toggle-height-sm, 32px);
+}
+
+.ark-theme .ark-toggle.size-lg {
+  height: var(--toggle-height-lg, 40px);
+}
+
+.ark-theme .ark-toggle:hover {
+  background: var(--toggle-hover-background, var(--muted));
+  color: var(--toggle-hover-foreground, var(--muted-foreground));
+}
+
+.ark-theme .ark-toggle.on {
+  background: var(--toggle-on-background, var(--accent));
+  color: var(--toggle-on-foreground, var(--accent-foreground));
+}
+
+.ark-theme .ark-toggle-outline {
+  border-color: var(--toggle-border-color, var(--input));
+  box-shadow: var(--toggle-shadow, var(--ark-shadow-xs));
+}
+
+/* ---------------------------------------------------------------- overlays */
+
+.ark-theme .ark-modal-backdrop {
+  background: var(--overlay-backdrop, rgb(0 0 0 / 0.5));
+}
+
+.ark-theme.ark-modal-dialog .ark-modal-backdrop {
+  background: var(--dialog-overlay, var(--overlay-backdrop, rgb(0 0 0 / 0.5)));
+}
+
+.ark-theme.ark-modal-sheet .ark-modal-backdrop {
+  background: var(--sheet-overlay, var(--overlay-backdrop, rgb(0 0 0 / 0.5)));
+}
+
+.ark-theme.ark-modal-drawer .ark-modal-backdrop {
+  background: var(--drawer-overlay, var(--overlay-backdrop, rgb(0 0 0 / 0.5)));
+}
+
+.ark-theme .ark-dialog-panel {
+  max-width: var(--dialog-max-width, 512px);
+  padding: var(--dialog-padding, 24px);
+  border: var(--dialog-border-width, var(--ark-bw)) solid var(--dialog-border-color, var(--border));
+  border-radius: var(--dialog-radius, var(--ark-radius-lg));
+  background: var(--dialog-background, var(--background));
+  box-shadow: var(--dialog-shadow, var(--ark-shadow-lg));
+}
+
+.ark-theme .ark-sheet-panel {
+  padding: var(--sheet-padding, 24px);
+  border-color: var(--sheet-border-color, var(--border));
+  background: var(--sheet-background, var(--background));
+  box-shadow: var(--sheet-shadow, var(--ark-shadow-lg));
+}
+
+.ark-theme .ark-drawer-panel {
+  padding: var(--drawer-padding, 24px);
+  border-color: var(--drawer-border-color, var(--border));
+  background: var(--drawer-background, var(--background));
+  box-shadow: var(--drawer-shadow, var(--ark-shadow-lg));
+}
+
+.ark-theme .ark-drawer-handle {
+  width: var(--drawer-handle-width, 100px);
+  height: var(--drawer-handle-height, 6px);
+  background: var(--drawer-handle-background, var(--muted));
+}
+
+.ark-theme .ark-popover {
+  padding: var(--popover-padding, 16px);
+  border: var(--popover-border-width, var(--ark-bw)) solid var(--popover-border-color, var(--border));
+  border-radius: var(--popover-radius, var(--ark-radius-md));
+  background: var(--popover-background, var(--popover));
+  box-shadow: var(--popover-shadow, var(--ark-shadow-md));
+}
+
+.ark-theme .ark-floating.ark-menu {
+  padding: var(--menu-padding, 4px);
+  border: var(--menu-border-width, var(--ark-bw)) solid var(--menu-border-color, var(--border));
+  border-radius: var(--menu-radius, var(--ark-radius-md));
+  background: var(--menu-background, var(--popover));
+  box-shadow: var(--menu-shadow, var(--ark-shadow-md));
+}
+
+.ark-theme .ark-tooltip {
+  border-radius: var(--tooltip-radius, var(--ark-radius-md));
+  background: var(--tooltip-background, var(--foreground));
+  color: var(--tooltip-foreground, var(--background));
+}
+
+.ark-theme .ark-toast {
+  padding: var(--toast-padding, 14px 16px);
+  border: var(--toast-border-width, var(--ark-bw)) solid var(--toast-border-color, var(--border));
+  border-radius: var(--toast-radius, var(--ark-radius-lg));
+  background: var(--toast-background, var(--popover));
+  color: var(--toast-foreground, var(--popover-foreground));
+  box-shadow: var(--toast-shadow, var(--ark-shadow-lg));
+}
+
+.ark-theme .ark-toast-description {
+  color: var(--toast-description-color, var(--muted-foreground));
+}

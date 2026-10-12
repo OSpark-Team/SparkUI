@@ -11,7 +11,9 @@ const props = defineProps({
   state: { type: Object, default: () => ({}) },
   /** null = follow the site's dark mode */
   dark: { type: Boolean, default: null },
-  left: { type: Boolean, default: false }
+  left: { type: Boolean, default: false },
+  /** precompiled analysis (the gallery's real demo body, runtime.bundleAnalysis); overrides `code` for rendering */
+  analysis: { type: Object, default: null }
 });
 
 const { isDark } = useData();
@@ -31,7 +33,7 @@ const services = {
   }
 };
 
-const analysis = computed(() => compile(props.code));
+const analysis = computed(() => props.analysis || compile(props.code));
 const runtime = shallowRef(null);
 const failure = ref('');
 watch([analysis, () => props.state], () => {
@@ -44,12 +46,24 @@ watch([analysis, () => props.state], () => {
   }
 }, { immediate: true });
 
-const dark = computed(() => (props.dark === null ? isDark.value : props.dark));
+const vars = computed(() => runtime.value?.themeVars);
+const dark = computed(() => {
+  const base = props.dark === null ? isDark.value : props.dark;
+  const v = vars.value;
+  const chosen = v && v.mode ? v.mode === 'dark' : base;
+  return v && v.flip ? !chosen : chosen;
+});
+/** theme variables the snippet set (SparkUI.themes.setVariable / loadString), on top of the preset classes */
+const themeStyle = computed(() => {
+  const v = vars.value;
+  return v ? { ...v.root, ...(dark.value ? v.dark : {}) } : {};
+});
 const themeClass = computed(() => [
   'ark-theme', `ark-preset-${arkTheme.preset}`, arkTheme.accent !== 'none' ? `ark-accent-${arkTheme.accent}` : '',
   dark.value ? 'dark' : ''
 ].filter(Boolean).join(' '));
 provide('arkThemeClass', themeClass);
+provide('arkThemeStyle', themeStyle);
 
 const Tree = defineComponent({
   name: 'ArkTree',
@@ -81,7 +95,7 @@ defineExpose({ errors });
 </script>
 
 <template>
-  <div :class="themeClass" class="ark-preview">
+  <div :class="themeClass" :style="themeStyle" class="ark-preview">
     <div class="ark-stage" :class="{ left }">
       <Tree :key="code" />
       <div v-if="toasts.length" class="ark-toasts">
