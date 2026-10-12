@@ -1,9 +1,12 @@
+import { SparkAnim } from '../../core/SparkAnim';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 
 /**
- * shadcn-vue `Spinner`: a `loader-circle` icon with `animate-spin` (1s linear, infinite).
+ * shadcn-vue `Spinner`: a `loader-circle` icon with `animate-spin` (linear, infinite). Motion key `spinner`: one turn
+ * takes 5 × the normal duration (1 s by default); with motion off the icon is shown still. Remove the spinner to
+ * stop it (it restarts when it is shown again).
  *
  * ```
  * SSpinner()
@@ -29,11 +32,16 @@ export struct SSpinner {
     .height(this.sizing)
     .rotate({ angle: this.angle })
     .accessibilityText(this.label)
-    .onAppear(() => {
-      this.angle = 0;
-      this.getUIContext().animateTo({ duration: 1000, curve: Curve.Linear, iterations: -1 }, () => {
-        this.angle = 360;
-      });
-    })
+    .onAppear(() => sparkSpin(this.getUIContext(), this.theme, (a: number) => {
+      this.angle = a;
+    }))
   }
+}
+
+/**
+ * Start the infinite `spinner` rotation of a node that exists only while spinning (call from its `onAppear`):
+ * the angle is reset to 0 synchronously first, so a node shown again after being removed spins again.
+ */
+export function sparkSpin(ctx: UIContext, theme: SparkTheme, setAngle: (a: number) => void): void {
+  SparkAnim.loop(ctx, theme, 'spinner', 'normal', 5, () => setAngle(0), () => setAngle(360), false, 'linear');
 }

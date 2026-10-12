@@ -14,6 +14,8 @@ import { sparkNumberClamp, sparkNumberFormat, sparkNumberParse, sparkNumberStep 
 /** Delay before a held − / + starts repeating, and the repeat interval (ms). */
 const REPEAT_DELAY: number = 400;
 const REPEAT_INTERVAL: number = 60;
+/** A click this soon after a touch sequence on − / + is that touch's own click (it already stepped on touch down). */
+const TOUCH_CLICK_WINDOW: number = 500;
 
 /**
  * shadcn-vue `NumberField` (NumberFieldContent + Decrement + Input + Increment in one component): an input
@@ -24,7 +26,7 @@ const REPEAT_INTERVAL: number = 60;
  * SNumberField({ defaultValue: 1.5, step: 0.25, decimals: 2, onValueChange: (v: number) => ... })
  * ```
  *
- * - Holding − / + repeats; the value is clamped to `[min, max]` and rounded to the step's precision.
+ * - Holding − / + repeats (touch / mouse); a click, Space / Enter or the screen reader steps once. The value is clamped to `[min, max]` and rounded to the step's precision.
  * - Typing is free; the text is parsed and clamped on Enter or blur (invalid text reverts).
  * - Keyboard: arrow up / down step while the input is focused.
  * - `decimals` formats the shown value with a fixed number of decimals (formatOptions-lite).
@@ -53,6 +55,8 @@ export struct SNumberField {
   @Local focused: boolean = false;
   @Local field: SparkFieldState | undefined = undefined;
   private repeatTimer: number = -1;
+  /** when the last touch sequence on − / + ended (ms), to drop the click that follows it */
+  private touchEndedAt: number = -1;
 
   aboutToAppear(): void {
     this.current = sparkNumberClamp(this.value ?? this.defaultValue, this.min, this.max);
@@ -75,9 +79,10 @@ export struct SNumberField {
 
   @Monitor('value')
   syncValue(): void {
-    if (this.value !== undefined) {
-      this.current = this.value;
-      this.text = sparkNumberFormat(this.value, this.decimals);
+    // a controlled NaN is ignored (keeps the last value); others are shown clamped to [min, max]
+    if (this.value !== undefined && !isNaN(this.value)) {
+      this.current = sparkNumberClamp(this.value, this.min, this.max);
+      this.text = sparkNumberFormat(this.current, this.decimals);
     }
   }
 
@@ -116,6 +121,7 @@ export struct SNumberField {
   /** Press-and-hold on − / +: step on touch down, then repeat until release or a bound is hit. */
   private onStepTouch(e: TouchEvent, direction: number): void {
     if (e.type === TouchType.Down) {
+      this.touchEndedAt = -1;
       this.stopRepeat();
       if (!this.nudge(direction)) {
         return;
@@ -123,7 +129,21 @@ export struct SNumberField {
       this.repeatTimer = setTimeout(() => this.repeat(direction), REPEAT_DELAY);
     } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
       this.stopRepeat();
+      this.touchEndedAt = Date.now();
     }
+  }
+
+  /**
+   * Native click on − / + (screen reader, Space, and the click that ends a tap). A tap already stepped on touch
+   * down, so the click right after a touch sequence is dropped; any other activation steps once.
+   */
+  private onStepClick(direction: number): void {
+    if (this.touchEndedAt >= 0 && Date.now() - this.touchEndedAt < TOUCH_CLICK_WINDOW) {
+      this.touchEndedAt = -1;
+      return;
+    }
+    this.touchEndedAt = -1;
+    this.nudge(direction);
   }
 
   private repeat(direction: number): void {
@@ -186,10 +206,14 @@ export struct SNumberField {
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityRole(AccessibilityRoleType.BUTTON)
     .accessibilityText(label)
+    .accessibilityDescription(atBound || this.disabled ? 'disabled' : '')
     .onTouch((e: TouchEvent) => this.onStepTouch(e, direction))
+    .onClick(() => this.onStepClick(direction))
+    // Space reaches onClick natively; Enter is added here
     .onKeyEvent((e: KeyEvent) => {
-      if (e.type === KeyType.Up && (e.keyCode === KeyCode.KEYCODE_ENTER || e.keyCode === KeyCode.KEYCODE_SPACE)) {
-        this.nudge(direction);
+      if (e.type === KeyType.Up &&
+        (e.keyCode === KeyCode.KEYCODE_ENTER || e.keyCode === KeyCode.KEYCODE_NUMPAD_ENTER)) {
+        this.onStepClick(direction);
       }
     })
   }

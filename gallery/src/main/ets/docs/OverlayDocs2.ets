@@ -6,9 +6,9 @@ import {
   SDrawer, SDrawerClose, SDrawerContent, SDrawerDescription, SDrawerFooter, SDrawerHeader, SDrawerTitle,
   SDrawerTrigger, SHoverCard, SHoverCardContent, SHoverCardTrigger, SIcon, SMenubar, SMenubarCheckboxItem,
   SMenubarContent, SMenubarItem, SMenubarMenu, SMenubarRadioGroup, SMenubarRadioItem, SMenubarSeparator,
-  SMenubarTrigger, SparkSelectOption, SparkTheme, SparkUI
+  SMenubarTrigger, SparkCommandEntryData, SparkSelectOption, SparkTheme, SparkUI
 } from '@sparkui/core';
-import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };
 
@@ -84,7 +84,7 @@ export struct HoverCardDoc {
 const CONTEXT_MENU_CODE = `SContextMenu() {
   SContextMenuTrigger() { /* any area */ }
   SContextMenuContent() {
-    SContextMenuItem({ text: 'Back', shortcut: '⌘[' }).onClick(() => ...)
+    SContextMenuItem({ text: 'Back', shortcut: '⌘[', onSelect: () => ... })
     SContextMenuItem({ text: 'Forward', shortcut: '⌘]', disabled: true })
     SContextMenuItem({ text: 'Reload', shortcut: '⌘R', onSelect: () => ... })
     SContextMenuSeparator()
@@ -128,18 +128,18 @@ export struct ContextMenuDoc {
             .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusMd, style: BorderStyle.Dashed })
           }
           SContextMenuContent() {
-            SContextMenuItem({ text: 'Back', shortcut: '⌘[', inset: true }).onClick(() => {
+            SContextMenuItem({ text: 'Back', shortcut: '⌘[', inset: true, onSelect: () => {
               this.last = 'Back';
-            })
+            } })
             SContextMenuItem({ text: 'Forward', shortcut: '⌘]', inset: true, disabled: true })
             SContextMenuItem({
               text: 'Reload', shortcut: '⌘R', inset: true, onSelect: () => {
                 this.last = 'Reload';
               }
             })
-            SContextMenuItem({ text: 'Delete', icon: 'trash', variant: 'destructive' }).onClick(() => {
+            SContextMenuItem({ text: 'Delete', icon: 'trash', variant: 'destructive', onSelect: () => {
               this.last = 'Delete';
-            })
+            } })
             SContextMenuSeparator()
             SContextMenuCheckboxItem({ text: 'Show Bookmarks', checked: this.bookmarks!! })
             SContextMenuCheckboxItem({ text: 'Show Full URLs', checked: this.urls!! })
@@ -184,12 +184,62 @@ const COMMAND_CODE = `SCommand() {
 // palette in a dialog
 SCommandDialog({ open: this.palette!! }) { SCommandInput() SCommandList() { ... } }`;
 
+const COMMAND_GROUPS: string[] = ['Files', 'Folders', 'Commands', 'Settings'];
+const COMMAND_ICONS: string[] = ['file', 'folder', 'terminal', 'settings'];
+const COMMAND_WORDS: string[] = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india',
+  'juliet'];
+
+/** 2 000 generated commands in four groups of 500 ("Files" → "alpha report 1", …); every 50th is disabled. */
+function manyCommands(count: number): SparkCommandEntryData[] {
+  const out: SparkCommandEntryData[] = [];
+  const per = Math.ceil(count / COMMAND_GROUPS.length);
+  for (let i = 0; i < count; i++) {
+    const g = Math.floor(i / per);
+    const label = `${COMMAND_WORDS[i % 10]} ${COMMAND_GROUPS[g].toLowerCase().slice(0, -1)} ${Math.floor(i / 10) + 1}`;
+    out.push(new SparkCommandEntryData({
+      value: `cmd-${i}`,
+      label: label.charAt(0).toUpperCase() + label.slice(1),
+      group: COMMAND_GROUPS[g],
+      icon: COMMAND_ICONS[g],
+      shortcut: i % 100 === 0 ? `⌘${g + 1}` : undefined,
+      keywords: [COMMAND_GROUPS[g]],
+      disabled: i % 50 === 49
+    }));
+  }
+  return out;
+}
+
+const MANY_COMMANDS: SparkCommandEntryData[] = manyCommands(2000);
+
+const COMMAND_DATA_CODE = `// 2 000 items: the data mode filters with the same cmdk scoring, keeps document order,
+// and renders a List + Repeat.virtualScroll() — non-matching items are never built,
+// and of the matches only the rows in view are. ↑ / ↓ + Enter work from the search field.
+const COMMANDS: SparkCommandEntryData[] = [
+  new SparkCommandEntryData({ value: 'cmd-0', label: 'Alpha file 1', group: 'Files', icon: 'file',
+    shortcut: '⌘1', keywords: ['Files'], onSelect: (v: string) => ... }),
+  ...
+];
+
+SCommand({
+  items: COMMANDS,
+  placeholder: 'Search 2 000 commands…',
+  emptyText: 'No command found.',
+  maxListHeight: 300,
+  onItemSelect: (v: string) => { this.picked = v; }
+})
+
+// also as a palette
+SCommandDialog({ open: this.palette!!, items: COMMANDS, onItemSelect: (v: string) => ... })`;
+
 @ComponentV2
 export struct CommandDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local selected: string = '—';
   @Local query: string = '';
   @Local palette: boolean = false;
+  @Local bigPalette: boolean = false;
+  @Local bigQuery: string = '';
+  @Local bigPicked: string = '';
 
   @Builder
   items() {
@@ -282,6 +332,50 @@ SCommandDialog({ open: this.palette!! }) {
       Text(`palette open = ${this.palette}`)
         .fontSize(this.theme.text.xs)
         .fontColor(this.theme.colors.mutedForeground)
+      DocSection({
+        title: 'Long lists (data mode)',
+        description: 'Pass items instead of slot content: the results are virtualized, so items that do not ' +
+          'match are never built and only the matches in view are. Try "echo 42", "set 19" or "dlt".'
+      })
+      DemoBlock({ code: COMMAND_DATA_CODE }) {
+        Column({ space: 12 }) {
+          Column() {
+            SCommand({
+              items: MANY_COMMANDS,
+              placeholder: 'Search 2 000 commands…',
+              emptyText: 'No command found.',
+              onQueryChange: (q: string) => {
+                this.bigQuery = q;
+              },
+              onItemSelect: (v: string) => {
+                this.bigPicked = v;
+              }
+            })
+          }
+          .width('100%')
+          .constraintSize({ maxWidth: 450 })
+          .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
+          .shadow(this.theme.shadows.md.toOptions())
+
+          SButton({ text: 'Open 2 000-item palette', variant: 'outline', icon: 'command' }).onClick(() => {
+            this.bigPalette = true;
+          })
+          SCommandDialog({
+            open: this.bigPalette!!,
+            items: MANY_COMMANDS,
+            placeholder: 'Search 2 000 commands…',
+            emptyText: 'No command found.',
+            autoFocus: SparkUI.layout.env.modality === 'pointer',
+            onItemSelect: (v: string) => {
+              this.bigPicked = v;
+            }
+          })
+        }
+        .alignItems(HorizontalAlign.Start)
+      }
+      DemoCaption({
+        text: `${MANY_COMMANDS.length} items · query = "${this.bigQuery}" · selected = ${this.bigPicked || '(none)'}`
+      })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
@@ -321,11 +415,37 @@ SCombobox({
   emptyText: 'No framework found.'
 })`;
 
+const CITY_PARTS: string[] = ['North', 'South', 'East', 'West', 'Upper', 'Lower', 'New', 'Old', 'Port', 'Lake'];
+const CITY_ROOTS: string[] = ['haven', 'field', 'bridge', 'ford', 'wood', 'stone', 'brook', 'ridge', 'vale', 'mouth'];
+
+/** 1 000 generated place names ("North haven 1", …) to search through. */
+function manyPlaces(count: number): SparkSelectOption[] {
+  const out: SparkSelectOption[] = [];
+  for (let i = 0; i < count; i++) {
+    const name = `${CITY_PARTS[i % 10]} ${CITY_ROOTS[Math.floor(i / 10) % 10]} ${Math.floor(i / 100) + 1}`;
+    out.push(new SparkSelectOption(`place-${i}`, name));
+  }
+  return out;
+}
+
+const MANY_PLACES: SparkSelectOption[] = manyPlaces(1000);
+
+const COMBOBOX_LONG_CODE = `// 1 000 options: filtering keeps only the matches, and only the visible
+// matches are built (List + Repeat.virtualScroll()). ↑ / ↓ + Enter work from the search field.
+SCombobox({
+  value: this.place!!,
+  options: MANY_PLACES,
+  placeholder: 'Select place…',
+  searchPlaceholder: 'Search 1 000 places…',
+  triggerWidth: 260
+})`;
+
 @ComponentV2
 export struct ComboboxDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local framework: string = '';
   @Local language: string = 'arkts';
+  @Local place: string = '';
 
   build() {
     Column({ space: 16 }) {
@@ -356,6 +476,22 @@ export struct ComboboxDoc {
       Text(`framework = ${this.framework || '(none)'} · language = ${this.language || '(none)'}`)
         .fontSize(this.theme.text.xs)
         .fontColor(this.theme.colors.mutedForeground)
+      DocSection({
+        title: 'Long lists',
+        description: 'Results are virtualized: options that do not match the query are never built, and of the ' +
+          'matches only the rows in view are. Try "north 7" or "brk".'
+      })
+      DemoBlock({ code: COMBOBOX_LONG_CODE }) {
+        SCombobox({
+          value: this.place!!,
+          options: MANY_PLACES,
+          placeholder: 'Select place…',
+          searchPlaceholder: 'Search 1 000 places…',
+          emptyText: 'No place found.',
+          triggerWidth: 260
+        })
+      }
+      DemoCaption({ text: `${MANY_PLACES.length} options · place = ${this.place || '(none)'}` })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')
@@ -452,7 +588,7 @@ const MENUBAR_CODE = `SMenubar() {
   SMenubarMenu() {
     SMenubarTrigger({ text: 'File' })
     SMenubarContent() {
-      SMenubarItem({ text: 'New Tab', shortcut: '⌘T' }).onClick(() => ...)
+      SMenubarItem({ text: 'New Tab', shortcut: '⌘T', onSelect: () => ... })
       SMenubarItem({ text: 'New Window', shortcut: '⌘N' })
       SMenubarSeparator()
       SMenubarItem({ text: 'Print…', shortcut: '⌘P' })
@@ -490,9 +626,9 @@ export struct MenubarDoc {
       SMenubarMenu() {
         SMenubarTrigger({ text: 'File' })
         SMenubarContent() {
-          SMenubarItem({ text: 'New Tab', shortcut: '⌘T' }).onClick(() => {
+          SMenubarItem({ text: 'New Tab', shortcut: '⌘T', onSelect: () => {
             this.last = 'New Tab';
-          })
+          } })
           SMenubarItem({
             text: 'New Window', shortcut: '⌘N', onSelect: () => {
               this.last = 'New Window';
@@ -500,30 +636,30 @@ export struct MenubarDoc {
           })
           SMenubarItem({ text: 'New Incognito Window', disabled: true })
           SMenubarSeparator()
-          SMenubarItem({ text: 'Print…', shortcut: '⌘P' }).onClick(() => {
+          SMenubarItem({ text: 'Print…', shortcut: '⌘P', onSelect: () => {
             this.last = 'Print';
-          })
+          } })
         }
       }
       SMenubarMenu() {
         SMenubarTrigger({ text: 'Edit' })
         SMenubarContent() {
-          SMenubarItem({ text: 'Undo', shortcut: '⌘Z' }).onClick(() => {
+          SMenubarItem({ text: 'Undo', shortcut: '⌘Z', onSelect: () => {
             this.last = 'Undo';
-          })
-          SMenubarItem({ text: 'Redo', shortcut: '⇧⌘Z' }).onClick(() => {
+          } })
+          SMenubarItem({ text: 'Redo', shortcut: '⇧⌘Z', onSelect: () => {
             this.last = 'Redo';
-          })
+          } })
           SMenubarSeparator()
-          SMenubarItem({ text: 'Cut' }).onClick(() => {
+          SMenubarItem({ text: 'Cut', onSelect: () => {
             this.last = 'Cut';
-          })
-          SMenubarItem({ text: 'Copy' }).onClick(() => {
+          } })
+          SMenubarItem({ text: 'Copy', onSelect: () => {
             this.last = 'Copy';
-          })
-          SMenubarItem({ text: 'Paste' }).onClick(() => {
+          } })
+          SMenubarItem({ text: 'Paste', onSelect: () => {
             this.last = 'Paste';
-          })
+          } })
         }
       }
       SMenubarMenu() {
@@ -532,9 +668,9 @@ export struct MenubarDoc {
           SMenubarCheckboxItem({ text: 'Always Show Bookmarks Bar', checked: this.bookmarks!! })
           SMenubarCheckboxItem({ text: 'Always Show Full URLs', checked: this.fullUrls!! })
           SMenubarSeparator()
-          SMenubarItem({ text: 'Reload', shortcut: '⌘R', inset: true }).onClick(() => {
+          SMenubarItem({ text: 'Reload', shortcut: '⌘R', inset: true, onSelect: () => {
             this.last = 'Reload';
-          })
+          } })
         }
       }
       SMenubarMenu() {
@@ -546,9 +682,9 @@ export struct MenubarDoc {
             SMenubarRadioItem({ value: 'luis', text: 'Luis' })
           }
           SMenubarSeparator()
-          SMenubarItem({ text: 'Add Profile…', inset: true }).onClick(() => {
+          SMenubarItem({ text: 'Add Profile…', inset: true, onSelect: () => {
             this.last = 'Add Profile';
-          })
+          } })
         }
       }
     }

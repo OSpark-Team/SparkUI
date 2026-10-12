@@ -1,14 +1,16 @@
 import { SparkTheme } from '../theme/tokens/SparkTheme';
-import { SparkAnim } from './SparkAnim';
 import { SparkUI } from './SparkUI';
 
 /**
- * Hover state for SparkUI components (pointer devices). Hover changes are animated with the theme's fast
- * motion token.
+ * Hover state for SparkUI components (pointer devices).
  *
- * Pressed visuals must NOT be driven from onTouch state: when tapping several controls quickly the previous
- * control's release animation lingers and two controls look pressed at once. Use the system pressed state
- * instead — `stateStyles({ pressed })` or `AttributeModifier.applyPressedAttribute` (see SButton).
+ * Interaction-state visuals — pressed AND hover — switch instantly, never animated. A hover fade made the
+ * previous control's background linger while the next one lit up (Menubar switching menus as the pointer moves
+ * across the triggers looked like two highlighted triggers — the same artefact as an animated pressed state).
+ * Only appearance / layout transitions (open, expand, slide) animate.
+ *
+ * Pressed visuals come from the system pressed state — `stateStyles({ pressed })` or
+ * `AttributeModifier.applyPressedAttribute` — never from onTouch state.
  *
  * ```
  * @Local ix: SparkInteraction = new SparkInteraction();
@@ -25,12 +27,10 @@ export class SparkInteraction {
 
   hover(ctx: UIContext, theme: SparkTheme, isHover: boolean): void {
     SparkUI.layout.reportPointerEvent(true);
-    if (this.hovered === isHover) {
-      return;
+    const next = isHover && this.enabled;
+    if (this.hovered !== next) {
+      this.hovered = next;
     }
-    SparkAnim.run(ctx, theme, 'hover', 'fast', () => {
-      this.hovered = isHover && this.enabled;
-    });
   }
 
   reset(): void {

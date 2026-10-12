@@ -206,7 +206,10 @@ export class SparkComponentTokenRegistry {
     SparkComponentTokenRegistry.add('dialog', ['background', 'border-color', 'overlay'], 'color');
     SparkComponentTokenRegistry.add('dialog', ['radius', 'border-width', 'padding', 'max-width'], 'length');
     SparkComponentTokenRegistry.add('dialog', ['shadow'], 'shadow');
-    SparkComponentTokenRegistry.add('drawer', ['overlay'], 'color');
+    SparkComponentTokenRegistry.add('drawer', ['background', 'border-color', 'overlay', 'handle-background'], 'color');
+    SparkComponentTokenRegistry.add('drawer', ['radius', 'border-width', 'padding', 'handle-width', 'handle-height'],
+      'length');
+    SparkComponentTokenRegistry.add('drawer', ['shadow'], 'shadow');
     SparkComponentTokenRegistry.add('sheet', ['background', 'border-color', 'overlay'], 'color');
     SparkComponentTokenRegistry.add('sheet', ['border-width', 'padding'], 'length');
     SparkComponentTokenRegistry.add('sheet', ['shadow'], 'shadow');
@@ -216,6 +219,15 @@ export class SparkComponentTokenRegistry {
     SparkComponentTokenRegistry.add('menu', ['background', 'border-color'], 'color');
     SparkComponentTokenRegistry.add('menu', ['radius', 'border-width', 'padding'], 'length');
     SparkComponentTokenRegistry.add('menu', ['shadow'], 'shadow');
+    // option-list panels: --select-* falls back to --menu-*, --combobox-* to --popover-* (ADR D14 addendum)
+    SparkComponentTokenRegistry.add('select', ['background', 'border-color', 'highlight-background',
+      'highlight-foreground'], 'color');
+    SparkComponentTokenRegistry.add('select', ['radius', 'border-width', 'padding', 'max-height'], 'length');
+    SparkComponentTokenRegistry.add('select', ['shadow'], 'shadow');
+    SparkComponentTokenRegistry.add('combobox', ['background', 'border-color', 'highlight-background',
+      'highlight-foreground'], 'color');
+    SparkComponentTokenRegistry.add('combobox', ['radius', 'border-width', 'padding', 'max-height'], 'length');
+    SparkComponentTokenRegistry.add('combobox', ['shadow'], 'shadow');
 
     SparkComponentTokenRegistry.add('tabs', ['list-background', 'indicator-background', 'indicator-border-color', 'trigger-foreground',
       'trigger-active-foreground'], 'color');
@@ -245,6 +257,33 @@ export class SparkComponentTokenRegistry {
     SparkComponentTokenRegistry.add('code', ['background', 'foreground', 'keyword', 'string', 'comment', 'number',
       'decorator', 'type', 'function', 'property', 'punctuation', 'variable', 'tag', 'attribute', 'regex', 'meta',
       'inserted', 'deleted'], 'color');
+
+    // layout blocks. `--sidebar`, `--sidebar-foreground`, `--sidebar-accent`, `--sidebar-border` … stay semantic
+    // (matched first) and are the base values of these tokens.
+    SparkComponentTokenRegistry.add('sidebar', ['background', 'border-color', 'menu-foreground', 'menu-hover-background',
+      'menu-active-background', 'menu-active-foreground', 'menu-outline-background', 'group-label-color',
+      'inset-background'], 'color');
+    SparkComponentTokenRegistry.add('sidebar', ['width', 'width-mobile', 'width-icon', 'frame-gap', 'border-width',
+      'menu-radius', 'menu-height', 'menu-height-sm', 'menu-height-lg', 'floating-radius', 'inset-radius'], 'length');
+    SparkComponentTokenRegistry.add('sidebar', ['menu-pressed-opacity'], 'number');
+    SparkComponentTokenRegistry.add('sidebar', ['floating-shadow', 'inset-shadow', 'sheet-shadow'], 'shadow');
+    SparkComponentTokenRegistry.add('topbar', ['background', 'translucent-background', 'border-color', 'title-color',
+      'subtitle-color'], 'color');
+    SparkComponentTokenRegistry.add('topbar', ['height', 'height-condensed', 'border-width', 'padding-x',
+      'padding-x-condensed', 'translucent-blur'], 'length');
+    SparkComponentTokenRegistry.add('titlebar', ['background', 'translucent-background', 'border-color', 'title-color',
+      'caption-foreground', 'caption-hover-background', 'caption-pressed-background', 'close-hover-background',
+      'close-hover-foreground', 'close-pressed-background'], 'color');
+    SparkComponentTokenRegistry.add('titlebar', ['height', 'height-touch', 'border-width', 'caption-size',
+      'caption-radius', 'translucent-blur'], 'length');
+    SparkComponentTokenRegistry.add('app-shell', ['content-max-width', 'content-padding'], 'length');
+    SparkComponentTokenRegistry.add('list-detail', ['divider-color', 'list-background', 'detail-background'], 'color');
+    SparkComponentTokenRegistry.add('list-detail', ['list-width', 'header-height'], 'length');
+    SparkComponentTokenRegistry.add('list-detail', ['detail-shadow'], 'shadow');
+    SparkComponentTokenRegistry.add('supporting-pane', ['divider-color', 'background', 'sheet-background',
+      'handle-background'], 'color');
+    SparkComponentTokenRegistry.add('supporting-pane', ['width', 'divider-width', 'sheet-radius'], 'length');
+    SparkComponentTokenRegistry.add('supporting-pane', ['sheet-shadow'], 'shadow');
     return SparkComponentTokenRegistry.table;
   }
 }

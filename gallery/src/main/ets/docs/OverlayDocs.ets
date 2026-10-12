@@ -7,7 +7,7 @@ import {
   SSelectSeparator, SparkSelectOption, SparkTheme, SparkToast, SparkToastAction, SparkUI, STooltip, STooltipContent,
   STooltipTrigger, SparkSide
 } from '@sparkui/core';
-import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };
 
@@ -22,7 +22,7 @@ const ALERT_CODE = `SAlertDialog() {
     }
     SDialogFooter() {
       SAlertDialogCancel()
-      SAlertDialogAction({ text: 'Continue' }).onClick(() => this.deleteAccount())
+      SAlertDialogAction({ text: 'Continue', onAction: () => this.deleteAccount() })
     }
   }
 }`;
@@ -53,12 +53,12 @@ export struct AlertDialogDoc {
               })
             }
             SDialogFooter() {
-              SAlertDialogCancel().onClick(() => {
+              SAlertDialogCancel({ onCancel: () => {
                 this.result = 'cancelled';
-              })
-              SAlertDialogAction({ text: 'Continue', variant: 'destructive' }).onClick(() => {
+              } })
+              SAlertDialogAction({ text: 'Continue', variant: 'destructive', onAction: () => {
                 this.result = 'confirmed';
-              })
+              } })
             }
           }
         }
@@ -112,7 +112,7 @@ const MENU_CODE = `SDropdownMenu() {
   SDropdownMenuContent() {
     SDropdownMenuLabel({ text: 'My Account' })
     SDropdownMenuSeparator()
-    SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P' }).onClick(() => ...)
+    SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P', onSelect: () => ... })
     SDropdownMenuItem({ text: 'Settings', icon: 'settings', shortcut: '⌘S' })
     SDropdownMenuSeparator()
     SDropdownMenuItem({ text: 'Log out', icon: 'log-out', variant: 'destructive' })
@@ -141,20 +141,20 @@ export struct DropdownMenuDoc {
           SDropdownMenuContent() {
             SDropdownMenuLabel({ text: 'My Account' })
             SDropdownMenuSeparator()
-            SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P' }).onClick(() => {
+            SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P', onSelect: () => {
               this.last = 'Profile';
-            })
-            SDropdownMenuItem({ text: 'Billing', icon: 'credit-card', shortcut: '⌘B' }).onClick(() => {
+            } })
+            SDropdownMenuItem({ text: 'Billing', icon: 'credit-card', shortcut: '⌘B', onSelect: () => {
               this.last = 'Billing';
-            })
-            SDropdownMenuItem({ text: 'Settings', icon: 'settings', shortcut: '⌘S' }).onClick(() => {
+            } })
+            SDropdownMenuItem({ text: 'Settings', icon: 'settings', shortcut: '⌘S', onSelect: () => {
               this.last = 'Settings';
-            })
+            } })
             SDropdownMenuItem({ text: 'API (disabled)', icon: 'cloud', disabled: true })
             SDropdownMenuSeparator()
-            SDropdownMenuItem({ text: 'Log out', icon: 'log-out', variant: 'destructive' }).onClick(() => {
+            SDropdownMenuItem({ text: 'Log out', icon: 'log-out', variant: 'destructive', onSelect: () => {
               this.last = 'Log out';
-            })
+            } })
           }
         }
       }
@@ -217,11 +217,29 @@ SSelect({ value: this.tz!! }) {
   }
 }`;
 
+/** 1 000 options in 10 groups — the data form is virtualized, so this opens as fast as five. */
+function manyOptions(count: number, groupSize: number): SparkSelectOption[] {
+  const out: SparkSelectOption[] = [];
+  for (let i = 0; i < count; i++) {
+    const n = String(i + 1).padStart(4, '0');
+    out.push(new SparkSelectOption(`item-${n}`, `Item ${n}`, i % 97 === 13,
+      i % groupSize === 0 ? `Items ${i + 1}–${Math.min(count, i + groupSize)}` : undefined));
+  }
+  return out;
+}
+
+const MANY_OPTIONS: SparkSelectOption[] = manyOptions(1000, 100);
+
+const SELECT_LONG_CODE = `// 1 000 options: List + Repeat.virtualScroll() — only the visible rows are built,
+// and the list opens scrolled to the selected option.
+SSelect({ value: this.item!!, placeholder: 'Pick an item', options: MANY_OPTIONS })`;
+
 @ComponentV2
 export struct SelectDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local fruit: string = '';
   @Local tz: string = 'cst';
+  @Local item: string = 'item-0500';
 
   build() {
     Column({ space: 16 }) {
@@ -257,6 +275,18 @@ export struct SelectDoc {
       Text(`fruit = ${this.fruit || '(none)'} · tz = ${this.tz}`)
         .fontSize(this.theme.text.xs)
         .fontColor(this.theme.colors.mutedForeground)
+      DocSection({
+        title: 'Long lists',
+        description: 'The data form is virtualized: only the rows in view exist, scrolled-out rows are reused, and ' +
+          'the list opens at the selected option. Every 97th item is disabled.'
+      })
+      DemoBlock({ code: SELECT_LONG_CODE }) {
+        Column() {
+          SSelect({ value: this.item!!, placeholder: 'Pick an item', options: MANY_OPTIONS })
+        }
+        .width(240)
+      }
+      DemoCaption({ text: `${MANY_OPTIONS.length} options · item = ${this.item || '(none)'}` })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

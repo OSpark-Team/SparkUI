@@ -1,6 +1,6 @@
 import {
-  SAppShell, SButton, SPageTransition, SparkProvider, SparkSidebarState, SparkTheme, SparkUI, SSidebarMenu, SSidebarMenuButton,
-  SSidebarMenuItem
+  SAppShell, SPageTransition, SparkProvider, SparkSidebarState, SparkTheme, SparkTopbarAction, SparkUI, SSidebarMenu,
+  SSidebarMenuButton, SSidebarMenuItem
 } from '@sparkui/core';
 import { PersistenceV2 } from '@kit.ArkUI';
 import { ButtonDoc, CardDoc, CodeDoc, DialogDoc, IconsDoc, PopoverDoc, SheetDoc } from '../docs/ComponentDocs';
@@ -30,11 +30,33 @@ class GalleryPrefs {
   @Trace sidebarOpen: boolean = true;
 }
 
+/**
+ * The gallery's sidebar controller. App-owned (system back closes the sheet) and module-level, so the shell's
+ * WrappedBuilder regions (global @Builders, no `this`) can reach it too — e.g. the title bar's sidebar toggle.
+ */
+const GALLERY_SIDEBAR: SparkSidebarState = new SparkSidebarState();
+
+/** SAppShell `titleBarBuilder`: free-window / PC chrome (renders nothing unless the window is a free window). */
+@Builder
+function galleryTitleBar() {
+  GalleryTitleBar({ sidebar: GALLERY_SIDEBAR })
+}
+
+/** SAppShell `sidebarFooterBuilder`: the version row under the nav. */
+@Builder
+function gallerySidebarFooter() {
+  SSidebarMenu() {
+    SSidebarMenuItem() {
+      SSidebarMenuButton({ icon: 'info', text: 'SparkUI · 1.0.0-rc · API 22', sizing: 'sm' })
+    }
+  }
+}
+
 @Entry
 @ComponentV2
 struct Index {
   /** the gallery owns the sidebar controller, so the page can route the system back to it */
-  private sidebar: SparkSidebarState = new SparkSidebarState();
+  private sidebar: SparkSidebarState = GALLERY_SIDEBAR;
 
   onBackPress(): boolean {
     return this.sidebar.back();
@@ -45,19 +67,6 @@ struct Index {
       SparkProvider({ immersive: true }) {
         GalleryShell({ sidebar: this.sidebar })
       }
-    }
-  }
-}
-
-/** Light / dark switch in the top bar (a component, so its icon follows the live theme). */
-@ComponentV2
-struct ThemeToggle {
-  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
-
-  build() {
-    Stack() {
-      SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
-        .onClick(() => SparkUI.themes.toggleDark())
     }
   }
 }
@@ -217,14 +226,16 @@ struct DocContent {
  * and the theme toggle, immersive safe areas, content scrolling under the translucent bar.
  *
  * Extension points used here: an app-owned `controller` (system back closes the sheet), persistence through
- * the `onValueChange` / `onOpenChange` hooks (PersistenceV2, no storage inside the block), slots for the top
- * bar actions, the sidebar footer and the title-bar region (GalleryTitleBar for free-form windows); the page
- * body is an SPageTransition keyed by the page id.
+ * the `onValueChange` / `onOpenChange` hooks (PersistenceV2, no storage inside the block), the theme toggle as
+ * a top bar `actions` entry, WrappedBuilder regions for the sidebar footer and the title bar (GalleryTitleBar
+ * for free-form windows); the page body — the trailing closure — is an SPageTransition keyed by the page id.
  */
 @ComponentV2
 struct GalleryShell {
   @Param @Require sidebar: SparkSidebarState;
   @Local prefs: GalleryPrefs = PersistenceV2.connect(GalleryPrefs, 'sparkui.gallery', () => new GalleryPrefs())!;
+  @Local chrome: GalleryWindowChrome = GalleryWindowChrome.shared;
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   aboutToAppear(): void {
     if (!navHas(this.prefs.page)) {
@@ -240,38 +251,13 @@ struct GalleryShell {
     DocContent({ page: key })
   }
 
-  /** Page body: a direction-aware transition (down the sidebar = forward, up = back). */
-  @LocalBuilder
-  body() {
-    SPageTransition({
-      current: this.prefs.page,
-      pageBuilder: this.renderPage,
-      order: NAV_ORDER,
-      name: 'fade-through'
-    })
-  }
-
-  @LocalBuilder
-  titleBar() {
-    // free-window / PC chrome (renders nothing unless the window is a free-form window)
-    GalleryTitleBar({ sidebar: this.sidebar })
-  }
-
-  @LocalBuilder
-  topbarActions() {
-    // while the window title bar is shown it hosts the theme toggle (no duplicate here)
-    if (!GalleryWindowChrome.shared.active) {
-      ThemeToggle()
+  /** Top bar actions: the theme toggle — unless the window title bar is shown and hosts it (no duplicate). */
+  @Computed
+  get topbarActions(): SparkTopbarAction[] {
+    if (this.chrome.active) {
+      return [];
     }
-  }
-
-  @LocalBuilder
-  sidebarFooter() {
-    SSidebarMenu() {
-      SSidebarMenuItem() {
-        SSidebarMenuButton({ icon: 'info', text: 'SparkUI · API 22 · V2', sizing: 'sm' })
-      }
-    }
+    return [new SparkTopbarAction('theme', this.theme.isDark ? 'sun' : 'moon', 'Toggle theme')];
   }
 
   build() {
@@ -290,19 +276,24 @@ struct GalleryShell {
       subtitle: navGroupTitle(this.prefs.page),
       collapsible: 'icon',
       // the sidebar toggle moves into the window title bar while it is shown
-      topbarLeading: GalleryWindowChrome.shared.active ? 'none' : 'auto',
+      topbarLeading: this.chrome.active ? 'none' : 'auto',
+      actions: this.topbarActions,
+      onAction: (id: string) => {
+        if (id === 'theme') {
+          SparkUI.themes.toggleDark();
+        }
+      },
       maxContentWidth: 880,
-      titleBarBuilder: (): void => {
-        this.titleBar()
-      },
-      topbarActionsBuilder: (): void => {
-        this.topbarActions()
-      },
-      sidebarFooterBuilder: (): void => {
-        this.sidebarFooter()
-      },
-      // with other slots passed, the content goes by name too (ArkTS: no trailing closure alongside slot args)
-      content: this.body
-    })
+      titleBarBuilder: wrapBuilder(galleryTitleBar),
+      sidebarFooterBuilder: wrapBuilder(gallerySidebarFooter)
+    }) {
+      // page body: a direction-aware transition (down the sidebar = forward, up = back)
+      SPageTransition({
+        current: this.prefs.page,
+        pageBuilder: this.renderPage,
+        order: NAV_ORDER,
+        name: 'fade-through'
+      })
+    }
   }
 }

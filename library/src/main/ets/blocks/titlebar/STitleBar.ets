@@ -6,6 +6,8 @@ import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { SparkRowPressModifier } from '../../primitives/SparkPressModifier';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { sparkCaptionPlate, SparkTitleBarStyle, sparkTitleBarStyle, TitleBarTokens } from '../BlockTokens';
+import { SparkSidebarState, SSidebarTrigger } from '../sidebar/SSidebar';
 import { SparkWindowChrome, SparkWindowChromeOptions } from './SparkWindowChrome';
 import {
   SparkCaptionAction, sparkMaximizeAction, SparkSystemButtons, sparkTitleBarHeight, SparkTitleBarShow,
@@ -28,6 +30,8 @@ struct SCaptionButton {
   @Param danger: boolean = false;
   /** plate size (vp) */
   @Param plate: number = 28;
+  /** the bar's resolved look (`--titlebar-caption-*` / `--titlebar-close-*`) */
+  @Param look: SparkTitleBarStyle = new SparkTitleBarStyle();
   @Event onPress: () => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -36,20 +40,19 @@ struct SCaptionButton {
   @Computed
   get plateColor(): string {
     if (!this.ix.hovered) {
-      return SparkColor.alpha(this.theme.colors.accent, 0);
+      return SparkColor.alpha(this.look.captionHoverBackground, 0);
     }
-    return this.danger ? this.theme.colors.destructive : this.theme.colors.accent;
+    return this.danger ? this.look.closeHoverBackground : this.look.captionHoverBackground;
   }
 
   @Computed
   get pressedBackground(): string {
-    return this.danger ? SparkColor.alpha(this.theme.colors.destructive, 0.85) :
-      SparkColor.mix(this.theme.colors.accent, this.theme.colors.foreground, 0.08);
+    return this.danger ? this.look.closePressedBackground : this.look.captionPressedBackground;
   }
 
   @Computed
   get glyph(): string {
-    return this.danger && this.ix.hovered ? this.theme.colors.destructiveForeground : this.theme.colors.foreground;
+    return this.danger && this.ix.hovered ? this.look.closeHoverForeground : this.look.captionForeground;
   }
 
   build() {
@@ -59,7 +62,7 @@ struct SCaptionButton {
     .width(this.plate + 8)
     .height(this.plate)
     .justifyContent(FlexAlign.Center)
-    .borderRadius(this.theme.radiusMd)
+    .borderRadius(this.look.captionRadius)
     .attributeModifier(new SparkRowPressModifier(this.plateColor, this.pressedBackground, 1, false))
     .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
     .onTouch((e: TouchEvent) => e.stopPropagation())
@@ -69,15 +72,20 @@ struct SCaptionButton {
 }
 
 /**
- * Window title bar for free windows (PC/2in1, tablet 自由多窗 / 电脑模式): app icon + title, a centre slot, an
- * actions slot (trailing closure) and caption buttons drawn in the SparkUI style. The empty bar area drags the
- * window (`window.startMoving` from onTouch, as the docs require) and double-click maximizes / restores.
+ * Window title bar for free windows (PC/2in1, tablet 自由多窗 / 电脑模式): app icon + title, start / leading /
+ * centre regions, an actions slot (trailing closure) and caption buttons drawn in the SparkUI style. The empty
+ * bar area drags the window (`window.startMoving` from onTouch, as the docs require) and double-click maximizes /
+ * restores.
  *
  * ```
- * STitleBar({ title: 'Inbox', icon: 'mail', systemButtons: 'custom', center: this.tabs }) {
+ * @Builder function noteTabs() { NoteTabs() }     // global @Builder (a component holds the state)
+ *
+ * STitleBar({ title: 'Inbox', icon: 'mail', sidebarController: this.sidebar, centerBuilder: wrapBuilder(noteTabs) }) {
  *   SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'search', label: 'Search' })   // actions slot
  * }
  * ```
+ * One @BuilderParam (the trailing actions closure); the other regions are `WrappedBuilder`s (`startBuilder`,
+ * `leadingBuilder`, `centerBuilder`) and `sidebarController` covers the usual start content.
  * While mounted (and not `detached`) it owns the window chrome through `SparkWindowChrome.shared`: the system
  * title bar is hidden and `systemButtons` applied ('keep' restyles the system buttons and reserves their rect,
  * 'custom' draws ours, 'hidden' shows none); unmounting gives the chrome back to the system.
@@ -104,18 +112,28 @@ export struct STitleBar {
   @Param bordered: boolean = true;
   /** translucent, backdrop-blurred background */
   @Param translucent: boolean = false;
+  /** per-instance look (ADR D13): instance → `--titlebar-*` tokens → recipe */
+  @Param tokens: TitleBarTokens = {};
   /** window status the detached preview starts in */
   @Param previewStatus: SparkWindowStatus = 'floating';
   /** fired for every caption action (also in detached mode) */
   @Event onCaption: (action: SparkCaptionAction) => void = () => {
   };
-  /** content after the icon / title (menus, breadcrumbs) — a no-drag region */
-  /** before the app icon (sidebar toggle, back) — a no-drag region */
-  @BuilderParam start: () => void = sparkEmptyBuilder;
-  @BuilderParam leading: () => void = sparkEmptyBuilder;
-  /** centred content (tabs, search) — a no-drag region; the space around it drags */
-  @BuilderParam center: () => void = sparkEmptyBuilder;
-  /** trailing actions before the caption buttons — a no-drag region */
+  /**
+   * Shows an SSidebarTrigger for this controller before the app icon (the common `start` content: the bar
+   * usually sits outside the SSidebarProvider).
+   */
+  @Param sidebarController: SparkSidebarState | undefined = undefined;
+  /**
+   * Region before the app icon (after the sidebar trigger; back, a menu…) — no-drag. A `WrappedBuilder`:
+   * `startBuilder: wrapBuilder(myStart)` of a global `@Builder` (no `this`: render a component or read shared state).
+   */
+  @Param startBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** region after the icon / title (menus, breadcrumbs) — no-drag; `wrapBuilder(globalBuilder)` */
+  @Param leadingBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** centred region (tabs, search) — no-drag, the space around it drags; `wrapBuilder(globalBuilder)` */
+  @Param centerBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** trailing actions before the caption buttons — the trailing closure (the only @BuilderParam), no-drag */
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -144,8 +162,19 @@ export struct STitleBar {
     o.systemButtons = this.systemButtons;
     o.barHeight = this.resolvedHeight;
     o.dark = this.theme.isDark;
-    o.buttonRadius = this.theme.radiusMd;
+    o.buttonRadius = this.look.captionRadius;
     return o;
+  }
+
+  /** instance `tokens` → `--titlebar-*` tokens → recipe */
+  @Computed
+  get look(): SparkTitleBarStyle {
+    return sparkTitleBarStyle(this.theme, this.tokens);
+  }
+
+  @Computed
+  get captionRadius(): number {
+    return this.look.captionRadius;
   }
 
   @Monitor('systemButtons')
@@ -155,10 +184,10 @@ export struct STitleBar {
     }
   }
 
-  @Monitor('theme.isDark')
+  @Monitor('theme.isDark', 'captionRadius')
   onDarkChange(): void {
     if (this.live) {
-      this.chrome.restyle(this.theme.isDark, this.theme.radiusMd);
+      this.chrome.restyle(this.theme.isDark, this.captionRadius);
     }
   }
 
@@ -171,7 +200,10 @@ export struct STitleBar {
 
   @Computed
   get resolvedHeight(): number {
-    return sparkTitleBarHeight(this.barHeight, this.layout.env.modality === 'pointer');
+    if (this.barHeight > 0) {
+      return sparkTitleBarHeight(this.barHeight, false);
+    }
+    return this.layout.env.modality === 'pointer' ? this.look.height : this.look.heightTouch;
   }
 
   @Computed
@@ -203,7 +235,7 @@ export struct STitleBar {
 
   @Computed
   get plate(): number {
-    return Math.min(32, Math.max(24, this.resolvedHeight - 12));
+    return sparkCaptionPlate(this.look, this.resolvedHeight);
   }
 
   private act(a: SparkCaptionAction): void {
@@ -267,9 +299,14 @@ export struct STitleBar {
   build() {
     if (this.visible) {
       Row({ space: 8 }) {
-        if (this.start !== sparkEmptyBuilder) {
-          Row() {
-            this.start()
+        if (this.sidebarController !== undefined || this.startBuilder !== undefined) {
+          Row({ space: 4 }) {
+            if (this.sidebarController !== undefined) {
+              SSidebarTrigger({ controller: this.sidebarController })
+            }
+            if (this.startBuilder !== undefined) {
+              this.startBuilder.builder()
+            }
           }
           .onTouch((e: TouchEvent) => e.stopPropagation())
         }
@@ -280,26 +317,30 @@ export struct STitleBar {
             .objectFit(ImageFit.Contain)
             .draggable(false)
         } else if (this.icon !== undefined) {
-          SIcon({ name: this.icon, sizing: 16, color: this.theme.colors.foreground })
+          SIcon({ name: this.icon, sizing: 16, color: this.look.titleColor })
         }
         Text(this.title)
           .fontSize(this.theme.text.sm)
           .fontWeight(this.theme.text.weightMedium)
-          .fontColor(this.theme.colors.foreground)
+          .fontColor(this.look.titleColor)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .flexShrink(1)
-        Row() {
-          this.leading()
-        }
-        .onTouch((e: TouchEvent) => e.stopPropagation())
-
-        // the space around the centre slot stays draggable
-        Row() {
+        if (this.leadingBuilder !== undefined) {
           Row() {
-            this.center()
+            this.leadingBuilder.builder()
           }
           .onTouch((e: TouchEvent) => e.stopPropagation())
+        }
+
+        // the space around the centre region stays draggable
+        Row() {
+          if (this.centerBuilder !== undefined) {
+            Row() {
+              this.centerBuilder.builder()
+            }
+            .onTouch((e: TouchEvent) => e.stopPropagation())
+          }
         }
         .layoutWeight(1)
         .height('100%')
@@ -312,15 +353,15 @@ export struct STitleBar {
 
         if (this.drawCaptions) {
           Row({ space: 2 }) {
-            SCaptionButton({ icon: 'minus', label: 'Minimize', plate: this.plate,
+            SCaptionButton({ icon: 'minus', label: 'Minimize', plate: this.plate, look: this.look,
               onPress: () => this.act('minimize') })
             SCaptionButton({
               icon: sparkMaximizeAction(this.status) === 'restore' ? 'copy' : 'square',
               label: sparkMaximizeAction(this.status) === 'restore' ? 'Restore' : 'Maximize',
-              plate: this.plate,
+              plate: this.plate, look: this.look,
               onPress: () => this.act(sparkMaximizeAction(this.status))
             })
-            SCaptionButton({ icon: 'x', label: 'Close', danger: true, plate: this.plate,
+            SCaptionButton({ icon: 'x', label: 'Close', danger: true, plate: this.plate, look: this.look,
               onPress: () => this.act('close') })
           }
         }
@@ -340,10 +381,9 @@ export struct STitleBar {
       .height(this.resolvedHeight)
       .padding({ left: 12, right: this.drawCaptions ? 6 : (this.reserve > 0 && !this.detached ? 0 : 12) })
       .alignItems(VerticalAlign.Center)
-      .backgroundColor(this.translucent ? SparkColor.alpha(this.theme.colors.background, 0.8) :
-        this.theme.colors.background)
-      .backdropBlur(this.translucent ? 20 : 0)
-      .border({ width: { bottom: this.bordered ? 1 : 0 }, color: this.theme.colors.border })
+      .backgroundColor(this.translucent ? this.look.translucentBackground : this.look.background)
+      .backdropBlur(this.translucent ? this.look.translucentBlur : 0)
+      .border({ width: { bottom: this.bordered ? this.look.borderWidth : 0 }, color: this.look.borderColor })
       .onTouch((e: TouchEvent) => this.dragTouch(e))
       .gesture(TapGesture({ count: 2 }).onAction(() => this.act(sparkMaximizeAction(this.status))))
     }

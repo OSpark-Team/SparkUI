@@ -7,6 +7,7 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { resolveSparkField, SparkFieldState, sparkFieldGrows } from '../field/SField';
+import { sparkDecimalsOf } from '../number-field/NumberFieldLogic';
 
 const THUMB: number = 16;
 const TRACK_H: number = 6;
@@ -22,16 +23,24 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 function decimalsOf(n: number): number {
-  const s = n.toString();
-  const i = s.indexOf('.');
-  return i < 0 ? 0 : Math.min(10, s.length - i - 1);
+  // handles exponent forms such as 1e-7 (String(1e-7) has no '.')
+  return Math.min(10, sparkDecimalsOf(n));
 }
 
-/** Snap `v` to `min + k·step` inside [min, max] (float-safe). Exported for unit tests. */
+/**
+ * Snap `v` to `min + k·step` inside [min, max] (float-safe). Exported for unit tests.
+ * NaN never propagates: a NaN value snaps to min, a NaN / infinite min counts as 0, a NaN / infinite max as min,
+ * a non-positive / NaN / infinite step as 1.
+ */
 export function sparkSnapSlider(v: number, min: number, max: number, step: number): number {
-  const st = step > 0 ? step : 1;
-  const lo = Math.min(min, max);
-  const hi = Math.max(min, max);
+  const st = step > 0 && isFinite(step) ? step : 1;
+  const mn = isFinite(min) ? min : 0;
+  const mx = isFinite(max) ? max : mn;
+  const lo = Math.min(mn, mx);
+  const hi = Math.max(mn, mx);
+  if (isNaN(v)) {
+    return lo;
+  }
   const snapped = Math.round((v - lo) / st) * st + lo;
   const digits = Math.max(decimalsOf(st), decimalsOf(lo));
   return clamp(Number(snapped.toFixed(digits)), lo, hi);
@@ -154,7 +163,8 @@ export struct SSlider {
 
   @Monitor('value')
   syncValue(): void {
-    if (this.value !== undefined) {
+    // a controlled NaN is ignored (the thumb keeps its last position)
+    if (this.value !== undefined && !isNaN(this.value)) {
       this.current = sparkSnapSlider(this.value, this.min, this.max, this.step);
     }
   }
@@ -187,7 +197,8 @@ export struct SSlider {
 
   private ratioOf(v: number): number {
     const span = this.max - this.min;
-    if (span <= 0) {
+    // also false for NaN / infinite bounds
+    if (!(span > 0) || !isFinite(span) || isNaN(v)) {
       return 0;
     }
     return clamp((v - this.min) / span, 0, 1);

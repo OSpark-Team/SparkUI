@@ -7,9 +7,10 @@ import { SIcon } from '../../icons/SIcon';
 import { SparkAdaptive, SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { MenuItemVariant, MenuLabel, MenuSeparator } from '../../primitives/menu/MenuRow';
 import {
-  SparkMenuCheckboxPart, SparkMenuHandle, SparkMenuItemPart, SparkMenuRadioGroupPart, SparkMenuRadioPart,
-  sparkSheetHandle
+  SPARK_SHEET_HANDLE_HEIGHT, SparkMenuCheckboxPart, SparkMenuHandle, SparkMenuItemPart, sparkMenuPanelMaxHeight,
+  SparkMenuRadioGroupPart, SparkMenuRadioPart, SparkMenuScroll, sparkSheetHandle
 } from '../../primitives/menu/SparkMenuParts';
+import { SparkMenuMemory } from '../../primitives/menu/MenuMemory';
 import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { PlacementRect } from '../../primitives/overlay/Placement';
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
@@ -78,6 +79,8 @@ export class SparkMenubarState {
   /** number of menus shown as triggers; the rest collapse into "More" */
   @Trace visibleCount: number = 1000;
   readonly more: SparkMenubarMenuState = new SparkMenubarMenuState(MORE_ID);
+  /** uncontrolled checkbox / radio values of every menu (shared with the "More" menu) */
+  readonly memory: SparkMenuMemory = new SparkMenuMemory();
   barWidth: number = 0;
   /** set by SMenubar: after a menu opened (anchored) / after everything closed */
   onMenuShown: (sheet: boolean) => void = () => {
@@ -91,6 +94,8 @@ export class SparkMenubarState {
   }
 
   private wire(m: SparkMenubarMenuState): void {
+    // one memory for the whole bar: an item shows the same uncontrolled value in its menu and under "More"
+    m.handle.memory = this.memory;
     m.disclosure.emit = (open: boolean) => {
       if (!open && this.openId === m.id) {
         this.openId = -1;
@@ -254,7 +259,7 @@ export class SparkMenubarState {
  *   SMenubarMenu() {
  *     SMenubarTrigger({ text: 'File' })
  *     SMenubarContent() {
- *       SMenubarItem({ text: 'New Tab', shortcut: '⌘T' }).onClick(() => ...)
+ *       SMenubarItem({ text: 'New Tab', shortcut: '⌘T', onSelect: () => ... })
  *       SMenubarSeparator()
  *       SMenubarItem({ text: 'Print…', shortcut: '⌘P', onSelect: () => ... })
  *     }
@@ -276,6 +281,8 @@ export struct SMenubar {
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
   @Local state: SparkMenubarState = new SparkMenubarState();
   @Local moreSheet: boolean = false;
+  /** the open "More" layer (its placement bounds the panel height) */
+  @Local moreScope: SparkOverlayScope | undefined = undefined;
   @Local proxyRects: ProxyRect[] = [];
   @Local proxyWidth: number = 0;
   @Local proxyHeight: number = 0;
@@ -290,6 +297,7 @@ export struct SMenubar {
     this.moreBinding.attach(this.getUIContext(), more.disclosure, (scope: SparkOverlayScope) => {
       this.moreSheet = sparkUseSheet(this.adaptive);
       more.handle.sheet = this.moreSheet;
+      this.moreScope = scope;
       scope.presentation = this.moreSheet ? 'sheet-bottom' : 'anchored';
       scope.motionKey = 'menu';
       scope.modal = this.moreSheet;
@@ -396,13 +404,17 @@ export struct SMenubar {
       if (this.moreSheet) {
         sparkSheetHandle(this.theme.colors.muted)
       }
-      ForEach(this.state.hiddenMenus, (m: SparkMenubarMenuState, i: number) => {
-        if (i > 0) {
-          MenuSeparator()
-        }
-        MenuLabel({ text: m.label, muted: true })
-        MenubarItemsHost({ items: m.items })
-      }, (m: SparkMenubarMenuState) => `${m.id}`)
+      SparkMenuScroll({
+        maxListHeight: sparkMenuPanelMaxHeight(this.moreScope, this.moreSheet, menuChrome(this.moreSheet, this.layout))
+      }) {
+        ForEach(this.state.hiddenMenus, (m: SparkMenubarMenuState, i: number) => {
+          if (i > 0) {
+            MenuSeparator()
+          }
+          MenuLabel({ text: m.label, muted: true })
+          MenubarItemsHost({ items: m.items })
+        }, (m: SparkMenubarMenuState) => `${m.id}`)
+      }
     }
     .width(this.moreSheet ? '100%' : 224)
     .padding(this.moreSheet ? { left: 8, right: 8, top: 8, bottom: 8 + this.layout.env.safeArea.bottom } : 4)
@@ -433,6 +445,11 @@ export struct SMenubar {
     .shadow(this.theme.shadows.xs.toOptions())
     .onAreaChange((_: Area, n: Area) => this.state.setBarWidth(Number(n.width)))
   }
+}
+
+/** padding + border (+ sheet handle and bottom safe area) around a menubar panel's item list */
+function menuChrome(sheet: boolean, layout: SparkLayoutContext): number {
+  return sheet ? 8 * 2 + 1 + SPARK_SHEET_HANDLE_HEIGHT + layout.env.safeArea.bottom : 4 * 2 + 1 * 2;
 }
 
 function menubarArrowKeys(bar: SparkMenubarState, e: KeyEvent): void {
@@ -470,11 +487,14 @@ struct MenubarTriggerLook {
   @Styles
   normalStyle() {
     .backgroundColor(this.active || this.ix.hovered ? this.theme.colors.accent : Color.Transparent)
+    .opacity(1)
   }
 
   @Styles
   pressedStyle() {
-    .backgroundColor(this.theme.colors.accent)
+    // selection-type trigger (its highlight means "open"): pressing only fades it. A pressed background
+    // flashed accent → transparent (release, menu not open yet) → accent (menu opened).
+    .opacity(0.6)
   }
 
   build() {
@@ -646,6 +666,8 @@ export struct SMenubarContent {
   @Local menu: SparkMenubarMenuState | undefined = undefined;
   @Local bar: SparkMenubarState | undefined = undefined;
   @Local sheet: boolean = false;
+  /** the open layer (its placement bounds the panel height) */
+  @Local scope: SparkOverlayScope | undefined = undefined;
   private binding: OverlayBinding = new OverlayBinding();
 
   onDidBuild(): void {
@@ -662,6 +684,7 @@ export struct SMenubarContent {
         this.binding.attach(this.getUIContext(), menu.disclosure, (scope: SparkOverlayScope) => {
           this.sheet = sparkUseSheet(this.adaptive);
           menu.handle.sheet = this.sheet;
+          this.scope = scope;
           scope.presentation = this.sheet ? 'sheet-bottom' : 'anchored';
           scope.motionKey = 'menu';
           scope.modal = this.sheet;
@@ -696,7 +719,11 @@ export struct SMenubarContent {
       if (this.sheet) {
         sparkSheetHandle(this.theme.colors.muted)
       }
-      this.content()
+      SparkMenuScroll({
+        maxListHeight: sparkMenuPanelMaxHeight(this.scope, this.sheet, menuChrome(this.sheet, this.layout))
+      }) {
+        this.content()
+      }
     }
     // a definite width: with an auto-width panel, '100%' rows resolve against the overlay layer
     .width(this.sheet ? '100%' : this.panelWidth)
@@ -724,7 +751,10 @@ export struct SMenubarContent {
   }
 }
 
-/** Action row; closes the menu after activation (`onSelect` and the native `.onClick()` both fire). */
+/**
+ * Action row; closes the menu after activation (unless `keepOpen`). Tap, click, Space / Enter and screen-reader
+ * activation fire `onSelect` (a `.onClick()` chained on the item does not fire).
+ */
 @ComponentV2
 export struct SMenubarItem {
   @Param text: ResourceStr = '';
@@ -754,6 +784,8 @@ export struct SMenubarItem {
 
 @ComponentV2
 export struct SMenubarCheckboxItem {
+  /** identity for the uncontrolled memory (default: the label) */
+  @Param value: string = '';
   @Param text: ResourceStr = '';
   @Param shortcut: string | undefined = undefined;
   @Param checked: boolean | undefined = undefined;
@@ -767,6 +799,7 @@ export struct SMenubarCheckboxItem {
   build() {
     SparkMenuCheckboxPart({
       menuKey: ITEM_KEY,
+      value: this.value,
       text: this.text,
       shortcut: this.shortcut,
       checked: this.checked,
@@ -780,6 +813,8 @@ export struct SMenubarCheckboxItem {
 
 @ComponentV2
 export struct SMenubarRadioGroup {
+  /** identity for the uncontrolled memory (default: the defaultValue) */
+  @Param name: string = '';
   @Param value: string | undefined = undefined;
   @Event $value: (v: string) => void = () => {
   };
@@ -791,6 +826,7 @@ export struct SMenubarRadioGroup {
   build() {
     SparkMenuRadioGroupPart({
       menuKey: ITEM_KEY,
+      name: this.name,
       value: this.value,
       $value: (v: string) => this.$value(v),
       defaultValue: this.defaultValue,

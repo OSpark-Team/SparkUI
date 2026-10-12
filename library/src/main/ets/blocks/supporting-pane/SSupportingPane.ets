@@ -7,6 +7,10 @@ import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/Sp
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { sparkSupportingDefaultPolicy, SparkSplitInput, SparkSplitPolicy } from '../BlocksLogic';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import {
+  SparkSupportingPaneStyle, sparkSupportingPaneStyle, sparkSupportingPaneWidth, SupportingPaneTokens
+} from '../BlockTokens';
 
 const KEY: string = 'spark.supporting-pane';
 
@@ -29,6 +33,8 @@ export class SparkSupportingPaneState {
   @Trace open: boolean = false;
   @Trace compactMode: SupportingCompactMode = 'below';
   @Trace paneWidth: number = 320;
+  /** resolved look (SSupportingPane `tokens` → `--supporting-pane-*` tokens → recipe) */
+  @Trace style: SparkSupportingPaneStyle | undefined = undefined;
   @Trace gap: number = 24;
   minMainWidth: number = 480;
   /** motion key of the sheet */
@@ -136,8 +142,10 @@ export struct SSupportingPane {
   /** your own state object (headless control); one is created when omitted */
   @Param controller: SparkSupportingPaneState | undefined = undefined;
   @Param compactMode: SupportingCompactMode = 'below';
-  /** supporting pane width when side by side (vp, includes the gap) */
-  @Param paneWidth: number = 320;
+  /** supporting pane width when side by side (vp, includes the gap); 0 = `--supporting-pane-width`, else 320 */
+  @Param paneWidth: number = 0;
+  /** per-instance look (ADR D13): instance → `--supporting-pane-*` tokens → recipe */
+  @Param tokens: SupportingPaneTokens = {};
   /** the pane sits beside the main area only while the main area keeps this width (vp) */
   @Param minMainWidth: number = 480;
   /** sheet open state (narrow + 'sheet') */
@@ -153,6 +161,7 @@ export struct SSupportingPane {
   @Event onWideChange: (wide: boolean) => void = () => {
   };
   @BuilderParam content: () => void = sparkEmptyBuilder;
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkSupportingPaneState = new SparkSupportingPaneState();
 
   aboutToAppear(): void {
@@ -181,11 +190,22 @@ export struct SSupportingPane {
     SparkContext.revoke(this.getUniqueId());
   }
 
-  @Monitor('compactMode', 'paneWidth', 'minMainWidth', 'motionKey')
+  @Computed
+  get resolvedPaneWidth(): number {
+    return sparkSupportingPaneWidth(this.theme, this.paneWidth);
+  }
+
+  @Computed
+  get look(): SparkSupportingPaneStyle {
+    return sparkSupportingPaneStyle(this.theme, this.tokens);
+  }
+
+  @Monitor('compactMode', 'resolvedPaneWidth', 'look', 'minMainWidth', 'motionKey')
   syncConfig(): void {
     this.state.motionKey = this.motionKey;
     this.state.compactMode = this.compactMode;
-    this.state.paneWidth = this.paneWidth;
+    this.state.paneWidth = this.resolvedPaneWidth;
+    this.state.style = this.look;
     this.state.minMainWidth = this.minMainWidth;
     if (this.state.width > 0) {
       this.state.measure(this.state.width);
@@ -277,6 +297,11 @@ export struct SSupportingPaneAside {
     return this.ctx ?? FALLBACK;
   }
 
+  @Computed
+  get look(): SparkSupportingPaneStyle {
+    return this.ctx?.style ?? sparkSupportingPaneStyle(this.theme);
+  }
+
   private show(): void {
     if (this.scope !== undefined && SparkOverlayService.isOpen(this.scope)) {
       return;
@@ -325,7 +350,7 @@ export struct SSupportingPaneAside {
           .width(40)
           .height(4)
           .borderRadius(2)
-          .backgroundColor(this.theme.colors.muted)
+          .backgroundColor(this.look.handleBackground)
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -356,13 +381,13 @@ export struct SSupportingPaneAside {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 8, bottom: 16 + this.layout.env.safeArea.bottom })
-    .backgroundColor(this.theme.colors.background)
+    .backgroundColor(this.look.sheetBackground)
     .border({
-      width: { top: 1 },
+      width: { top: this.theme.borderWidth },
       color: this.theme.colors.border,
-      radius: { topLeft: this.theme.radiusXl, topRight: this.theme.radiusXl }
+      radius: { topLeft: this.look.sheetRadius, topRight: this.look.sheetRadius }
     })
-    .shadow(this.theme.shadows.lg.toOptions())
+    .shadow(SparkTokenOverride.shadowOptions(this.look.sheetShadow))
     .expandSafeArea([SafeAreaType.SYSTEM])
   }
 
@@ -380,9 +405,10 @@ export struct SSupportingPaneAside {
       .alignItems(HorizontalAlign.Start)
       .padding(this.s.wide ? { left: this.s.gap } : { top: this.s.gap })
       .margin(this.s.wide ? { top: 0 } : { top: this.s.gap })
+      .backgroundColor(this.look.background)
       .border({
-        width: this.s.wide ? { left: 1 } : { top: 1 },
-        color: this.theme.colors.border
+        width: this.s.wide ? { left: this.look.dividerWidth } : { top: this.look.dividerWidth },
+        color: this.look.dividerColor
       })
     }
   }

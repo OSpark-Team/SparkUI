@@ -22,14 +22,15 @@ export const SIDEBAR_FRAME_GAP: number = 8;
  * - collapsed `icon`: 48, plus the 8 vp frame on both sides for floating / inset (shadcn `3rem + spacing*4`)
  * - collapsed `offcanvas`: 0 (slides out)
  * - `none`: never collapses
+ * `railWidth` / `frameGap` default to the shadcn values (`--sidebar-width-icon` / `--sidebar-frame-gap` tokens).
  */
 export function sparkSidebarDockWidth(open: boolean, collapsible: SidebarCollapsible, variant: SidebarVariant,
-  sidebarWidth: number): number {
+  sidebarWidth: number, railWidth: number = SIDEBAR_WIDTH_ICON, frameGap: number = SIDEBAR_FRAME_GAP): number {
   if (open || collapsible === 'none') {
     return sidebarWidth;
   }
   if (collapsible === 'icon') {
-    return variant === 'sidebar' ? SIDEBAR_WIDTH_ICON : SIDEBAR_WIDTH_ICON + SIDEBAR_FRAME_GAP * 2;
+    return variant === 'sidebar' ? railWidth : railWidth + frameGap * 2;
   }
   return 0;
 }
@@ -87,9 +88,9 @@ export function sparkTopbarCondensed(width: number, below: number = TOPBAR_CONDE
   return width > 0 && width < below;
 }
 
-/** Top bar height without safe-area inset. */
-export function sparkTopbarHeight(condensed: boolean): number {
-  return condensed ? 48 : 56;
+/** Top bar height without safe-area inset (`regular` / `compact`: `--topbar-height` / `--topbar-height-condensed`). */
+export function sparkTopbarHeight(condensed: boolean, regular: number = 56, compact: number = 48): number {
+  return condensed ? compact : regular;
 }
 
 // ------------------------------------------------------------------------------------------------ policies
@@ -147,14 +148,15 @@ export function sparkSidebarRailPolicy(minRailInsetWidth: number = 480): SparkSi
  * floating / inset) as a rail, {@link sparkSidebarDockWidth} when docked.
  */
 export function sparkSidebarRowWidth(presentation: SidebarPresentation, open: boolean,
-  collapsible: SidebarCollapsible, variant: SidebarVariant, sidebarWidth: number): number {
+  collapsible: SidebarCollapsible, variant: SidebarVariant, sidebarWidth: number,
+  railWidth: number = SIDEBAR_WIDTH_ICON, frameGap: number = SIDEBAR_FRAME_GAP): number {
   if (presentation === 'sheet') {
     return 0;
   }
   if (presentation === 'rail') {
-    return sparkSidebarDockWidth(false, 'icon', variant, sidebarWidth);
+    return sparkSidebarDockWidth(false, 'icon', variant, sidebarWidth, railWidth, frameGap);
   }
-  return sparkSidebarDockWidth(open, collapsible, variant, sidebarWidth);
+  return sparkSidebarDockWidth(open, collapsible, variant, sidebarWidth, railWidth, frameGap);
 }
 
 /** Input of a {@link SparkSplitPolicy} (SListDetail, SSupportingPane). Widths in vp. */

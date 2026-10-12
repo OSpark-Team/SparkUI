@@ -1,6 +1,9 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { sparkGridColumns } from '../main/ets/layout/SparkLayouts';
 import { Placement, PlacementRect, PlacementRequest, SparkAlign, SparkSide } from '../main/ets/primitives/overlay/Placement';
+import {
+  SparkMenuMemory, sparkMenuCheckKey, sparkMenuListMaxHeight, sparkMenuRadioKey
+} from '../main/ets/primitives/menu/MenuMemory';
 
 function req(side: SparkSide, align: SparkAlign, anchor: PlacementRect, w: number, h: number): PlacementRequest {
   const r = new PlacementRequest();
@@ -75,6 +78,36 @@ export default function placementTest() {
       expect(sparkGridColumns(1200, 200, 16, 0)).assertEqual(5);
       expect(sparkGridColumns(1200, 200, 16, 4)).assertEqual(4);
       expect(sparkGridColumns(0, 200, 16, 0)).assertEqual(1);
+    });
+    it('available_height_of_the_chosen_side', 0, () => {
+      // anchor near the bottom: a tall menu flips up and may use the space above (y - padding - offset)
+      const r = Placement.compute(req('bottom', 'start', new PlacementRect(20, 600, 100, 40), 200, 900));
+      expect(r.side).assertEqual('top');
+      expect(r.availableHeight).assertEqual(600 - 8 - 4);
+      const below = Placement.compute(req('bottom', 'start', new PlacementRect(20, 100, 100, 40), 200, 100));
+      expect(below.side).assertEqual('bottom');
+      expect(below.availableHeight).assertEqual(800 - 140 - 8 - 4);
+    });
+    it('menu_list_max_height', 0, () => {
+      expect(sparkMenuListMaxHeight(undefined, 10)).assertEqual(Infinity);
+      expect(sparkMenuListMaxHeight(NaN, 10)).assertEqual(Infinity);
+      expect(sparkMenuListMaxHeight(400, 10)).assertEqual(390);
+      expect(sparkMenuListMaxHeight(20, 10)).assertEqual(48);
+    });
+    it('menu_memory_keeps_uncontrolled_values', 0, () => {
+      const m = new SparkMenuMemory();
+      const k = sparkMenuCheckKey('', 'Status Bar');
+      expect(m.checked(k, true)).assertTrue();
+      m.setChecked(k, false);
+      expect(m.checked(k, true)).assertFalse();
+      expect(m.checked(sparkMenuCheckKey('', 'Panel'), false)).assertFalse();
+      // an explicit value wins over the label
+      expect(sparkMenuCheckKey('bar', 'Status Bar') === k).assertFalse();
+      const g = sparkMenuRadioKey('', 'bottom');
+      expect(m.radio(g, 'bottom')).assertEqual('bottom');
+      m.setRadio(g, 'top');
+      expect(m.radio(g, 'bottom')).assertEqual('top');
+      expect(m.radio(sparkMenuRadioKey('position', 'bottom'), 'bottom')).assertEqual('bottom');
     });
     it('no_collision_handling_when_disabled', 0, () => {
       const r0 = req('bottom', 'center', new PlacementRect(0, 760, 40, 40), 200, 100);

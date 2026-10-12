@@ -84,9 +84,16 @@ export class SparkSurfaceStyle {
 /**
  * Surface recipe of a floating panel: `component` tokens (`background`, `border-color`, `border-width`, `radius`,
  * `padding`, `shadow`) over the given defaults, then the instance overrides.
+ *
+ * `inherit` names a surface family the component belongs to (ADR D14 addendum): its tokens apply first, so
+ * `--menu-background` restyles Select panels too, while `--select-background` restyles only Select
+ * (`sparkSurface(t, 'select', defaults, tokens, 'menu')`).
  */
 export function sparkSurface(t: SparkTheme, component: string, defaults: SparkSurfaceStyle,
-  tokens?: SparkSurfaceTokens): SparkSurfaceStyle {
+  tokens?: SparkSurfaceTokens, inherit?: string): SparkSurfaceStyle {
+  if (inherit !== undefined && inherit !== component) {
+    return sparkSurface(t, component, sparkSurface(t, inherit, defaults), tokens);
+  }
   const r = new SparkTokenReader(t, component);
   const s = new SparkSurfaceStyle();
   s.background = r.color('background', tokens?.background, defaults.background);
@@ -109,4 +116,44 @@ export function sparkSurfaceDefaults(background: string, borderColor: string, bo
   s.padding = padding;
   s.shadow = shadow;
   return s;
+}
+
+/**
+ * Per-instance overrides of an option-list panel (SSelect / SCombobox): the surface plus the highlighted row
+ * colours and the list's maximum height. `SSelect({ options, tokens: { highlightBackground: '#e0f2fe' } })`.
+ */
+export interface SparkOptionPanelTokens extends SparkSurfaceTokens {
+  highlightBackground?: string;
+  highlightForeground?: string;
+  /** max list height before scrolling (vp) */
+  maxHeight?: number;
+}
+
+/** Resolved option-list panel (see {@link sparkOptionPanel}). */
+export class SparkOptionPanelStyle extends SparkSurfaceStyle {
+  highlightBackground: string = '#00000000';
+  highlightForeground: string = '#00000000';
+  maxHeight: number = 300;
+}
+
+/**
+ * Option-list panel recipe (ADR D14 addendum): surface = `inherit` family tokens → `component` tokens → instance;
+ * `highlight-background` / `highlight-foreground` / `max-height` are read from `component` only
+ * (defaults: `accent` / `accent-foreground` / `maxHeight`).
+ */
+export function sparkOptionPanel(t: SparkTheme, component: string, inherit: string, defaults: SparkSurfaceStyle,
+  maxHeight: number, tokens?: SparkOptionPanelTokens): SparkOptionPanelStyle {
+  const s = sparkSurface(t, component, defaults, tokens, inherit);
+  const r = new SparkTokenReader(t, component);
+  const p = new SparkOptionPanelStyle();
+  p.background = s.background;
+  p.borderColor = s.borderColor;
+  p.borderWidth = s.borderWidth;
+  p.radius = s.radius;
+  p.padding = s.padding;
+  p.shadow = s.shadow;
+  p.highlightBackground = r.color('highlight-background', tokens?.highlightBackground, t.colors.accent);
+  p.highlightForeground = r.color('highlight-foreground', tokens?.highlightForeground, t.colors.accentForeground);
+  p.maxHeight = r.len('max-height', tokens?.maxHeight, maxHeight);
+  return p;
 }

@@ -11,6 +11,11 @@ import { closeSparkOverlay, openSparkOverlay } from '../../primitives/overlay/Sp
 import { SparkOverlayScope, SparkOverlayService } from '../../primitives/overlay/SparkOverlay';
 import { SparkRowPressModifier } from '../../primitives/SparkPressModifier';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import {
+  SidebarTokens, sparkSidebarMobileWidth, sparkSidebarRailWidth, SparkSidebarStyle, sparkSidebarStyle,
+  sparkSidebarWidth
+} from '../BlockTokens';
 import {
   SIDEBAR_FRAME_GAP, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON, SIDEBAR_WIDTH_MOBILE, SidebarCollapsible,
   SidebarPresentation, SidebarSide, SidebarVariant, sparkSidebarDefaultPolicy, SparkSidebarLayoutInput,
@@ -51,8 +56,12 @@ export class SparkSidebarState {
   @Trace value: string = '';
   /** pad the window safe area (immersive pages) */
   @Trace safeArea: boolean = false;
+  /** resolved widths (vp): provider props, else `--sidebar-width` / `-width-mobile` / `-width-icon` */
   @Trace sidebarWidth: number = SIDEBAR_WIDTH;
   @Trace mobileWidth: number = SIDEBAR_WIDTH_MOBILE;
+  @Trace railWidth: number = SIDEBAR_WIDTH_ICON;
+  /** resolved look (provider `tokens` → `--sidebar-*` tokens → shadcn); every sidebar part reads it */
+  @Trace style: SparkSidebarStyle | undefined = undefined;
   /** measured container width (vp) */
   @Trace width: number = 0;
   minInsetWidth: number = 360;
@@ -94,7 +103,13 @@ export class SparkSidebarState {
 
   /** Width the sidebar takes in the row (0 while it is a sheet). */
   get dockWidth(): number {
-    return sparkSidebarRowWidth(this.presentation, this.open, this.collapsible, this.variant, this.sidebarWidth);
+    return sparkSidebarRowWidth(this.presentation, this.open, this.collapsible, this.variant, this.sidebarWidth,
+      this.railWidth, this.frameGap);
+  }
+
+  /** Padding around a floating / inset sidebar (`--sidebar-frame-gap`, default 8). */
+  get frameGap(): number {
+    return this.style?.frameGap ?? SIDEBAR_FRAME_GAP;
   }
 
   /** In the row but not expanded (collapsed by the user, or a rail). */
@@ -138,7 +153,7 @@ export class SparkSidebarState {
     const input: SparkSidebarLayoutInput = {
       containerWidth: this.width,
       sidebarWidth: this.sidebarWidth,
-      railWidth: SIDEBAR_WIDTH_ICON,
+      railWidth: this.railWidth,
       minInsetWidth: this.minInsetWidth,
       collapsible: this.collapsible
     };
@@ -267,6 +282,11 @@ export function sparkSidebarInSheet(uiContext: UIContext, componentId: number): 
 
 const FALLBACK: SparkSidebarState = new SparkSidebarState();
 
+/** The provider's resolved look, or the theme's (before the state resolves / outside a provider). */
+function sidebarLook(ctx: SparkSidebarState | undefined, theme: SparkTheme): SparkSidebarStyle {
+  return ctx?.style ?? sparkSidebarStyle(theme);
+}
+
 /** Marks its content as rendered in the sidebar sheet (see sparkSidebarInSheet). */
 @ComponentV2
 struct SidebarSheetSurface {
@@ -354,10 +374,14 @@ export struct SSidebarProvider {
   @Param variant: SidebarVariant = 'sidebar';
   @Param collapsible: SidebarCollapsible = 'offcanvas';
   @Param side: SidebarSide = 'left';
-  /** docked width (vp), shadcn `--sidebar-width` */
-  @Param sidebarWidth: number = SIDEBAR_WIDTH;
-  /** sheet width (vp), shadcn `--sidebar-width-mobile` */
-  @Param sidebarWidthMobile: number = SIDEBAR_WIDTH_MOBILE;
+  /** docked width (vp); 0 = the `--sidebar-width` token, else 256 (shadcn 16rem) */
+  @Param sidebarWidth: number = 0;
+  /** sheet width (vp); 0 = the `--sidebar-width-mobile` token, else 288 */
+  @Param sidebarWidthMobile: number = 0;
+  /** icon rail width (vp); 0 = the `--sidebar-width-icon` token, else 48 */
+  @Param sidebarWidthIcon: number = 0;
+  /** per-instance look (ADR D13): instance → `--sidebar-*` component tokens → shadcn recipe */
+  @Param tokens: SidebarTokens = {};
   /** the main area should keep at least this width (vp); input of `layoutPolicy` */
   @Param minInsetWidth: number = 360;
   /** pad the window safe area (immersive pages, see SparkProvider `immersive`) */
@@ -413,15 +437,38 @@ export struct SSidebarProvider {
     SparkContext.revoke(this.getUniqueId());
   }
 
-  @Monitor('variant', 'collapsible', 'side', 'sidebarWidth', 'sidebarWidthMobile', 'minInsetWidth', 'safeArea',
-    'closeOnSelect', 'motionKey')
+  /** resolved look; re-resolves when the theme, a `--sidebar-*` token or `tokens` changes */
+  @Computed
+  get look(): SparkSidebarStyle {
+    return sparkSidebarStyle(this.theme, this.tokens);
+  }
+
+  @Computed
+  get resolvedWidth(): number {
+    return sparkSidebarWidth(this.theme, this.sidebarWidth);
+  }
+
+  @Computed
+  get resolvedMobileWidth(): number {
+    return sparkSidebarMobileWidth(this.theme, this.sidebarWidthMobile);
+  }
+
+  @Computed
+  get resolvedRailWidth(): number {
+    return sparkSidebarRailWidth(this.theme, this.sidebarWidthIcon);
+  }
+
+  @Monitor('variant', 'collapsible', 'side', 'resolvedWidth', 'resolvedMobileWidth', 'resolvedRailWidth', 'look',
+    'minInsetWidth', 'safeArea', 'closeOnSelect', 'motionKey')
   syncConfig(): void {
     const s = this.state;
     s.variant = this.variant;
     s.collapsible = this.collapsible;
     s.side = this.side;
-    s.sidebarWidth = this.sidebarWidth;
-    s.mobileWidth = this.sidebarWidthMobile;
+    s.sidebarWidth = this.resolvedWidth;
+    s.mobileWidth = this.resolvedMobileWidth;
+    s.railWidth = this.resolvedRailWidth;
+    s.style = this.look;
     s.minInsetWidth = this.minInsetWidth;
     s.safeArea = this.safeArea;
     s.closeOnSelect = this.closeOnSelect;
@@ -455,7 +502,7 @@ export struct SSidebarProvider {
     .width('100%')
     .height('100%')
     .clip(true)
-    .backgroundColor(this.state.insetFramed ? this.theme.colors.sidebar : this.theme.colors.background)
+    .backgroundColor(this.state.insetFramed ? this.look.background : this.theme.colors.background)
     .onAreaChange((_: Area, n: Area) => this.state.measure(Number(n.width)))
   }
 }
@@ -504,6 +551,11 @@ export struct SSidebar {
     return this.ctx ?? FALLBACK;
   }
 
+  @Computed
+  get look(): SparkSidebarStyle {
+    return sidebarLook(this.ctx, this.theme);
+  }
+
   private show(): void {
     if (this.scope !== undefined && SparkOverlayService.isOpen(this.scope)) {
       return;
@@ -547,12 +599,12 @@ export struct SSidebar {
     .height('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ top: this.layout.env.safeArea.top, bottom: this.layout.env.safeArea.bottom })
-    .backgroundColor(this.theme.colors.sidebar)
+    .backgroundColor(this.look.background)
     .border({
-      width: this.s.side === 'right' ? { left: 1 } : { right: 1 },
-      color: this.theme.colors.sidebarBorder
+      width: this.s.side === 'right' ? { left: this.look.borderWidth } : { right: this.look.borderWidth },
+      color: this.look.borderColor
     })
-    .shadow(this.theme.shadows.lg.toOptions())
+    .shadow(SparkTokenOverride.shadowOptions(this.look.sheetShadow))
     .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
   }
 
@@ -575,15 +627,16 @@ export struct SSidebar {
 
   private panelBorder(): BorderOptions {
     const s = this.s;
+    const l = this.look;
     if (s.variant === 'floating') {
-      return { width: 1, color: this.theme.colors.sidebarBorder, radius: this.theme.radiusLg };
+      return { width: l.borderWidth, color: l.borderColor, radius: l.floatingRadius };
     }
     if (s.variant === 'inset') {
       return { width: 0 };
     }
     return {
-      width: s.side === 'left' ? { right: 1 } : { left: 1 },
-      color: this.theme.colors.sidebarBorder
+      width: s.side === 'left' ? { right: l.borderWidth } : { left: l.borderWidth },
+      color: l.borderColor
     };
   }
 
@@ -603,15 +656,15 @@ export struct SSidebar {
           .height('100%')
           .alignItems(HorizontalAlign.Start)
           .padding(this.framed() ? { top: 0 } : this.safePadding(0))
-          .backgroundColor(this.s.variant === 'inset' ? TRANSPARENT : this.theme.colors.sidebar)
+          .backgroundColor(this.s.variant === 'inset' ? TRANSPARENT : this.look.background)
           .border(this.panelBorder())
-          .shadow(this.s.variant === 'floating' ? this.theme.shadows.sm.toOptions() :
+          .shadow(this.s.variant === 'floating' ? SparkTokenOverride.shadowOptions(this.look.floatingShadow) :
             { radius: 0, color: TRANSPARENT })
           .clip(true)
         }
         .width(this.s.collapsible === 'offcanvas' && this.s.presentation === 'docked' ? this.s.sidebarWidth : '100%')
         .height('100%')
-        .padding(this.framed() ? this.safePadding(SIDEBAR_FRAME_GAP) : { top: 0 })
+        .padding(this.framed() ? this.safePadding(this.s.frameGap) : { top: 0 })
       }
       .width(this.s.dockWidth)
       .height('100%')
@@ -723,13 +776,18 @@ export struct SSidebarGroupLabel {
     return !this.inSheet && (this.ctx?.iconOnly ?? false);
   }
 
+  /** `--sidebar-group-label-color` (default sidebar-foreground/70) */
+  @Computed
+  get labelColor(): string {
+    return sidebarLook(this.ctx, this.theme).groupLabelColor;
+  }
+
   build() {
     Row() {
       Text(this.text)
         .fontSize(this.theme.text.xs)
         .fontWeight(this.theme.text.weightMedium)
-        .fontColor(this.theme.colors.sidebarForeground)
-        .opacity(0.7)
+        .fontColor(this.labelColor)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Clip })
     }
@@ -823,18 +881,24 @@ export struct SSidebarMenuButton {
     return !this.inSheet && (this.ctx?.iconOnly ?? false);
   }
 
+  /** provider `tokens` → `--sidebar-menu-*` tokens → shadcn */
+  @Computed
+  get look(): SparkSidebarStyle {
+    return sidebarLook(this.ctx, this.theme);
+  }
+
   @Computed
   get fg(): string {
-    return this.active ? this.theme.colors.sidebarAccentForeground : this.theme.colors.sidebarForeground;
+    return this.active ? this.look.menuActiveForeground : this.look.menuForeground;
   }
 
   @Computed
   get pressMod(): SparkRowPressModifier {
-    const accent = this.theme.colors.sidebarAccent;
-    const rest = this.variant === 'outline' ? this.theme.colors.background : TRANSPARENT;
-    const bg = this.active || this.ix.hovered ? accent : rest;
+    const l = this.look;
+    const rest = this.variant === 'outline' ? l.menuOutlineBackground : TRANSPARENT;
+    const bg = this.active ? l.menuActiveBackground : (this.ix.hovered ? l.menuHoverBackground : rest);
     // selection item: pressing fades it, it never paints a second highlight next to the active one
-    return new SparkRowPressModifier(bg, bg, 0.6, this.disabled);
+    return new SparkRowPressModifier(bg, bg, l.menuPressedOpacity, this.disabled);
   }
 
   @Computed
@@ -843,7 +907,8 @@ export struct SSidebarMenuButton {
   }
 
   private rowHeight(): number {
-    return this.sizing === 'sm' ? 28 : (this.sizing === 'lg' ? 48 : 32);
+    const l = this.look;
+    return this.sizing === 'sm' ? l.menuHeightSm : (this.sizing === 'lg' ? l.menuHeightLg : l.menuHeight);
   }
 
   private activate(): void {
@@ -880,9 +945,9 @@ export struct SSidebarMenuButton {
     .height(this.rowHeight())
     .padding({ left: 8, right: 8 })
     .border({
-      width: this.variant === 'outline' ? 1 : 0,
-      color: this.theme.colors.sidebarBorder,
-      radius: this.theme.radiusMd
+      width: this.variant === 'outline' ? this.look.borderWidth : 0,
+      color: this.look.borderColor,
+      radius: this.look.menuRadius
     })
     .clip(true)
     // system pressed state only; no .animation() on this chain
@@ -900,13 +965,28 @@ export struct SSidebarMenuButton {
 @ComponentV2
 export struct SSidebarSeparator {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local ctx: SparkSidebarState | undefined = undefined;
+
+  onDidBuild(): void {
+    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => {
+      if (this.ctx === undefined) {
+        this.ctx = resolveSparkSidebar(this.getUIContext(), this.getUniqueId());
+      }
+    });
+  }
+
+  /** `--sidebar-border-color` (default sidebar-border) */
+  @Computed
+  get lineColor(): string {
+    return sidebarLook(this.ctx, this.theme).borderColor;
+  }
 
   build() {
     Row() {
       Column()
         .height(1)
         .layoutWeight(1)
-        .backgroundColor(this.theme.colors.sidebarBorder)
+        .backgroundColor(this.lineColor)
     }
     .width('100%')
     .padding({ left: 8, right: 8 })
@@ -975,13 +1055,18 @@ export struct SSidebarInset {
     return this.ctx ?? FALLBACK;
   }
 
+  @Computed
+  get look(): SparkSidebarStyle {
+    return sidebarLook(this.ctx, this.theme);
+  }
+
   private frameMargin(): Margin {
     const s = this.s;
     if (!s.insetFramed) {
       return { top: 0 };
     }
     const sa = this.layout.env.safeArea;
-    const g = SIDEBAR_FRAME_GAP;
+    const g = s.frameGap;
     const near = s.dockWidth > 0 ? 0 : g;
     const left = s.side === 'left';
     return {
@@ -1000,9 +1085,10 @@ export struct SSidebarInset {
     .height('100%')
     .alignItems(HorizontalAlign.Start)
     .margin(this.frameMargin())
-    .backgroundColor(this.theme.colors.background)
-    .border({ width: 0, radius: this.s.insetFramed ? this.theme.radiusXl : 0 })
-    .shadow(this.s.insetFramed ? this.theme.shadows.sm.toOptions() : { radius: 0, color: TRANSPARENT })
+    .backgroundColor(this.s.insetFramed ? this.look.insetBackground : this.theme.colors.background)
+    .border({ width: 0, radius: this.s.insetFramed ? this.look.insetRadius : 0 })
+    .shadow(this.s.insetFramed ? SparkTokenOverride.shadowOptions(this.look.insetShadow) :
+      { radius: 0, color: TRANSPARENT })
     .clip(true)
   }
 }

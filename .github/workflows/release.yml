@@ -1,0 +1,137 @@
+name: Release
+
+# Push a tag `v<version>` (e.g. v1.0.0-rc) whose version equals library/oh-package.json5 "version":
+#   1. builds the release HAR
+#   2. publishes it to the OpenHarmony central repository (ohpm.openharmony.cn)
+#   3. creates a GitHub Release with the HAR attached (pre-release when the version has a "-" tag)
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   OHPM_PUBLISH_ID      publish code from ohpm.openharmony.cn → 个人中心
+#   OHPM_PRIVATE_KEY     content of the encrypted PEM private key whose .pub is registered in 个人中心 → OHPM 公钥
+#   OHPM_KEY_PASSPHRASE  passphrase of that private key (ohpm only accepts encrypted keys and reads it from a TTY)
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to ohpm (false = build + dry run)"
+        type: boolean
+        default: false
+
+env:
+  CMDLINE_TOOLS_VERSION: ${{ vars.CMDLINE_TOOLS_VERSION || '6.1.0.816' }}
+  CMDLINE_TOOLS_URL: ${{ vars.CMDLINE_TOOLS_URL || 'https://github.com/Okysu/harmony-auto-build/releases/download/commandline-tools-linux-x64-6.1.0.816/commandline-tools-linux-x64-6.1.0.816.zip' }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package version
+        id: pkg
+        run: |
+          VERSION=$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' library/oh-package.json5 | head -1)
+          NAME=$(sed -n 's/^[[:space:]]*"name":[[:space:]]*"\([^"]*\)".*/\1/p' library/oh-package.json5 | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "Package $NAME@$VERSION"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match library/oh-package.json5 version v$VERSION"
+            exit 1
+          fi
+          grep -q -- "$VERSION" library/CHANGELOG.md || { echo "::error::library/CHANGELOG.md has no entry for $VERSION"; exit 1; }
+          grep -q -- "ohpm install $NAME" library/README.md || { echo "::error::library/README.md must contain 'ohpm install $NAME'"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache command line tools
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: ./command-line-tools
+          key: ${{ runner.os }}-harmony-tools-${{ env.CMDLINE_TOOLS_VERSION }}
+
+      - name: Download command line tools
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -L --fail -o tools.zip "$CMDLINE_TOOLS_URL"
+          unzip -q tools.zip
+          rm tools.zip
+
+      - name: Set up build environment
+        run: |
+          TOOLS_DIR=$(pwd)/command-line-tools
+          echo "hwsdk.dir=$TOOLS_DIR/sdk" > local.properties
+          echo "$TOOLS_DIR/bin" >> $GITHUB_PATH
+          echo "OHPM_HOME=$TOOLS_DIR/ohpm" >> $GITHUB_ENV
+          echo "HOS_SDK_HOME=$TOOLS_DIR/sdk" >> $GITHUB_ENV
+          chmod -R +x $TOOLS_DIR/bin
+          cp build-profile.example.json5 build-profile.json5
+
+      - name: Install dependencies
+        run: ohpm install --all
+
+      - name: Build HAR (release)
+        run: hvigorw assembleHar --mode module -p module=library@default -p product=default -p buildMode=release --no-daemon
+
+      - name: Locate HAR
+        id: har
+        run: |
+          HAR=$(ls library/build/default/outputs/default/*.har | head -1)
+          test -n "$HAR" || { echo "::error::HAR not found"; exit 1; }
+          echo "path=$HAR" >> $GITHUB_OUTPUT
+          # sanity: the package must carry the files ohpm requires
+          tar -tzf "$HAR" | grep -E -i 'package/(readme\.md|changelog\.md|license|oh-package\.json5)$'
+
+      - name: Publish to ohpm
+        if: github.ref_type == 'tag' || inputs.publish
+        env:
+          OHPM_PUBLISH_ID: ${{ secrets.OHPM_PUBLISH_ID }}
+          OHPM_PRIVATE_KEY: ${{ secrets.OHPM_PRIVATE_KEY }}
+          OHPM_KEY_PASSPHRASE: ${{ secrets.OHPM_KEY_PASSPHRASE }}
+          HAR: ${{ steps.har.outputs.path }}
+        run: |
+          test -n "$OHPM_PUBLISH_ID" && test -n "$OHPM_PRIVATE_KEY" && test -n "$OHPM_KEY_PASSPHRASE" ||
+            { echo "::error::OHPM_PUBLISH_ID / OHPM_PRIVATE_KEY / OHPM_KEY_PASSPHRASE secrets are required"; exit 1; }
+          sudo apt-get update -qq && sudo apt-get install -y -qq expect
+          mkdir -p ~/.ssh_ohpm && chmod 700 ~/.ssh_ohpm
+          printf '%s\n' "$OHPM_PRIVATE_KEY" > ~/.ssh_ohpm/key && chmod 600 ~/.ssh_ohpm/key
+          ohpm config set key_path ~/.ssh_ohpm/key
+          ohpm config set publish_id "$OHPM_PUBLISH_ID"
+          # ohpm reads the key passphrase from a TTY: drive it with expect
+          expect <<'EXPECT'
+          set timeout 600
+          spawn ohpm publish $env(HAR)
+          expect {
+            -re {(?i)(pass(word|phrase)|密码)} { send -- "$env(OHPM_KEY_PASSPHRASE)\r"; exp_continue }
+            eof
+          }
+          catch wait result
+          exit [lindex $result 3]
+          EXPECT
+          rm -f ~/.ssh_ohpm/key
+
+      - name: GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+          HAR: ${{ steps.har.outputs.path }}
+        run: |
+          PRE=""
+          case "$VERSION" in *-*) PRE="--prerelease";; esac
+          awk "/^## $VERSION\$/{f=1;next} /^## /{f=0} f" library/CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" "$HAR" --title "SparkUI $VERSION" --notes-file notes.md $PRE
+
+      - name: Upload HAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkui-${{ steps.pkg.outputs.version }}
+          path: ${{ steps.har.outputs.path }}

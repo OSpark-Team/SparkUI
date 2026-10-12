@@ -10,6 +10,7 @@
   - 同样不可用的还有 `width`、`height`、`padding`、`margin`、`border`、`opacity`、`enabled`、`visibility`、`direction`、`offset`、`position`、`scale`、`onClick`、`onFocus`、`onBlur`、`onHover`、`onAppear`、`onTouch` 等。
   - 遇到冲突时语义改名，并写进组件的文档注释。
 - **点击**用原生通用事件 `.onClick()`（写在组件上）；禁用时组件内部用 `SparkTapBlocker`（gestureModifier）吞掉点击。
+- **组件内部需要自己响应激活时**（菜单项、Command 项、AlertDialog 按钮、NumberField −/+）：把原生 `.onClick()` 放在可激活的那个节点上（它同时覆盖触摸、鼠标、获焦后的 Space 和读屏激活），Enter 用 `onKeyEvent` 补上（ArkUI 只把 Space 绑定到 onClick），并通过 `@Event`（`onSelect` / `onAction` …）通知开发者。子节点的 onClick 会赢过祖先的 onClick，所以这类组件上链式写的 `.onClick()` 不会触发，文档示例要写成事件参数。不要再用 onTouch 模拟点击（读屏不发 touch，`SparkActivation` 已废弃）。
 - **使用尾随闭包插槽的组件后面不能链式写属性**。在示例中如需点击，外层包一个 `Stack().onClick()`。
 - 每个容器 / 复合组件**只暴露一个** `@BuilderParam content: () => void = sparkEmptyBuilder`，保证 `SComp() { ... }` 写法可用。
 - 简单场景提供快捷 prop：`text`、`label`、`icon`……

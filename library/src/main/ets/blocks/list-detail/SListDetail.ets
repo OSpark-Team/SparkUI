@@ -3,8 +3,12 @@ import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SButton } from '../../components/button/SButton';
+import { SEmpty, SEmptyDescription, SEmptyHeader, SEmptyMedia, SEmptyTitle } from '../../components/empty/SEmpty';
+import { SparkTopbarAction } from '../topbar/STopbar';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { sparkListDetailDefaultPolicy, sparkListPaneWidth, SparkSplitInput, SparkSplitPolicy } from '../BlocksLogic';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import { ListDetailTokens, SparkListDetailStyle, sparkListDetailStyle, sparkListWidth } from '../BlockTokens';
 
 const KEY: string = 'spark.list-detail';
 
@@ -21,6 +25,8 @@ export class SparkListDetailState {
   /** the detail is the visible pane when narrow */
   @Trace showDetail: boolean = false;
   @Trace listWidth: number = 320;
+  /** resolved look (SListDetail `tokens` → `--list-detail-*` tokens → recipe), read by both panes */
+  @Trace style: SparkListDetailStyle | undefined = undefined;
   minDetailWidth: number = 360;
   /** motion key of the push / pop slide */
   motionKey: string = 'list-detail';
@@ -133,7 +139,9 @@ const FALLBACK: SparkListDetailState = new SparkListDetailState();
  * system back gesture.
  *
  * Extension points: `controller` (own the state), `layoutPolicy` (replace the side-by-side decision),
- * `onWideChange`, `motionKey`; SListDetailPane `onBack` (intercept), `headerBuilder`, `empty` + `emptyBuilder`.
+ * `onWideChange`, `motionKey`; SListDetailPane `onBack` (intercept), title-bar `actions` + `onAction` and a
+ * `headerBuilder` region (`wrapBuilder(globalBuilder)`), `empty` + `emptyIcon` / `emptyTitle` /
+ * `emptyDescription` (or branch inside the trailing closure for a custom empty state).
  */
 @ComponentV2
 export struct SListDetail {
@@ -145,8 +153,10 @@ export struct SListDetail {
   @Param defaultShowDetail: boolean = false;
   @Event onShowDetailChange: (show: boolean) => void = () => {
   };
-  /** list pane width when side by side (vp) */
-  @Param listWidth: number = 320;
+  /** list pane width when side by side (vp); 0 = the `--list-detail-list-width` token, else 320 */
+  @Param listWidth: number = 0;
+  /** per-instance look (ADR D13): instance → `--list-detail-*` tokens → recipe */
+  @Param tokens: ListDetailTokens = {};
   /** the detail needs at least this width to sit next to the list (vp) */
   @Param minDetailWidth: number = 360;
   @Param motionKey: string = 'list-detail';
@@ -171,7 +181,8 @@ export struct SListDetail {
     } else if (this.controller === undefined) {
       s.showDetail = this.defaultShowDetail;
     }
-    s.listWidth = this.listWidth;
+    s.listWidth = this.resolvedListWidth;
+    s.style = this.look;
     s.minDetailWidth = this.minDetailWidth;
     s.motionKey = this.motionKey;
     s.policy = (i: SparkSplitInput): boolean => this.layoutPolicy(i);
@@ -194,9 +205,20 @@ export struct SListDetail {
     }
   }
 
-  @Monitor('listWidth', 'minDetailWidth', 'motionKey')
+  @Computed
+  get resolvedListWidth(): number {
+    return sparkListWidth(this.theme, this.listWidth);
+  }
+
+  @Computed
+  get look(): SparkListDetailStyle {
+    return sparkListDetailStyle(this.theme, this.tokens);
+  }
+
+  @Monitor('resolvedListWidth', 'look', 'minDetailWidth', 'motionKey')
   syncConfig(): void {
-    this.state.listWidth = this.listWidth;
+    this.state.listWidth = this.resolvedListWidth;
+    this.state.style = this.look;
     this.state.minDetailWidth = this.minDetailWidth;
     this.state.motionKey = this.motionKey;
     this.state.relayout();
@@ -234,6 +256,16 @@ export struct SListPane {
     return this.ctx ?? FALLBACK;
   }
 
+  @Computed
+  get look(): SparkListDetailStyle {
+    return this.ctx?.style ?? sparkListDetailStyle(this.theme);
+  }
+
+  @Computed
+  get paneBackground(): string {
+    return this.look.listBackground;
+  }
+
   build() {
     Column() {
       this.content()
@@ -241,8 +273,8 @@ export struct SListPane {
     .width(this.s.width > 0 ? this.s.listPaneWidth : '100%')
     .height('100%')
     .alignItems(HorizontalAlign.Start)
-    .backgroundColor(this.theme.colors.background)
-    .border({ width: { right: this.s.wide ? 1 : 0 }, color: this.theme.colors.border })
+    .backgroundColor(this.paneBackground)
+    .border({ width: { right: this.s.wide ? 1 : 0 }, color: this.look.dividerColor })
     // parallax while the detail is pushed over it (narrow only)
     .translate({ x: this.s.detailOnTop ? -this.s.width * 0.25 : 0 })
     .opacity(this.s.detailOnTop ? 0.6 : 1)
@@ -263,11 +295,25 @@ export struct SListDetailPane {
   @Param backLabel: string = 'Back';
   /** back button pressed; return true when handled (e.g. pop your own stack) to skip the default pop */
   @Event onBack: () => boolean = () => false;
-  /** nothing selected: render `emptyBuilder` instead of the content */
+  /**
+   * Nothing selected: show the empty state (`emptyIcon` / `emptyTitle` / `emptyDescription`, an SEmpty) instead
+   * of the content. For a custom empty state leave this false and branch inside the trailing closure.
+   */
   @Param empty: boolean = false;
-  @BuilderParam emptyBuilder: () => void = sparkEmptyBuilder;
-  /** trailing content of the title bar (actions) */
-  @BuilderParam headerBuilder: () => void = sparkEmptyBuilder;
+  /** lucide icon of the empty state */
+  @Param emptyIcon: string = 'inbox';
+  @Param emptyTitle: ResourceStr = 'Nothing selected';
+  @Param emptyDescription: ResourceStr | undefined = undefined;
+  /** icon buttons at the trailing end of the title bar (`onAction(id)`) */
+  @Param actions: SparkTopbarAction[] = [];
+  @Event onAction: (id: string) => void = () => {
+  };
+  /**
+   * Custom trailing title-bar content after `actions`, as `wrapBuilder(myHeader)` of a global `@Builder`
+   * (no `this`: render a component or read shared state).
+   */
+  @Param headerBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** the detail — the trailing closure (the component's only @BuilderParam) */
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local ctx: SparkListDetailState | undefined = undefined;
@@ -286,6 +332,16 @@ export struct SListDetailPane {
     return this.ctx ?? FALLBACK;
   }
 
+  @Computed
+  get look(): SparkListDetailStyle {
+    return this.ctx?.style ?? sparkListDetailStyle(this.theme);
+  }
+
+  @Computed
+  get paneBackground(): string {
+    return this.look.detailBackground;
+  }
+
   private goBack(): void {
     if (!this.onBack()) {
       this.ctx?.setShowDetail(false);
@@ -302,7 +358,8 @@ export struct SListDetailPane {
 
   build() {
     Column() {
-      if ((!this.s.wide && this.showBack) || this.title !== undefined) {
+      if ((!this.s.wide && this.showBack) || this.title !== undefined || this.actions.length > 0 ||
+        this.headerBuilder !== undefined) {
         Row({ space: 8 }) {
           if (!this.s.wide && this.showBack) {
             SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: this.backLabel })
@@ -319,16 +376,35 @@ export struct SListDetailPane {
           } else {
             Blank()
           }
-          this.headerBuilder()
+          ForEach(this.actions, (a: SparkTopbarAction) => {
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: a.icon, label: a.label })
+              .onClick(() => this.onAction(a.id))
+          }, (a: SparkTopbarAction) => a.id + a.icon)
+          if (this.headerBuilder !== undefined) {
+            this.headerBuilder.builder()
+          }
         }
         .width('100%')
-        .height(48)
+        .height(this.look.headerHeight)
         .padding({ left: this.s.wide ? 16 : 8, right: 16 })
-        .border({ width: { bottom: 1 }, color: this.theme.colors.border })
+        .border({ width: { bottom: 1 }, color: this.look.dividerColor })
       }
       Column() {
         if (this.empty) {
-          this.emptyBuilder()
+          Column() {
+            SEmpty() {
+              SEmptyHeader() {
+                SEmptyMedia({ icon: this.emptyIcon, variant: 'icon' })
+                SEmptyTitle({ text: this.emptyTitle })
+                if (this.emptyDescription !== undefined) {
+                  SEmptyDescription({ text: this.emptyDescription })
+                }
+              }
+            }
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
         } else {
           this.content()
         }
@@ -339,9 +415,10 @@ export struct SListDetailPane {
     }
     .width(this.s.width > 0 ? this.s.detailPaneWidth : '100%')
     .height('100%')
-    .backgroundColor(this.theme.colors.background)
+    .backgroundColor(this.paneBackground)
     .translate({ x: this.s.width > 0 ? this.offsetX() : 0 })
-    .shadow(this.s.detailOnTop ? this.theme.shadows.lg.toOptions() : { radius: 0, color: '#00000000' })
+    .shadow(this.s.detailOnTop ? SparkTokenOverride.shadowOptions(this.look.detailShadow) :
+      { radius: 0, color: '#00000000' })
     // hidden until measured, so it never covers the list on the first frame
     .visibility(this.s.width > 0 ? Visibility.Visible : Visibility.Hidden)
     .focusable(this.s.wide || this.s.showDetail)

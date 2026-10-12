@@ -5,7 +5,8 @@
 
 /** `value / max` as 0…100, clamped; 0 when `max <= 0`. */
 export function sparkProgressPercent(value: number, max: number): number {
-  if (max <= 0 || isNaN(value)) {
+  // NaN / infinite max or NaN value: nothing to show
+  if (!isFinite(max) || max <= 0 || isNaN(value)) {
     return 0;
   }
   return Math.min(100, Math.max(0, value / max * 100));

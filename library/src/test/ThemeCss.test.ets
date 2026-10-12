@@ -5,12 +5,19 @@ import { ThemeDiagnostic, ThemeSource } from '../main/ets/theme/css/ThemeSource'
 import { presetCss, SPARK_PRESETS } from '../main/ets/theme/presets/Presets';
 import { SparkTheme } from '../main/ets/theme/tokens/SparkTheme';
 import { SparkComponentTokenRegistry } from '../main/ets/theme/tokens/SparkComponentTokens';
-import { SparkTokenReader } from '../main/ets/theme/tokens/SparkTokenReader';
+import {
+  sparkOptionPanel, sparkSurface, sparkSurfaceDefaults, SparkTokenReader
+} from '../main/ets/theme/tokens/SparkTokenReader';
 import { SparkColor } from '../main/ets/theme/color/SparkColor';
 import { ThemeValues } from '../main/ets/theme/css/ThemeValues';
 import { ButtonVariants } from '../main/ets/components/button/ButtonVariants';
 import { CardVariants } from '../main/ets/components/card/SCard';
 import { SparkTones } from '../main/ets/core/SparkTone';
+import {
+  sparkCaptionPlate, sparkListDetailStyle, sparkListWidth, sparkShellMaxWidth, sparkShellPadding, sparkSidebarRailWidth,
+  sparkSidebarStyle, sparkSidebarWidth, sparkSupportingPaneStyle, sparkTitleBarStyle, sparkTopbarStyle
+} from '../main/ets/blocks/BlockTokens';
+import { sparkSidebarRowWidth } from '../main/ets/blocks/BlocksLogic';
 
 const SHADCN_EXPORT = `
 @import "tailwindcss";
@@ -277,7 +284,9 @@ export default function themeCssTest() {
       expect(SparkComponentTokenRegistry.match('toggle-group-indicator-background')?.component)
         .assertEqual('toggle-group');
       expect(SparkComponentTokenRegistry.match('code-keyword')?.kind).assertEqual('color');
-      expect(SparkComponentTokenRegistry.match('sidebar-accent')).assertUndefined();
+      // `sidebar` is a component now, but `--sidebar-accent` is not one of its tokens (it stays semantic)
+      expect(SparkComponentTokenRegistry.match('sidebar-accent')?.kind).assertUndefined();
+      expect(SparkComponentTokenRegistry.match('sidebar-menu-radius')?.kind).assertEqual('length');
       // semantic tokens keep precedence over component prefixes
       const s = new SparkTheme();
       const d2 = ThemeResolver.apply(ThemeCssParser.parse(':root { --card-foreground: #123456; }'), false, 'compact', s);
@@ -337,6 +346,103 @@ export default function themeCssTest() {
       const r = new SparkTokenReader(t, 'button');
       expect(r.len(['height-lg', 'height-sm'], undefined, 1)).assertEqual(28);
       expect(r.color('nope', 'not a colour', '#FF000000')).assertEqual('#FF000000');
+    });
+
+    it('option_panel_tokens_select_combobox', 0, () => {
+      expect(SparkComponentTokenRegistry.kindOf('select', 'highlight-background')).assertEqual('color');
+      expect(SparkComponentTokenRegistry.kindOf('select', 'max-height')).assertEqual('length');
+      expect(SparkComponentTokenRegistry.kindOf('combobox', 'shadow')).assertEqual('shadow');
+      expect(SparkComponentTokenRegistry.match('combobox-border-width')?.component).assertEqual('combobox');
+      const t = new SparkTheme();
+      const defaults = sparkSurfaceDefaults(t.colors.popover, t.colors.border, t.borderWidth, t.radiusMd, 4,
+        t.shadows.md);
+      // unset: the recipe
+      const plain = sparkOptionPanel(t, 'select', 'menu', defaults, 320);
+      expect(plain.background).assertEqual(t.colors.popover);
+      expect(plain.highlightBackground).assertEqual(t.colors.accent);
+      expect(plain.highlightForeground).assertEqual(t.colors.accentForeground);
+      expect(plain.maxHeight).assertEqual(320);
+      expect(plain.padding).assertEqual(4);
+      const diags = ThemeResolver.apply(ThemeCssParser.parse(':root { --menu-background: #111111; ' +
+        '--menu-radius: 2px; --select-radius: 12px; --select-highlight-background: #e0f2fe; ' +
+        '--select-max-height: 200px; --popover-border-color: #ff0000; --combobox-shadow: none; }'), false,
+        'compact', t);
+      expect(diags.length).assertEqual(0);
+      const sel = sparkOptionPanel(t, 'select', 'menu', defaults, 320);
+      expect(sel.background).assertEqual('#FF111111'); // inherited from --menu-*
+      expect(sel.radius).assertEqual(12); // --select-* beats --menu-*
+      expect(sel.highlightBackground).assertEqual('#FFE0F2FE');
+      expect(sel.maxHeight).assertEqual(200);
+      const combo = sparkOptionPanel(t, 'combobox', 'popover', defaults, 300);
+      expect(combo.borderColor).assertEqual('#FFFF0000'); // inherited from --popover-*
+      expect(combo.background).assertEqual(t.colors.popover); // --menu-* does not leak into combobox
+      expect(combo.shadow?.isNone).assertTrue();
+      expect(combo.highlightBackground).assertEqual(t.colors.accent);
+      // instance tokens win over both
+      const inst = sparkOptionPanel(t, 'select', 'menu', defaults, 320,
+        { background: 'transparent', radius: 0, highlightBackground: '#000', maxHeight: 99 });
+      expect(inst.background).assertEqual('#00000000');
+      expect(inst.radius).assertEqual(0);
+      expect(inst.highlightBackground).assertEqual('#FF000000');
+      expect(inst.maxHeight).assertEqual(99);
+      // the shared surface helper honours the family too
+      expect(sparkSurface(t, 'select', defaults, undefined, 'menu').background).assertEqual('#FF111111');
+      expect(sparkSurface(t, 'select', defaults).background).assertEqual(t.colors.popover);
+    });
+
+    it('block_tokens', 0, () => {
+      const t = new SparkTheme();
+      ThemeResolver.apply(ThemeCssParser.parse(presetCss('neutral') as string), false, 'compact', t);
+      // no tokens: the shadcn recipe (semantic --sidebar-* values)
+      const plain = sparkSidebarStyle(t);
+      expect(plain.background).assertEqual(t.colors.sidebar);
+      expect(plain.menuActiveBackground).assertEqual(t.colors.sidebarAccent);
+      expect(plain.menuRadius).assertEqual(t.radiusMd);
+      expect(plain.menuHeight).assertEqual(32);
+      expect(plain.groupLabelColor).assertEqual(SparkColor.alpha(t.colors.sidebarForeground, 0.7));
+      expect(sparkSidebarWidth(t, 0)).assertEqual(256);
+      expect(sparkTopbarStyle(t).height).assertEqual(56);
+      expect(sparkTitleBarStyle(t).closeHoverBackground).assertEqual(t.colors.destructive);
+      expect(sparkCaptionPlate(sparkTitleBarStyle(t), 40)).assertEqual(28);
+      expect(sparkShellMaxWidth(t, undefined)).assertEqual(1200);
+      expect(sparkShellPadding(t, 24)).assertEqual(24);
+
+      const sidebarBefore = t.colors.sidebar;
+      const diags = ThemeResolver.apply(ThemeCssParser.parse(':root { --sidebar-background: transparent; ' +
+        '--sidebar-width: 18rem; --sidebar-width-icon: 56px; --sidebar-menu-radius: 999px; ' +
+        '--sidebar-menu-pressed-opacity: 50%; --sidebar-inset-shadow: none; --topbar-height: 64px; ' +
+        '--titlebar-close-hover-background: #ff0000; --titlebar-caption-size: 30px; ' +
+        '--app-shell-content-max-width: 960px; --list-detail-list-width: 280px; --supporting-pane-divider-color: ' +
+        'transparent; --drawer-handle-background: #00ff00; --sidebar-accent: #123456; }'), false, 'compact', t);
+      expect(diags.length).assertEqual(0);
+      // semantic --sidebar-* tokens keep working next to the component ones
+      expect(t.colors.sidebarAccent).assertEqual('#FF123456');
+      const s = sparkSidebarStyle(t);
+      expect(s.background).assertEqual('#00000000');
+      expect(t.colors.sidebar).assertEqual(sidebarBefore);
+      expect(s.menuRadius).assertEqual(999);
+      expect(s.menuPressedOpacity).assertEqual(0.5);
+      expect(s.menuActiveBackground).assertEqual('#FF123456');
+      expect(s.insetShadow?.isNone).assertTrue();
+      expect(sparkSidebarWidth(t, 0)).assertEqual(288);
+      expect(sparkSidebarWidth(t, 200)).assertEqual(200);
+      expect(sparkSidebarRailWidth(t, 0)).assertEqual(56);
+      expect(sparkSidebarRowWidth('rail', true, 'icon', 'inset', 288, 56, s.frameGap)).assertEqual(72);
+      // instance tokens beat theme tokens
+      expect(sparkSidebarStyle(t, { background: '#ffffff', menuHeight: 40 }).background).assertEqual('#FFFFFFFF');
+      expect(sparkSidebarStyle(t, { menuHeight: 40 }).menuHeight).assertEqual(40);
+      expect(sparkTopbarStyle(t).height).assertEqual(64);
+      expect(sparkTopbarStyle(t, { height: 52 }).height).assertEqual(52);
+      const tb = sparkTitleBarStyle(t);
+      expect(tb.closeHoverBackground).assertEqual('#FFFF0000');
+      expect(tb.closePressedBackground).assertEqual(SparkColor.alpha('#FFFF0000', 0.85));
+      expect(sparkCaptionPlate(tb, 40)).assertEqual(30);
+      expect(sparkShellMaxWidth(t, undefined)).assertEqual(960);
+      expect(sparkShellMaxWidth(t, 0)).assertEqual(0);
+      expect(sparkListWidth(t, 0)).assertEqual(280);
+      expect(sparkListDetailStyle(t).dividerColor).assertEqual(t.colors.border);
+      expect(sparkSupportingPaneStyle(t).dividerColor).assertEqual('#00000000');
+      expect(t.comp.color('drawer', 'handle-background', '')).assertEqual('#FF00FF00');
     });
   });
 }

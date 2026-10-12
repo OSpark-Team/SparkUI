@@ -4,6 +4,7 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { SButton } from '../button/SButton';
+import { sparkCalendarCanPage, SparkMonthPager } from './CalendarPaging';
 import { SparkDate, SparkDateLocale, SparkDateRange, SparkDates, SparkWeekStart } from './SparkDate';
 
 /** Selection behaviour of {@link SCalendar}. */
@@ -81,8 +82,8 @@ class CalendarMonthView {
 }
 
 /**
- * Day button look: background in the normal state, a stronger one while pressed (system pressed state,
- * never animated — component-guide §3).
+ * Day button look: background in the normal state; pressing only fades it (system pressed state, never
+ * animated — component-guide §3).
  */
 class SparkCalendarDayModifier implements AttributeModifier<StackAttribute> {
   info: SparkCalendarDayInfo;
@@ -99,13 +100,16 @@ class SparkCalendarDayModifier implements AttributeModifier<StackAttribute> {
       .height(this.sizeVp)
       .backgroundColor(this.info.background)
       .borderRadius(this.info.radius)
+      .opacity(1)
   }
 
   applyPressedAttribute(instance: StackAttribute): void {
     if (this.info.disabled || !this.info.shown) {
       return;
     }
-    instance.backgroundColor(this.info.pressedBackground)
+    // selection-type cell: pressing fades it — a pressed background next to the selected day reads as two
+    // selected days (component-guide §3)
+    instance.opacity(0.6)
   }
 }
 
@@ -199,7 +203,8 @@ export struct SCalendar {
   @Local slideX: number = 0;
   @Local fade: number = 1;
   private todayDate: SparkDate = SparkDates.today();
-  private animating: boolean = false;
+  private pager: SparkMonthPager = new SparkMonthPager();
+  private alive: boolean = true;
 
   aboutToAppear(): void {
     this.todayDate = SparkDates.today();
@@ -209,6 +214,11 @@ export struct SCalendar {
     const anchor: SparkDate = this.month ?? this.defaultMonth ?? this.selectionAnchor() ?? this.todayDate;
     this.view = SparkDates.startOfMonth(anchor);
     this.focusDate = this.initialFocus();
+  }
+
+  aboutToDisappear(): void {
+    this.alive = false;
+    this.pager.reset();
   }
 
   @Monitor('selected')
@@ -472,6 +482,16 @@ export struct SCalendar {
     if (this.isDayDisabled(d)) {
       return;
     }
+    // committed synchronously: a month animation started next must never include the selection change (it would
+    // cross-fade two cells)
+    SparkAnim.commit(() => this.applyPick(d));
+    // an outside day of a month that is not displayed: page to it
+    if (!this.isShown(d)) {
+      this.navigate(SparkDates.compare(d, this.view) < 0 ? -1 : 1, d);
+    }
+  }
+
+  private applyPick(d: SparkDate): void {
     this.focusDate = d;
     if (this.mode === 'single') {
       const next: SparkDate | undefined = SparkDates.isSame(d, this.cur) && !this.required ? undefined : d;
@@ -506,18 +526,12 @@ export struct SCalendar {
       this.$range(next);
       this.onRangeChange(next);
     }
-    // an outside day of a month that is not displayed: page to it after the selection has rendered
-    // (a month animation must never include the selection change — it would cross-fade two cells)
-    if (!this.isShown(d)) {
-      const delta = SparkDates.compare(d, this.view) < 0 ? -1 : 1;
-      setTimeout(() => this.navigate(delta, d), 0);
-    }
   }
 
   // ------------------------------------------------------------------ month paging
 
   private canPage(delta: number): boolean {
-    return delta < 0 ? !this.prevDisabled : !this.nextDisabled;
+    return sparkCalendarCanPage(this.pager.base(this.view), delta, this.monthCount, this.minDate, this.maxDate);
   }
 
   private applyView(target: SparkDate, focus: SparkDate | undefined): void {
@@ -528,35 +542,58 @@ export struct SCalendar {
     this.onMonthChange(this.view);
   }
 
-  /** Page by `delta` months: the grid slides out, the month changes un-animated, the grid slides back in. */
+  /**
+   * Page by `delta` months: the grid slides out, the month changes un-animated, the grid slides back in.
+   * Requests during a slide accumulate (counted from the pending month) and the slide lands on the latest one,
+   * so every tap counts and `onMonthChange` fires once per month actually shown (see SparkMonthPager).
+   */
   navigate(delta: number, focus?: SparkDate): void {
     if (delta === 0) {
       return;
     }
-    const target = SparkDates.addMonths(this.view, delta);
-    const ui = this.getUIContext();
-    const dir: number = delta > 0 ? 1 : -1;
-    if (this.animating || SparkAnim.duration(this.theme, MOTION, 'fast') <= 0) {
-      this.applyView(target, focus);
+    if (SparkAnim.duration(this.theme, MOTION, 'fast') <= 0) {
+      const target = SparkDates.addMonths(this.pager.base(this.view), delta);
+      this.pager.reset();
+      SparkAnim.commit(() => this.applyView(target, focus));
       return;
     }
-    this.animating = true;
+    if (this.pager.request(this.view, delta, focus)) {
+      this.slide(this.pager.direction(this.view));
+    }
+  }
+
+  /** One slide out → apply the pending month while hidden → slide in; repeats while requests keep arriving. */
+  private slide(dir: number): void {
+    const ui = this.getUIContext();
+    const outDir: number = dir < 0 ? -1 : 1;
     SparkAnim.run(ui, this.theme, MOTION, 'fast', () => {
-      this.slideX = -dir * SLIDE;
+      this.slideX = -outDir * SLIDE;
       this.fade = 0;
     }, () => {
-      // outside any animation: the new month's cells switch instantly while the grid is invisible
-      this.applyView(target, focus);
-      this.slideX = dir * SLIDE;
-      // next macrotask: V2 state changes above are flushed un-animated before the enter animation starts
-      setTimeout(() => {
-        SparkAnim.run(ui, this.theme, MOTION, 'fast', () => {
-          this.slideX = 0;
-          this.fade = 1;
-        }, () => {
-          this.animating = false;
-        });
-      }, 0);
+      if (!this.alive) {
+        return;
+      }
+      const d = this.pager.direction(this.view);
+      const inDir: number = d === 0 ? outDir : d;
+      const focus = this.pager.focus;
+      const target = this.pager.take(this.view);
+      // committed (flushed) now, outside any animation: the new month's cells switch while the grid is invisible
+      SparkAnim.commit(() => {
+        if (target !== undefined) {
+          this.applyView(target, focus);
+        } else if (focus !== undefined) {
+          this.focusDate = focus;
+        }
+        this.slideX = inDir * SLIDE;
+      });
+      SparkAnim.run(ui, this.theme, MOTION, 'fast', () => {
+        this.slideX = 0;
+        this.fade = 1;
+      }, () => {
+        if (this.alive && this.pager.finish(this.view)) {
+          this.slide(this.pager.direction(this.view));
+        }
+      });
     });
   }
 
@@ -570,13 +607,21 @@ export struct SCalendar {
 
   private moveFocus(target: SparkDate): void {
     const t = SparkDates.clamp(target, this.minDate, this.maxDate);
-    if (this.isShown(t)) {
-      this.focusDate = t;
+    // count from the month a running slide is heading to, not the one still on screen
+    const base = this.pager.base(this.view);
+    const last = SparkDates.endOfMonth(SparkDates.addMonths(base, this.monthCount - 1));
+    const before = SparkDates.compare(t, base) < 0;
+    const after = SparkDates.compare(t, last) > 0;
+    if (!before && !after) {
+      if (this.pager.hasPending) {
+        this.pager.request(this.view, 0, t);
+      } else {
+        this.focusDate = t;
+      }
       return;
     }
-    const before = SparkDates.compare(t, this.view) < 0;
-    const delta = before ? (t.year - this.view.year) * 12 + t.month - this.view.month :
-      (t.year - this.lastShown().year) * 12 + t.month - this.lastShown().month;
+    const delta = before ? (t.year - base.year) * 12 + t.month - base.month :
+      (t.year - last.year) * 12 + t.month - last.month;
     this.navigate(delta, t);
   }
 

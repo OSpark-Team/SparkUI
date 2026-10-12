@@ -26,6 +26,21 @@ export default function variantsTest() {
       expect(sparkProgressPercent(3, 0)).assertEqual(0);
       expect(sparkProgressLabel(66.4)).assertEqual('66%');
     });
+    it('progress_percent_never_nan', 0, () => {
+      expect(sparkProgressPercent(NaN, 100)).assertEqual(0);
+      expect(sparkProgressPercent(50, NaN)).assertEqual(0);
+      expect(sparkProgressPercent(50, Infinity)).assertEqual(0);
+      expect(sparkProgressPercent(Infinity, 100)).assertEqual(100);
+    });
+    it('slider_snap_never_nan', 0, () => {
+      expect(sparkSnapSlider(NaN, 0, 10, 1)).assertEqual(0);
+      expect(sparkSnapSlider(5, NaN, 10, 1)).assertEqual(5);
+      expect(sparkSnapSlider(5, 0, NaN, 1)).assertEqual(0);
+      expect(sparkSnapSlider(3.4, 0, 10, NaN)).assertEqual(3);
+      expect(sparkSnapSlider(Infinity, 0, 10, 1)).assertEqual(10);
+      // exponent-form step keeps its precision (String(1e-7) has no '.')
+      expect(sparkSnapSlider(0.00000034, 0, 1, 0.0000001)).assertEqual(0.0000003);
+    });
     it('segment_fills', 0, () => {
       expect(list(sparkSegmentFills(60, 5))).assertEqual('1,1,1,0,0');
       expect(list(sparkSegmentFills(50, 4))).assertEqual('1,1,0,0');

@@ -3,7 +3,7 @@ import {
   SNumberField, SPinInput, SStepper, SStepperItem, STable, STableBody, STableCell, STableColumn, STableFooter,
   STableHead, STableHeader, STableRow, STagsInput, SparkTheme, SparkUI
 } from '@sparkui/core';
-import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 // ------------------------------------------------------------------------------------------------ InputGroup
 
@@ -495,6 +495,32 @@ const TABLE_DATA = `STable({
   footer: ['Total', '', '', '$750.00']
 })`;
 
+const BIG_STATUSES: string[] = ['Paid', 'Pending', 'Unpaid', 'Refunded'];
+const BIG_METHODS: string[] = ['Credit Card', 'PayPal', 'Bank Transfer', 'Apple Pay', 'Alipay'];
+
+/** 10 000 generated invoices for the virtualized data table. */
+function bigInvoices(count: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < count; i++) {
+    const cents = ((i * 7919) % 100000) + 500;
+    out.push([`INV${String(i + 1).padStart(5, '0')}`, BIG_STATUSES[i % 4], BIG_METHODS[(i * 3) % 5],
+      `$${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`]);
+  }
+  return out;
+}
+
+const BIG_ROWS: string[][] = bigInvoices(10000);
+
+const TABLE_BIG = `// 10 000 rows: the body is a List + Repeat.virtualScroll(), so only the rows in view
+// are built; it scrolls inside a 400vp viewport under a fixed header.
+STable({
+  columns: columns,
+  rows: BIG_ROWS,                 // string[][] with 10 000 entries
+  bodyHeight: 400,
+  rowKey: (r: string[]) => r[0],  // invoice number: stable across inserts / sorting
+  footer: ['10 000 invoices', '', '', '']
+})`;
+
 @ComponentV2
 export struct TableDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -613,6 +639,32 @@ export struct TableDoc {
         .width('100%')
         .alignItems(HorizontalAlign.Start)
       }
+      DocSection({
+        title: 'Large data',
+        description: 'The data form is virtualized (List + Repeat.virtualScroll()): only the rows in view exist and ' +
+          'scrolled-out rows are reused, so 10 000 rows open and scroll like 10. Narrow the frame to see the ' +
+          'virtualized card layout.'
+      })
+      DemoBlock({ code: TABLE_BIG, centered: false }) {
+        Column({ space: 12 }) {
+          this.widthSwitch()
+          Column() {
+            STable({
+              columns: INVOICE_COLUMNS,
+              rows: BIG_ROWS,
+              bodyHeight: 400,
+              rowKey: (r: string[]) => r[0],
+              footer: [`${BIG_ROWS.length} invoices`, '', '', '']
+            })
+          }
+          .width(this.frameWidth)
+          .padding(8)
+          .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusMd })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+      }
+      DemoCaption({ text: `${BIG_ROWS.length} rows · frame = ${this.demoWidth > 0 ? this.demoWidth + 'vp' : 'full'}` })
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

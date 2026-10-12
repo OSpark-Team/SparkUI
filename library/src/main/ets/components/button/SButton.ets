@@ -4,6 +4,7 @@ import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { sparkSpin } from '../spinner/SSpinner';
 import {
   ButtonSize, ButtonStyle, ButtonStyleModifier, ButtonTokens, ButtonVariant, ButtonVariants, SparkPressFeedback
 } from './ButtonVariants';
@@ -124,12 +125,10 @@ export struct SButton {
         if (this.loading) {
           SIcon({ name: 'loader-circle', sizing: this.styles.iconSize, color: this.styles.foreground })
             .rotate({ angle: this.spinAngle })
-            .onAppear(() => {
-              this.spinAngle = 0;
-              this.getUIContext().animateTo({ duration: 1000, curve: Curve.Linear, iterations: -1 }, () => {
-                this.spinAngle = 360;
-              });
-            })
+            // the icon exists only while loading: removed when loading ends, re-added (and restarted) next time
+            .onAppear(() => sparkSpin(this.getUIContext(), this.theme, (a: number) => {
+              this.spinAngle = a;
+            }))
         } else if (this.icon !== undefined) {
           SIcon({ name: this.icon, sizing: this.styles.iconSize, color: this.styles.foreground })
         }

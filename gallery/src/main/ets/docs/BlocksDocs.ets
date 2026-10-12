@@ -9,6 +9,7 @@ import {
 } from '@sparkui/core';
 import { LengthMetrics } from '@kit.ArkUI';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
+import { SIDEBAR_TOKENS_CODE, SidebarTokensDemo } from './SidebarTokensDemo';
 
 @Builder
 function emptyFrame() {
@@ -311,6 +312,17 @@ export struct SidebarDoc {
           'SSidebarGroupLabel, SSidebarMenu, SSidebarMenuItem, SSidebarMenuButton (icon, text, badge, isActive or ' +
           'value), SSidebarSeparator, SSidebarTrigger.'
       })
+
+      DocSection({
+        title: 'Tokens',
+        description: 'The look is themeable through --sidebar-* component tokens (ADR D13) on top of the semantic ' +
+          '--sidebar / --sidebar-accent colours: background, border, widths, menu radius / height / active / hover ' +
+          'colours, group label colour, floating and inset frames. Per instance: SSidebarProvider({ tokens }). ' +
+          'The switches write theme variables, so they restyle the playground above and this gallery\'s own sidebar.'
+      })
+      DemoBlock({ code: SIDEBAR_TOKENS_CODE, centered: false }) {
+        SidebarTokensDemo()
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)

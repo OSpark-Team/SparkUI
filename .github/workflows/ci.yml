@@ -1,0 +1,68 @@
+name: CI
+
+# Builds the @ospark/sparkui HAR (release) and the gallery HAP (debug, unsigned) on every push / PR.
+# Tool chain: HarmonyOS command line tools (Linux), cached between runs. Override the download with the repository
+# variables CMDLINE_TOOLS_URL / CMDLINE_TOOLS_VERSION (Settings → Secrets and variables → Actions → Variables).
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  workflow_dispatch:
+
+env:
+  CMDLINE_TOOLS_VERSION: ${{ vars.CMDLINE_TOOLS_VERSION || '6.1.0.816' }}
+  CMDLINE_TOOLS_URL: ${{ vars.CMDLINE_TOOLS_URL || 'https://github.com/Okysu/harmony-auto-build/releases/download/commandline-tools-linux-x64-6.1.0.816/commandline-tools-linux-x64-6.1.0.816.zip' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache command line tools
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: ./command-line-tools
+          key: ${{ runner.os }}-harmony-tools-${{ env.CMDLINE_TOOLS_VERSION }}
+
+      - name: Download command line tools
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -L --fail -o tools.zip "$CMDLINE_TOOLS_URL"
+          unzip -q tools.zip
+          rm tools.zip
+
+      - name: Set up build environment
+        run: |
+          TOOLS_DIR=$(pwd)/command-line-tools
+          echo "hwsdk.dir=$TOOLS_DIR/sdk" > local.properties
+          echo "$TOOLS_DIR/bin" >> $GITHUB_PATH
+          echo "OHPM_HOME=$TOOLS_DIR/ohpm" >> $GITHUB_ENV
+          echo "HOS_SDK_HOME=$TOOLS_DIR/sdk" >> $GITHUB_ENV
+          chmod -R +x $TOOLS_DIR/bin
+          # the real build-profile.json5 holds local signing material and is not committed
+          cp build-profile.example.json5 build-profile.json5
+
+      - name: Install dependencies
+        run: ohpm install --all
+
+      - name: Build HAR (release)
+        run: hvigorw assembleHar --mode module -p module=library@default -p product=default -p buildMode=release --no-daemon
+
+      - name: Build gallery HAP (debug, unsigned)
+        run: hvigorw assembleHap --mode module -p module=gallery@default -p product=default -p buildMode=debug --no-daemon
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkui-${{ github.sha }}
+          path: |
+            library/build/default/outputs/default/*.har
+            gallery/build/default/outputs/default/*.hap
+          if-no-files-found: error

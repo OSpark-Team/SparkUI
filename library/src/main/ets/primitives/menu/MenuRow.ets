@@ -3,17 +3,28 @@ import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
-import { SparkActivation } from '../overlay/OverlayBinding';
-import { SparkTapBlocker } from '../../core/SparkModifier';
 
 export type MenuIndicator = 'none' | 'check-left' | 'check-right' | 'dot-left';
 export type MenuItemVariant = 'default' | 'destructive';
 
+/** KEYCODE_ENTER / KEYCODE_NUMPAD_ENTER (ArkUI binds only Space to the native onClick of a focused node). */
+const KEY_ENTER: number = 2054;
+const KEY_NUMPAD_ENTER: number = 2119;
+
+/** Whether a key event is the release of Enter / numpad Enter. */
+export function sparkIsEnterUp(e: KeyEvent): boolean {
+  return e.type === KeyType.Up && (e.keyCode === KEY_ENTER || e.keyCode === KEY_NUMPAD_ENTER);
+}
+
 /**
- * One row of a menu-like surface (DropdownMenu, Select, ContextMenu, Command…):
+ * One row of a menu-like surface (DropdownMenu, Select, ContextMenu, Menubar …):
  * `relative flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm`, accent on hover / press.
- * Pressed comes from the system pressed state (stateStyles); activation uses SparkActivation (touch-up on the
- * next tick) so the developer's own `.onClick()` on the item still fires.
+ *
+ * Pressed comes from the system pressed state (stateStyles). Activation is the row's own native `.onClick()`,
+ * so a tap, a mouse click, Space on the focused row and the screen reader's activation all take one path
+ * (Enter is added through `onKeyEvent`). A row's click wins over an ancestor's, so a `.onClick()` chained on a
+ * menu item component never fires: items report activation through `onSelect` / `onCheckedChange` /
+ * `onValueChange` instead.
  */
 @ComponentV2
 export struct MenuRow {
@@ -28,6 +39,8 @@ export struct MenuRow {
   @Param selected: boolean = false;
   /** touch-friendly rows (bottom-sheet presentation) */
   @Param roomy: boolean = false;
+  /** accessibility role of the row (Select options pass OPTION) */
+  @Param a11yRole: AccessibilityRoleType = AccessibilityRoleType.MENU_ITEM;
   @Event onActivate: () => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -44,11 +57,15 @@ export struct MenuRow {
       this.theme.colors.accent;
   }
 
-  private activation: SparkActivation = new SparkActivation();
+  /** check / radio rows report `checked`; plain rows and Select options report `selected` */
+  private get checkable(): boolean {
+    return this.indicator === 'check-left' || this.indicator === 'dot-left';
+  }
 
-  @Computed
-  get blocker(): SparkTapBlocker {
-    return new SparkTapBlocker(this.disabled);
+  private activate(): void {
+    if (!this.disabled) {
+      this.onActivate();
+    }
   }
 
   @Styles
@@ -111,12 +128,19 @@ export struct MenuRow {
     .opacity(this.disabled ? 0.5 : 1)
     .stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })
     .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
-    .gestureModifier(this.blocker)
-    .onTouch((e: TouchEvent) => this.activation.touch(e, this.disabled, () => this.onActivate()))
-    .onKeyEvent((e: KeyEvent) => this.activation.key(e, this.disabled, () => this.onActivate()))
+    .onClick(() => this.activate())
+    .onKeyEvent((e: KeyEvent) => {
+      if (sparkIsEnterUp(e)) {
+        this.activate();
+      }
+    })
     .focusable(!this.disabled)
+    .accessibilityGroup(true)
+    .accessibilityRole(this.a11yRole)
     .accessibilityText(typeof this.text === 'string' ? this.text : '')
-    .accessibilitySelected(this.selected)
+    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilityChecked(this.checkable ? this.selected : undefined)
+    .accessibilitySelected(this.checkable ? undefined : this.selected)
   }
 }
 

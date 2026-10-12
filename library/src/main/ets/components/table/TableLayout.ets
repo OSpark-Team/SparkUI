@@ -139,3 +139,47 @@ export function sparkTableTotal(widths: number[]): number {
   });
   return s;
 }
+
+/** Lower bound: first index in ascending `ids` whose value is >= `id` (binary search, O(log n)). */
+export function sparkSortedIndex(ids: number[], id: number): number {
+  let lo = 0;
+  let hi = ids.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (ids[mid] < id) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+/** Rows a data table renders before its body scrolls internally when no `bodyHeight` is given (ADR D14). */
+export const SPARK_TABLE_VIRTUAL_THRESHOLD: number = 50;
+/** Default body viewport (vp) of a data table above the threshold. */
+export const SPARK_TABLE_BODY_HEIGHT: number = 480;
+/** Smallest possible body row height (vp): `p-2` + one `text-sm` line. */
+export const SPARK_TABLE_MIN_ROW_HEIGHT: number = 36;
+
+/**
+ * Body viewport of a data table: `bodyHeight` when given, else {@link SPARK_TABLE_BODY_HEIGHT} above
+ * {@link SPARK_TABLE_VIRTUAL_THRESHOLD} rows, else unlimited (Infinity: the body is as tall as its rows).
+ */
+export function sparkTableBodyMax(rowCount: number, bodyHeight: number | undefined): number {
+  if (bodyHeight !== undefined && bodyHeight > 0) {
+    return bodyHeight;
+  }
+  return rowCount > SPARK_TABLE_VIRTUAL_THRESHOLD ? SPARK_TABLE_BODY_HEIGHT : Infinity;
+}
+
+/**
+ * Fixed body height when the rows certainly overflow the viewport (so the virtualized List has a definite main
+ * size and builds only visible rows); 0 when the body may be shorter and should follow its content.
+ */
+export function sparkTableBodyFixed(rowCount: number, bodyMax: number): number {
+  if (!isFinite(bodyMax)) {
+    return 0;
+  }
+  return rowCount * SPARK_TABLE_MIN_ROW_HEIGHT >= bodyMax ? bodyMax : 0;
+}

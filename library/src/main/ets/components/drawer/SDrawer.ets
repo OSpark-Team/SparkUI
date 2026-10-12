@@ -7,12 +7,34 @@ import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure, sparkTriggerKey } from '../../primitives/SparkDisclosure';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
+import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
+import {
+  sparkSurface, sparkSurfaceDefaults, SparkSurfaceStyle, SparkSurfaceTokens, SparkTokenReader
+} from '../../theme/tokens/SparkTokenReader';
 
 const KEY: string = 'spark.drawer';
 /** release past this fraction of the panel height closes */
 const CLOSE_FRACTION: number = 0.3;
 /** downward fling speed (vp/s) that closes regardless of distance */
 const FLING_VELOCITY: number = 800;
+
+/**
+ * Per-instance tokens of the drawer panel (ADR D13): the shared surface fields plus the drag handle.
+ * Theme: `--drawer-background`, `-border-color`, `-border-width`, `-radius`, `-padding`, `-shadow`,
+ * `-handle-background`, `-handle-width`, `-handle-height`.
+ */
+export interface DrawerTokens extends SparkSurfaceTokens {
+  handleBackground?: string;
+  handleWidth?: number;
+  handleHeight?: number;
+}
+
+/** Resolved drag handle of a drawer. */
+export class SparkDrawerHandle {
+  background: string = '#00000000';
+  width: number = 100;
+  height: number = 8;
+}
 
 /**
  * shadcn-vue `Drawer` (vaul): a bottom panel with a drag handle that can be dragged down to dismiss.
@@ -135,6 +157,8 @@ export struct SDrawerContent {
   @Param dismissOnOutside: boolean = true;
   /** allow drag-to-dismiss */
   @Param dragToDismiss: boolean = true;
+  /** per-instance panel tokens (instance → `--drawer-*` tokens → recipe), see {@link DrawerTokens} */
+  @Param tokens: DrawerTokens = {};
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -175,6 +199,25 @@ export struct SDrawerContent {
     this.binding.dispose();
   }
 
+  /** `bg-background border-t rounded-t-lg shadow-lg` → `--drawer-*` tokens → instance tokens */
+  @Computed
+  get surface(): SparkSurfaceStyle {
+    const t = this.theme;
+    return sparkSurface(t, 'drawer', sparkSurfaceDefaults(t.colors.background, t.colors.border, t.borderWidth,
+      t.radiusLg, 0, t.shadows.lg), this.tokens);
+  }
+
+  /** `h-2 w-[100px] rounded-full bg-muted` → `--drawer-handle-*` → instance tokens */
+  @Computed
+  get handle(): SparkDrawerHandle {
+    const r = new SparkTokenReader(this.theme, 'drawer');
+    const h = new SparkDrawerHandle();
+    h.background = r.color('handle-background', this.tokens.handleBackground, this.theme.colors.muted);
+    h.width = r.len('handle-width', this.tokens.handleWidth, 100);
+    h.height = r.len('handle-height', this.tokens.handleHeight, 8);
+    return h;
+  }
+
   private dragUpdate(offsetY: number): void {
     if (this.closing) {
       return;
@@ -205,10 +248,10 @@ export struct SDrawerContent {
       // drag handle
       Row() {
         Column()
-          .width(100)
-          .height(8)
-          .borderRadius(4)
-          .backgroundColor(this.theme.colors.muted)
+          .width(this.handle.width)
+          .height(this.handle.height)
+          .borderRadius(this.handle.height / 2)
+          .backgroundColor(this.handle.background)
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -222,14 +265,18 @@ export struct SDrawerContent {
     }
     .width('100%')
     .constraintSize({ maxHeight: SparkUI.layout.root.height * 0.8 })
-    .padding({ bottom: this.layout.env.safeArea.bottom })
-    .backgroundColor(this.theme.colors.background)
-    .border({
-      width: { top: 1 },
-      color: this.theme.colors.border,
-      radius: { topLeft: this.theme.radiusLg, topRight: this.theme.radiusLg }
+    .padding({
+      left: this.surface.padding,
+      right: this.surface.padding,
+      bottom: this.layout.env.safeArea.bottom + this.surface.padding
     })
-    .shadow(this.theme.shadows.lg.toOptions())
+    .backgroundColor(this.surface.background)
+    .border({
+      width: { top: this.surface.borderWidth },
+      color: this.surface.borderColor,
+      radius: { topLeft: this.surface.radius, topRight: this.surface.radius }
+    })
+    .shadow(SparkTokenOverride.shadowOptions(this.surface.shadow))
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .translate({ y: this.dragY })
     .onSizeChange((_: SizeOptions, n: SizeOptions) => {

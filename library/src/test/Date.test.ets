@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { SparkDate, SparkDates } from '../main/ets/components/calendar/SparkDate';
+import { sparkCalendarCanPage, SparkMonthPager } from '../main/ets/components/calendar/CalendarPaging';
 
 function d(y: number, m: number, day: number): SparkDate {
   return new SparkDate(y, m, day);
@@ -129,6 +130,58 @@ export default function dateTest() {
       expect(t.month).assertEqual(now.getMonth() + 1);
       expect(t.day).assertEqual(now.getDate());
       expect(SparkDates.isValid(t)).assertTrue();
+    });
+  });
+
+  describe('SparkMonthPager', () => {
+    it('taps_during_a_slide_accumulate_and_apply_once', 0, () => {
+      const p = new SparkMonthPager();
+      let view = d(2026, 3, 1);
+      expect(p.request(view, 1)).assertTrue();
+      // two more taps while sliding out: counted from the pending month, no new slide
+      expect(p.request(view, 1)).assertFalse();
+      expect(p.request(view, 1)).assertFalse();
+      expect(p.direction(view)).assertEqual(1);
+      const target = p.take(view);
+      expect(iso(target)).assertEqual('2026-06-01');
+      view = target as SparkDate;
+      expect(p.finish(view)).assertFalse();
+      expect(p.animating).assertFalse();
+    });
+    it('taps_during_the_slide_in_run_another_slide', 0, () => {
+      const p = new SparkMonthPager();
+      let view = d(2026, 3, 1);
+      p.request(view, 1);
+      view = p.take(view) as SparkDate;
+      // tap while sliding back in: counted from the month now shown
+      expect(p.request(view, 1)).assertFalse();
+      expect(p.finish(view)).assertTrue();
+      expect(p.animating).assertTrue();
+      expect(iso(p.take(view))).assertEqual('2026-05-01');
+    });
+    it('back_and_forth_applies_nothing', 0, () => {
+      const p = new SparkMonthPager();
+      const view = d(2026, 3, 1);
+      p.request(view, 1);
+      p.request(view, -1);
+      expect(p.direction(view)).assertEqual(0);
+      expect(p.take(view) === undefined).assertTrue();
+      expect(p.finish(view)).assertFalse();
+    });
+    it('focus_travels_with_the_target', 0, () => {
+      const p = new SparkMonthPager();
+      const view = d(2026, 3, 1);
+      p.request(view, 2, d(2026, 5, 17));
+      expect(iso(p.focus)).assertEqual('2026-05-17');
+      p.take(view);
+      expect(p.focus === undefined).assertTrue();
+    });
+    it('can_page_respects_bounds_from_the_pending_month', 0, () => {
+      expect(sparkCalendarCanPage(d(2026, 3, 1), -1, 1, d(2026, 3, 1), undefined)).assertFalse();
+      expect(sparkCalendarCanPage(d(2026, 3, 1), -1, 1, d(2026, 2, 28), undefined)).assertTrue();
+      expect(sparkCalendarCanPage(d(2026, 3, 1), 1, 1, undefined, d(2026, 3, 31))).assertFalse();
+      expect(sparkCalendarCanPage(d(2026, 3, 1), 1, 1, undefined, d(2026, 4, 1))).assertTrue();
+      expect(sparkCalendarCanPage(d(2026, 3, 1), 1, 2, undefined, d(2026, 4, 30))).assertFalse();
     });
   });
 }

@@ -5,7 +5,8 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import {
-  sparkTableColumnWidths, sparkTableTotal, sparkTableUseCards, STableColumn, TableAdaptive, TableAlignment
+  sparkSortedIndex, sparkTableBodyFixed, sparkTableBodyMax, sparkTableColumnWidths, sparkTableTotal,
+  sparkTableUseCards, STableColumn, TableAdaptive, TableAlignment
 } from './TableLayout';
 
 const KEY_TABLE: string = 'spark.table';
@@ -21,19 +22,25 @@ export class SparkTableState {
   @Trace available: number = 0;
   @Trace adaptive: TableAdaptive = 'auto';
 
+  // @Computed: cached until columns / available / adaptive change, so N cells reading their width cost O(N)
+  // instead of re-running the column solver per cell.
+  @Computed
   get cards(): boolean {
     return sparkTableUseCards(this.adaptive, this.available, this.columns);
   }
 
+  @Computed
   get widths(): number[] {
     return sparkTableColumnWidths(this.columns, this.available);
   }
 
+  @Computed
   get total(): number {
     return sparkTableTotal(this.widths);
   }
 
   /** wider than the container: scroll horizontally */
+  @Computed
   get scrolls(): boolean {
     return !this.cards && this.available > 0 && this.total > this.available + 0.5;
   }
@@ -50,36 +57,91 @@ export class SparkTableState {
   }
 }
 
+/** Per-member observable flag: only the members whose "last" state changes re-render. */
+@ObservedV2
+export class SparkTableMemberFlag {
+  @Trace last: boolean = false;
+}
+
 /**
  * Ordered members (rows of a section, cells of a row). Members are ordered by component id, which grows in
  * build order, so a cell's index is its position in the row without the developer numbering it.
+ *
+ * Scales to large sections: ids live in a plain sorted array (binary-search insert, no copy + sort per add), and
+ * "is last" is a per-member traced flag, so adding row N flips two flags instead of re-evaluating every row
+ * (the old @Trace array made N row registrations cost O(N²)). Cells read their index through `version`.
  */
 @ObservedV2
 export class SparkTableMembers {
-  @Trace ids: number[] = [];
   @Trace kind: TableSectionKind = 'body';
+  /** bumps on every membership change (cells' column index depends on it) */
+  @Trace version: number = 0;
+  private ids: number[] = [];
+  private flags: Map<number, SparkTableMemberFlag> = new Map<number, SparkTableMemberFlag>();
 
   add(id: number): void {
-    if (this.ids.indexOf(id) < 0) {
-      const next = this.ids.slice();
-      next.push(id);
-      next.sort((a: number, b: number) => a - b);
-      this.ids = next;
+    const at = sparkSortedIndex(this.ids, id);
+    if (at < this.ids.length && this.ids[at] === id) {
+      return;
     }
+    const before = this.lastId();
+    this.ids.splice(at, 0, id);
+    this.version++;
+    this.moveLast(before);
   }
 
   remove(id: number): void {
-    if (this.ids.indexOf(id) >= 0) {
-      this.ids = this.ids.filter((x: number) => x !== id);
+    const at = sparkSortedIndex(this.ids, id);
+    if (at >= this.ids.length || this.ids[at] !== id) {
+      return;
     }
+    const before = this.lastId();
+    this.ids.splice(at, 1);
+    this.flags.delete(id);
+    this.version++;
+    this.moveLast(before);
   }
 
   indexOf(id: number): number {
-    return this.ids.indexOf(id);
+    if (this.version < 0) {
+      return -1; // never: reading `version` registers the dependency
+    }
+    const at = sparkSortedIndex(this.ids, id);
+    return at < this.ids.length && this.ids[at] === id ? at : -1;
+  }
+
+  /** Observable "last member" flag of `id` (created on demand). */
+  flag(id: number): SparkTableMemberFlag {
+    let f = this.flags.get(id);
+    if (f === undefined) {
+      f = new SparkTableMemberFlag();
+      this.flags.set(id, f);
+    }
+    return f;
   }
 
   isLast(id: number): boolean {
-    return this.ids.length > 0 && this.ids[this.ids.length - 1] === id;
+    return this.flag(id).last;
+  }
+
+  private lastId(): number {
+    return this.ids.length > 0 ? this.ids[this.ids.length - 1] : -1;
+  }
+
+  private moveLast(before: number): void {
+    const after = this.lastId();
+    if (before === after) {
+      return;
+    }
+    if (before >= 0) {
+      const f = this.flags.get(before);
+      if (f !== undefined) {
+        f.last = false;
+      }
+    }
+    if (after >= 0) {
+      this.flag(after).last = true;
+    }
   }
 }
 
@@ -111,6 +173,9 @@ function textAlignOf(a: TableAlignment): TextAlign {
  * }
  * ```
  * Data form (no slots): `STable({ columns: this.cols, rows: [['INV001', '$250.00'], ...], footer: [...] })`.
+ * The data form is virtualized (`List` + `Repeat.virtualScroll()`, ADR D14): 10 000 rows render as fast as 10.
+ * Its body scrolls inside the table once it is taller than `bodyHeight` (default 480vp above 50 rows), with the
+ * header kept in view. Use the data form for long tables; the slot form builds every row.
  *
  * Columns (`STableColumn`): ArkUI cannot size arbitrary children, so the table owns the widths — fixed vp or a
  * weight of the remaining width with a min width — and each cell reads the width of its index (its position
@@ -126,6 +191,13 @@ export struct STable {
   @Param rows: string[][] | undefined = undefined;
   /** Data form: optional footer cells. */
   @Param footer: string[] | undefined = undefined;
+  /**
+   * Data form: body viewport height (vp). Rows beyond it scroll inside the table and are built lazily. Unset:
+   * the body follows its rows up to 50 rows, above that it gets a 480vp viewport (ADR D14).
+   */
+  @Param bodyHeight: number | undefined = undefined;
+  /** Data form: stable row key (default: the row index). Give one when rows are inserted / reordered. */
+  @Param rowKey: ((row: string[], index: number) => string) | undefined = undefined;
   /** Caption below the table (`text-muted-foreground mt-4 text-sm`). */
   @Param caption: ResourceStr | undefined = undefined;
   @BuilderParam content: () => void = sparkEmptyBuilder;
@@ -156,32 +228,67 @@ export struct STable {
     return this.state.available > 0 ? this.state.available : '100%';
   }
 
+  @Computed
+  get titles(): string[] {
+    return this.columns.map((c: STableColumn) => c.title);
+  }
+
+  @Computed
+  get rowCount(): number {
+    return this.rows !== undefined ? this.rows.length : 0;
+  }
+
+  /** body viewport (Infinity: as tall as the rows) */
+  @Computed
+  get bodyMax(): number {
+    return sparkTableBodyMax(this.rowCount, this.bodyHeight);
+  }
+
+  /** definite body height when the rows overflow it (0: follow the content) */
+  @Computed
+  get bodyFixed(): number {
+    return sparkTableBodyFixed(this.rowCount, this.bodyMax);
+  }
+
+  private keyOf(r: string[], i: number): string {
+    return this.rowKey !== undefined ? this.rowKey(r, i) : `${i}`;
+  }
+
+  /**
+   * Data form (ADR D14): header and footer rows are plain components; the body is a `List` with
+   * `Repeat.virtualScroll()`, so only the visible rows exist and scrolled-out rows are reused. Rows read the
+   * table state directly (no SparkContext registration per row / cell), so N rows cost O(N) once, and nothing
+   * per row is built until it scrolls into view.
+   */
   @Builder
   dataTable() {
-    STableHeader() {
-      STableRow() {
-        ForEach(this.columns, (c: STableColumn, i: number) => {
-          STableHead({ text: c.title, column: i })
-        }, (c: STableColumn, i: number) => `${i}:${c.key}`)
-      }
+    if (!this.state.cards) {
+      SparkTableDataRow({ table: this.state, cells: this.titles, kind: 'header', last: false })
     }
-    STableBody() {
-      ForEach(this.rows ?? [], (r: string[], ri: number) => {
-        STableRow() {
-          ForEach(r, (v: string, i: number) => {
-            STableCell({ text: v, column: i })
-          }, (v: string, i: number) => `${i}:${v}`)
-        }
-      }, (r: string[], ri: number) => `${ri}:${r.join('\u0001')}`)
+    List({ space: this.state.cards ? 8 : 0 }) {
+      Repeat<string[]>(this.rows ?? [])
+        .each((ri: RepeatItem<string[]>) => {
+          ListItem() {
+            SparkTableDataRow({
+              table: this.state,
+              cells: ri.item,
+              kind: 'body',
+              last: ri.index === this.rowCount - 1
+            })
+          }
+        })
+        .key((r: string[], i: number) => this.keyOf(r, i))
+        .virtualScroll({ totalCount: this.rowCount })
     }
+    .width('100%')
+    .constraintSize({ minHeight: this.bodyFixed, maxHeight: this.bodyMax })
+    .cachedCount(8)
+    .scrollBar(isFinite(this.bodyMax) ? BarState.Auto : BarState.Off)
+    .edgeEffect(EdgeEffect.None)
+    // scroll the body first, then hand the rest of the gesture to the page
+    .nestedScroll({ scrollForward: NestedScrollMode.SELF_FIRST, scrollBackward: NestedScrollMode.SELF_FIRST })
     if (this.footer !== undefined) {
-      STableFooter() {
-        STableRow() {
-          ForEach(this.footer, (v: string, i: number) => {
-            STableCell({ text: v, column: i })
-          }, (v: string, i: number) => `${i}:${v}`)
-        }
-      }
+      SparkTableDataRow({ table: this.state, cells: this.footer, kind: 'footer', last: true })
     }
   }
 
@@ -582,5 +689,122 @@ export struct STableCell {
       content: this.content,
       memberId: this.getUniqueId()
     })
+  }
+}
+
+/**
+ * One row of the data form (header / body / footer), with the same look as STableRow + cells but without
+ * SparkContext registration: it reads the table state it is given, and its cells are plain Text nodes. Reused by
+ * `Repeat` as rows scroll (only `cells` / `last` change).
+ */
+@ComponentV2
+struct SparkTableDataRow {
+  @Require @Param table: SparkTableState;
+  @Param cells: string[] = [];
+  @Param kind: TableSectionKind = 'body';
+  @Param last: boolean = false;
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local ix: SparkInteraction = new SparkInteraction();
+
+  @Computed
+  get rowBackground(): string {
+    const c = this.theme.colors;
+    if (this.kind === 'footer') {
+      return SparkColor.alpha(c.muted, 0.5);
+    }
+    return this.ix.hovered && this.kind === 'body' ? SparkColor.alpha(c.muted, 0.5) : '#00000000';
+  }
+
+  @Computed
+  get head(): boolean {
+    return this.kind === 'header';
+  }
+
+  @Computed
+  get strong(): boolean {
+    return this.kind !== 'body';
+  }
+
+  @Builder
+  cell(i: number) {
+    Row() {
+      Text(i < this.cells.length ? this.cells[i] : '')
+        .fontSize(this.theme.text.sm)
+        .lineHeight(this.theme.text.leadingSm)
+        .fontWeight(this.strong ? this.theme.text.weightMedium : this.theme.text.weightNormal)
+        .fontColor(this.head ? this.theme.colors.mutedForeground : this.theme.colors.foreground)
+        .textAlign(textAlignOf(this.table.column(i)?.alignment ?? 'start'))
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width(this.table.widthAt(i) ?? 'auto')
+    .flexShrink(0)
+    .constraintSize({ minHeight: this.head ? 40 : 0 })
+    .padding(this.head ? { left: 8, right: 8 } : 8)
+    .justifyContent(alignOf(this.table.column(i)?.alignment ?? 'start'))
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  cardLine(i: number) {
+    Row({ space: 12 }) {
+      Text(this.table.column(i)?.title ?? '')
+        .fontSize(this.theme.text.sm)
+        .lineHeight(this.theme.text.leadingSm)
+        .fontWeight(this.theme.text.weightMedium)
+        .fontColor(this.theme.colors.mutedForeground)
+        .maxLines(1)
+        .flexShrink(0)
+        .constraintSize({ maxWidth: '50%' })
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      Text(i < this.cells.length ? this.cells[i] : '')
+        .layoutWeight(1)
+        .fontSize(this.theme.text.sm)
+        .lineHeight(this.theme.text.leadingSm)
+        .fontWeight(this.strong ? this.theme.text.weightMedium : this.theme.text.weightNormal)
+        .fontColor(this.theme.colors.foreground)
+        .textAlign(TextAlign.End)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .width('100%')
+    .padding({ top: 2, bottom: 2 })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  build() {
+    if (this.table.cards) {
+      Column() {
+        ForEach(this.table.columns, (c: STableColumn, i: number) => {
+          this.cardLine(i)
+        }, (c: STableColumn, i: number) => `${i}:${c.key}`)
+      }
+      .width('100%')
+      .padding(12)
+      .margin({ top: this.kind === 'footer' ? 8 : 0 })
+      .backgroundColor(this.rowBackground)
+      .border({ width: this.theme.borderWidth, color: this.theme.colors.border, radius: this.theme.radiusLg })
+      .accessibilityRole(AccessibilityRoleType.ROW)
+      .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
+    } else {
+      Row() {
+        ForEach(this.table.columns, (c: STableColumn, i: number) => {
+          this.cell(i)
+        }, (c: STableColumn, i: number) => `${i}:${c.key}`)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .backgroundColor(this.rowBackground)
+      .border({
+        width: {
+          top: this.kind === 'footer' ? this.theme.borderWidth : 0,
+          bottom: this.kind === 'footer' || this.last ? 0 : this.theme.borderWidth
+        },
+        color: this.theme.colors.border,
+        radius: 0
+      })
+      .accessibilityRole(AccessibilityRoleType.ROW)
+      .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
+    }
   }
 }

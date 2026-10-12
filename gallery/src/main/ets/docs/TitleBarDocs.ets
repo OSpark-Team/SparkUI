@@ -1,6 +1,6 @@
 import {
   SButton, SIcon, SparkCaptionAction, SparkSystemButtons, SparkTheme, SparkUI, SparkWindowChrome, SSwitch,
-  STitleBar, SToggleGroup, SToggleGroupItem, SSidebarTrigger, SparkSidebarState, sparkTitleBarVisible
+  STitleBar, SToggleGroup, SToggleGroupItem, SparkSidebarState, sparkTitleBarVisible
 } from '@sparkui/core';
 import { DemoBlock, DemoCaption, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -13,13 +13,19 @@ const PREVIEW_CODE = `STitleBar({ title: 'SparkUI Gallery', icon: 'sparkles', sy
 //   'custom' — system buttons hidden, SparkUI draws its own (minimize / maximize·restore / close)
 //   'hidden' — no caption buttons`;
 
-const SLOTS_CODE = `@LocalBuilder tabs() { SToggleGroup({ type: 'single', sizing: 'sm', value: ['files'] }) { ... } }
+const SLOTS_CODE = `// regions take wrapBuilder(globalBuilder); a component keeps the region's state
+@Builder function noteMenu() { SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'menu', label: 'Menu' }) }
+@Builder function noteTabs() { NoteTabs() }   // @ComponentV2 struct with its own @Local tab
 
-STitleBar({ title: 'Notes', icon: 'file-text', leading: this.menu, center: this.tabs }) {
-  SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'share', label: 'Share' })
+STitleBar({
+  title: 'Notes', icon: 'file-text',
+  sidebarController: this.sidebar,            // SSidebarTrigger before the icon
+  leadingBuilder: wrapBuilder(noteMenu),       // after the title
+  centerBuilder: wrapBuilder(noteTabs)         // centred
+}) {
+  SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'share', label: 'Share' })   // trailing actions
 }
-// leading / center / actions are no-drag regions; the free bar area drags the window,
-// double-click maximizes / restores.`;
+// every region is no-drag; the free bar area drags the window, double-click maximizes / restores.`;
 
 const SETUP_CODE = `// EntryAbility.onWindowStageCreate — inside the loadContent callback (decor APIs need it):
 windowStage.loadContent('pages/Index', (err) => {
@@ -33,6 +39,35 @@ Column() {
   STitleBar({ title: 'My App', icon: 'sparkles' })
   MyContent().layoutWeight(1)
 }`;
+
+@Builder
+function noteMenu() {
+  SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'menu', label: 'Menu' })
+}
+
+/** Centre region of the slots demo: a component, so the selected tab is its own state. */
+@ComponentV2
+struct NoteTabs {
+  @Local tab: string = 'files';
+
+  build() {
+    SToggleGroup({ type: 'single', sizing: 'sm', deselectable: false, value: [this.tab],
+      onValueChange: (v: string[]) => {
+        if (v.length > 0) {
+          this.tab = v[0];
+        }
+      } }) {
+      SToggleGroupItem({ value: 'files', text: 'Files' })
+      SToggleGroupItem({ value: 'edit', text: 'Edit' })
+      SToggleGroupItem({ value: 'view', text: 'View' })
+    }
+  }
+}
+
+@Builder
+function noteTabs() {
+  NoteTabs()
+}
 
 /** Gallery-wide switch for the live title bar ("apply to this window"). Read by the gallery root. */
 @ObservedV2
@@ -71,27 +106,20 @@ export struct GalleryTitleBar {
   @Local g: GalleryWindowChrome = GalleryWindowChrome.shared;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
-  @LocalBuilder
-  sidebarToggle() {
-    SSidebarTrigger({ controller: this.sidebar })
-  }
-
-  @LocalBuilder
-  themeToggle() {
-    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon', label: 'Toggle theme' })
-      .onClick(() => SparkUI.themes.toggleDark())
-  }
-
   build() {
     Column() {
       if (this.g.enabled) {
+        // sidebar toggle at the start (sidebarController), theme toggle in the trailing closure
         STitleBar({
           title: 'SparkUI Gallery',
           icon: 'sparkles',
           systemButtons: this.g.systemButtons,
-          start: this.sidebarToggle,
-          content: this.themeToggle
-        })
+          sidebarController: this.sidebar
+        }) {
+          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.theme.isDark ? 'sun' : 'moon',
+            label: 'Toggle theme' })
+            .onClick(() => SparkUI.themes.toggleDark())
+        }
       }
     }
     .width('100%')
@@ -107,11 +135,6 @@ struct WindowFrame {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
-  @LocalBuilder
-  searchAction() {
-    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'search', label: 'Search' })
-  }
-
   build() {
     Column() {
       STitleBar({
@@ -119,9 +142,10 @@ struct WindowFrame {
         icon: 'sparkles',
         systemButtons: this.mode,
         detached: true,
-        onCaption: (a: SparkCaptionAction) => this.onCaption(a),
-        content: this.searchAction
-      })
+        onCaption: (a: SparkCaptionAction) => this.onCaption(a)
+      }) {
+        SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'search', label: 'Search' })
+      }
       Column({ space: 8 }) {
         ForEach([0.9, 0.7, 0.8], (w: number, i: number) => {
           Column()
@@ -170,40 +194,15 @@ export struct TitleBarDoc {
   @Local g: GalleryWindowChrome = GalleryWindowChrome.shared;
   @Local previewMode: SparkSystemButtons = 'custom';
   @Local lastCaption: string = '—';
-  @Local tab: string = 'files';
 
   aboutToAppear(): void {
     // read the live window state (no claim: only "Apply to this window" changes the window)
     this.chrome.attach(this.getUIContext());
   }
 
-  @LocalBuilder
-  tabs() {
-    SToggleGroup({ type: 'single', sizing: 'sm', deselectable: false, value: [this.tab],
-      onValueChange: (v: string[]) => {
-        if (v.length > 0) {
-          this.tab = v[0];
-        }
-      } }) {
-      SToggleGroupItem({ value: 'files', text: 'Files' })
-      SToggleGroupItem({ value: 'edit', text: 'Edit' })
-      SToggleGroupItem({ value: 'view', text: 'View' })
-    }
-  }
-
-  @LocalBuilder
-  menu() {
-    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'menu', label: 'Menu' })
-  }
-
   rectText(): string {
     const r = this.chrome.titleButtonRect;
     return `right ${r.right} · top ${r.top} · ${r.width}×${r.height} vp`;
-  }
-
-  @LocalBuilder
-  shareAction() {
-    SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'share', label: 'Share' })
   }
 
   build() {
@@ -235,8 +234,9 @@ export struct TitleBarDoc {
 
       DocSection({
         title: 'Slots',
-        description: 'leading (after the title), center and the trailing actions closure. Slots never start a ' +
-          'window drag; the free space around them does.'
+        description: 'The trailing closure holds the actions; sidebarController adds a sidebar toggle at the ' +
+          'start; startBuilder / leadingBuilder / centerBuilder take wrapBuilder(globalBuilder) for anything else. ' +
+          'Regions never start a window drag; the free space around them does.'
       })
       DemoBlock({ code: SLOTS_CODE, centered: false }) {
         Column() {
@@ -244,10 +244,11 @@ export struct TitleBarDoc {
             title: 'Notes',
             icon: 'file-text',
             detached: true,
-            leading: this.menu,
-            center: this.tabs,
-            content: this.shareAction
-          })
+            leadingBuilder: wrapBuilder(noteMenu),
+            centerBuilder: wrapBuilder(noteTabs)
+          }) {
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'share', label: 'Share' })
+          }
         }
         .width('100%')
         .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })

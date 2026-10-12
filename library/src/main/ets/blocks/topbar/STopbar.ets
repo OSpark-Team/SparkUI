@@ -4,7 +4,7 @@ import { SparkUI } from '../../core/SparkUI';
 import { SButton } from '../../components/button/SButton';
 import { SInput } from '../../components/input/SInput';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
-import { SparkColor } from '../../theme/color/SparkColor';
+import { SparkTopbarStyle, sparkTopbarStyle, TopbarTokens } from '../BlockTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { sparkTopbarCondensed, sparkTopbarHeight, TOPBAR_CONDENSED_BELOW } from '../BlocksLogic';
 import { resolveSparkSidebar, SparkSidebarState, SSidebarTrigger } from '../sidebar/SSidebar';
@@ -49,8 +49,9 @@ export class SparkTopbarAction {
  * does that). `safeArea` adds the status-bar inset for immersive pages (skipped automatically inside a framed
  * 'inset' sidebar layout, whose card already clears it).
  *
- * Extension points: `leadingBuilder` / `titleBuilder` / trailing slot (additive; set `leading: 'none'` or an
- * empty `title` to replace the built-ins), `condenseBelow` and `barHeight` instead of fixed metrics, `onBack`
+ * Extension points: the trailing closure (after `actions`); `leadingBuilder` / `titleBuilder` regions as
+ * `WrappedBuilder`s (`titleBuilder: wrapBuilder(myGlobalBuilder)`; additive — set `leading: 'none'` or an empty
+ * `title` to replace the built-ins), `condenseBelow` and `barHeight` instead of fixed metrics, `onBack`
  * for any back handling (no routing built in). Inside an SSidebarProvider, `leading: 'auto'` follows the
  * sidebar controller (`toggleable`).
  */
@@ -78,16 +79,24 @@ export struct STopbar {
   @Param safeArea: boolean = false;
   /** condense below this width of the bar itself (vp) */
   @Param condenseBelow: number = TOPBAR_CONDENSED_BELOW;
-  /** bar height without the safe-area inset (vp, 0 = 56 / 48 condensed) */
+  /** bar height without the safe-area inset (vp, 0 = `--topbar-height[-condensed]`, else 56 / 48 condensed) */
   @Param barHeight: number = 0;
-  /** extra leading content, after the built-in `leading` control (use `leading: 'none'` to replace it) */
-  @BuilderParam leadingBuilder: () => void = sparkEmptyBuilder;
-  /** extra title content under / instead of `title` (breadcrumbs, a switcher…; leave `title` empty to replace) */
-  @BuilderParam titleBuilder: () => void = sparkEmptyBuilder;
-  /** trailing slot (after `actions`) */
+  /**
+   * Extra leading content after the built-in `leading` control (use `leading: 'none'` to replace it), as
+   * `wrapBuilder(myLeading)` of a global `@Builder` (no `this`: render a component or read shared state).
+   */
+  @Param leadingBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /**
+   * Extra title content under / instead of `title` (breadcrumbs, a switcher…; leave `title` empty to replace),
+   * as `wrapBuilder(myTitle)` of a global `@Builder`.
+   */
+  @Param titleBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** trailing slot after `actions` — the trailing closure (the component's only @BuilderParam) */
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
+  /** per-instance look (ADR D13): instance → `--topbar-*` tokens → recipe */
+  @Param tokens: TopbarTokens = {};
   /** drive the leading trigger from this controller (e.g. a bar outside the SSidebarProvider) */
   @Param sidebarController: SparkSidebarState | undefined = undefined;
   @Local ctx: SparkSidebarState | undefined = undefined;
@@ -111,6 +120,16 @@ export struct STopbar {
   @Computed
   get condensed(): boolean {
     return sparkTopbarCondensed(this.measuredWidth, this.condenseBelow);
+  }
+
+  @Computed
+  get look(): SparkTopbarStyle {
+    return sparkTopbarStyle(this.theme, this.tokens);
+  }
+
+  @Computed
+  get paddingX(): number {
+    return this.condensed ? this.look.paddingXCondensed : this.look.paddingX;
   }
 
   @Computed
@@ -173,31 +192,35 @@ export struct STopbar {
           SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: 'Back' })
             .onClick(() => this.onBack())
         }
-        this.leadingBuilder()
+        if (this.leadingBuilder !== undefined) {
+          this.leadingBuilder.builder()
+        }
         if ((this.showTrigger || this.leading === 'back') && !this.condensed) {
           Column()
             .width(1)
             .height(16)
             .margin({ left: 4, right: 4 })
-            .backgroundColor(this.theme.colors.border)
+            .backgroundColor(this.look.borderColor)
         }
         Column({ space: 2 }) {
           if (!this.titleEmpty) {
             Text(this.title)
               .fontSize(this.condensed ? this.theme.text.sm : this.theme.text.base)
               .fontWeight(this.theme.text.weightSemibold)
-              .fontColor(this.theme.colors.foreground)
+              .fontColor(this.look.titleColor)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
           if (this.subtitle !== undefined && !this.condensed) {
             Text(this.subtitle)
               .fontSize(this.theme.text.xs)
-              .fontColor(this.theme.colors.mutedForeground)
+              .fontColor(this.look.subtitleColor)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
-          this.titleBuilder()
+          if (this.titleBuilder !== undefined) {
+            this.titleBuilder.builder()
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
@@ -223,13 +246,13 @@ export struct STopbar {
       }
     }
     .width('100%')
-    .height((this.barHeight > 0 ? this.barHeight : sparkTopbarHeight(this.condensed)) + this.topInset)
-    .padding({ left: this.condensed ? 8 : 16, right: this.condensed ? 8 : 16, top: this.topInset })
+    .height((this.barHeight > 0 ? this.barHeight :
+      sparkTopbarHeight(this.condensed, this.look.height, this.look.heightCondensed)) + this.topInset)
+    .padding({ left: this.paddingX, right: this.paddingX, top: this.topInset })
     .alignItems(VerticalAlign.Center)
-    .backgroundColor(this.translucent ? SparkColor.alpha(this.theme.colors.background, 0.8) :
-      this.theme.colors.background)
-    .backdropBlur(this.translucent ? 20 : 0)
-    .border({ width: { bottom: this.bordered ? 1 : 0 }, color: this.theme.colors.border })
+    .backgroundColor(this.translucent ? this.look.translucentBackground : this.look.background)
+    .backdropBlur(this.translucent ? this.look.translucentBlur : 0)
+    .border({ width: { bottom: this.bordered ? this.look.borderWidth : 0 }, color: this.look.borderColor })
     .onAreaChange((_: Area, n: Area) => {
       this.measuredWidth = Number(n.width);
     })

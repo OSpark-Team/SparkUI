@@ -242,7 +242,9 @@ theme.comp.has(...) / raw(...) / keys()
   - `InputTokens`（SInput / STextarea 共用）
   - `BadgeTokens`、`AlertTokens`、`ToggleTokens`、`SwitchTokens`、`CheckboxTokens`、`ProgressTokens`
   - `TabsTokens`（STabsList）
-  - `SparkSurfaceTokens`（SDialogContent / SSheetContent / SPopoverContent / SDropdownMenuContent 共用）
+  - `SparkSurfaceTokens`（SDialogContent / SSheetContent / SPopoverContent / SDropdownMenuContent 共用）；`DrawerTokens`（SDrawerContent，在 surface 字段之外加拖拽把手）
+  - 布局 block（`blocks/BlockTokens.ets`）：`SidebarTokens`（SSidebarProvider，解析结果存入 `SparkSidebarState.style` 供所有部件读取）、`TopbarTokens`、`TitleBarTokens`、`AppShellTokens`（含 `sidebar` / `topbar` 子对象）、`ListDetailTokens`、`SupportingPaneTokens`；`SDashboardTile` 复用 `CardTokens`
+  - 布局尺寸 prop（`sidebarWidth`、`sidebarWidthMobile`、`sidebarWidthIcon`、`listWidth`、`paneWidth`）的默认值改为 0，表示"取组件 Token，再退回内置值"；`SAppShell.maxContentWidth` 默认改为 undefined（显式 0 仍表示不限宽）。显式传值的调用方行为不变
 
 ### 5. 运行时
 
@@ -261,9 +263,10 @@ theme.comp.has(...) / raw(...) / keys()
 | badge | `radius` `border-width` `padding-x` `font-weight`；各变体有 `background` `foreground` `border-color`（只作用于实心样式；soft 样式跟随状态 Token） |
 | alert | `radius` `border-width` `padding-x` `padding-y`；各变体有 `background` `foreground` `border-color` `description-color` |
 | dialog | `background` `border-color` `overlay` `radius` `border-width` `padding` `max-width` `shadow` |
-| drawer | `overlay` |
+| drawer | `background` `border-color` `overlay` `radius` `border-width` `padding` `shadow` `handle-background` `handle-width` `handle-height` |
 | sheet | `background` `border-color` `overlay` `border-width` `padding` `shadow` |
 | popover / menu | `background` `border-color` `radius` `border-width` `padding` `shadow` |
+| select（→ menu）/ combobox（→ popover） | `background` `border-color` `radius` `border-width` `padding` `shadow` `highlight-background` `highlight-foreground` `max-height`（见 D14 §3） |
 | tabs | `list-background` `list-radius` `list-padding` `height` `indicator-background` `indicator-border-color` `indicator-border-width` `indicator-radius` `indicator-shadow` `trigger-foreground` `trigger-active-foreground` |
 | toggle / toggle-group | `hover-background` `hover-foreground` `on-background` `on-foreground` `border-color` `radius` `border-width` `height[-sm/-lg]` `shadow`；`--toggle-group-indicator-background` |
 | switch | `background` `checked-background` `thumb` `checked-thumb` `shadow` |
@@ -272,6 +275,13 @@ theme.comp.has(...) / raw(...) / keys()
 | toast | `background` `foreground` `description-color` `border-color` `radius` `border-width` `padding` `shadow` |
 | tooltip | `background` `foreground` `radius` |
 | code（SCodeBlock） | `background` `foreground` `keyword` `string` `comment` `number` `decorator` `type` `function` `property` `punctuation` `variable` `tag` `attribute` `regex` `meta` `inserted` `deleted`（未设置时取 `SparkCodeTheme.github()` 的值；没传 `codeTheme` 的代码块会跟随这些 Token） |
+| sidebar（SSidebar 家族） | `background`（默认语义 `--sidebar`）`border-color`（默认 `--sidebar-border`）`border-width` `width` `width-mobile` `width-icon`（rail 宽）`frame-gap` `menu-foreground` `menu-hover-background` `menu-active-background` `menu-active-foreground` `menu-outline-background` `menu-radius` `menu-height[-sm/-lg]` `menu-pressed-opacity` `group-label-color` `floating-radius` `floating-shadow` `inset-background` `inset-radius` `inset-shadow` `sheet-shadow`。`--sidebar`、`--sidebar-foreground`、`--sidebar-primary(-foreground)`、`--sidebar-accent(-foreground)`、`--sidebar-border`、`--sidebar-ring` 仍是语义 Token（先匹配），是上述 Token 的基础值 |
+| topbar | `background` `translucent-background` `translucent-blur` `border-color` `border-width` `title-color` `subtitle-color` `height` `height-condensed` `padding-x` `padding-x-condensed` |
+| titlebar（STitleBar） | `background` `translucent-background` `translucent-blur` `border-color` `border-width` `title-color` `height`（指针）`height-touch` `caption-size` `caption-radius` `caption-foreground` `caption-hover-background` `caption-pressed-background` `close-hover-background` `close-hover-foreground` `close-pressed-background` |
+| app-shell | `content-max-width` `content-padding` |
+| list-detail | `divider-color` `list-background` `detail-background` `list-width` `header-height` `detail-shadow` |
+| supporting-pane | `divider-color` `divider-width` `background` `width` `sheet-background` `sheet-radius` `sheet-shadow` `handle-background` |
+| dashboard tile | 复用 card（`SDashboardTile({ variant, tokens: CardTokens })`） |
 
 遮罩颜色按以下顺序解析：
 1. `--<浮层 motion key>-overlay`，如 `--dialog-overlay`、`--sheet-overlay`、`--drawer-overlay`
@@ -282,3 +292,49 @@ theme.comp.has(...) / raw(...) / keys()
 
 - 按压态规则不变。Token 只改变配方的数值；pressed 仍只经 `applyPressedAttribute` / `stateStyles` 生效，不加动画。
 - 背景被重新着色时（实例或 Token 改了 `background`），hover / pressed 层级从新颜色派生。显式设置了 `hover-background` / `pressed-background` 时，以设置值为准。
+
+---
+
+## D14. 长列表虚拟化（用户要求"长列表懒加载很重要"，2026-10-12）
+
+### 1. 选型：`List` + `Repeat(...).virtualScroll()`
+
+调研依据：`devecocli docs`《Repeat：可复用的循环渲染》、List API。
+
+| 方案 | 结论 |
+|---|---|
+| `ForEach` | 一次性创建全部子组件，只是按需布局。长列表不可用，库中原有实现都是这种 |
+| `LazyForEach` + `IDataSource` | 可行（V1/V2 都支持），但需要手写数据源和 `notifyDataAdd/Change…`，与 V2 的 `@Trace` / `@Computed` 数组模型重复 |
+| **`Repeat` + `.virtualScroll()`** | **采用**。API 12 起可用（工程为 22），官方指南明确"懒加载模式需要和状态管理 V2 配合使用""推荐使用 V2 装饰器"。直接吃数组（含 `@Computed` 派生数组），数组变化自动 diff；自带节点复用池（API 18 起可关），复用优先于 `@ReusableV2`，所以不再另加 `@ReusableV2` |
+
+官方约束（照搬到实现中）：
+
+- 只能放在 `List` / `ListItemGroup` / `Grid` / `Swiper` / `WaterFlow` 中，且容器内只放这一个 `Repeat`。每项根节点是 `ListItem`。
+- `.key()` 必须稳定且唯一，不要用 index（除非数据本身没有身份）。
+- **嵌在同向滚动容器里、又没有主轴尺寸的 List 会全量加载**（List 文档）。所以每个虚拟列表都必须有确定的高度：选项列表按行高算出显式高度；表格在行数肯定溢出视口时用 `constraintSize({ minHeight = maxHeight })` 固定高度。
+- 传给子组件时传 `ri.item`（对象引用）给 `@Param`，不要把 item 的字段拆成 `@Builder` 的原始参数（按值捕获，复用后不刷新）。
+- 复用：被滚出的节点进缓存池，不触发 `aboutToAppear`/`onDidBuild`。因此**虚拟行不能依赖 `onDidBuild` + `SparkContext` 注册**（复用后注册的是旧值），行组件只接收 `@Param`。
+
+### 2. 落地
+
+- 原语 `primitives/list/`：
+  - `SparkOptionLogic.ets`（纯逻辑，有单测）：`SparkOptionSource`（`SparkSelectOption` 实现它）、`SparkOptionEntry`（选项行或分组标题行，key 为 `o:<value>` / `g:<起始下标>`，过滤后 key 不变，Repeat 复用而非重建）、`sparkOptionEntries(options, match?)`（O(n) 展平 + 过滤，无匹配的分组不出标题）、`sparkOptionStep`（↑/↓ 跳过标题与禁用项、循环）、`sparkOptionListHeight` / `sparkOptionSizes`。
+  - `SparkOptionList.ets`：`List` + `Repeat.virtualScroll()` + 两个模板（option / label）。显式高度 = 行高之和，封顶 `maxListHeight`；`childrenMainSize` 给出每行精确高度（滚动条和 `scrollToIndex` 准确）；`initialIndex` 打开即定位到已选项；`highlighted` 变化时 `scrollToIndex(i, false, ScrollAlign.AUTO)`。行 `SparkOptionRow` 是选择型行：按下只降不透明度（stateStyles，无动画），激活走原生 `onClick` + Enter（`sparkIsEnterUp`），无障碍角色 `OPTION`。
+- **SSelect**：数据模式（`options`）改为虚拟列表，不再在隐藏副本里把选项再建一遍（标签直接由 `registerAll(options)` 一次登记）。复合模式（插槽）无法虚拟化，保持原样，文档建议长列表用 `options`。列表高度不超过浮层放置可用高度（`sparkMenuPanelMaxHeight`）。
+- **SCombobox**：不再借用 SCommand（它把所有项建出来再 `Visibility.None`）。自带搜索框 + 虚拟列表：`@Computed entries = sparkComboboxEntries(options, query)`（cmdk 打分 `sparkCommandScore`，label 为主、value 为关键词），**不匹配的项根本不构建**，匹配项也只构建可见的；↑/↓（`onKeyPreIme`）移动高亮，Enter（`onSubmit`）选中。
+- **STable 数据模式**（`rows`）：表头 / 表尾是普通行，表体是 `List` + `Repeat`。行组件 `SparkTableDataRow` 直接接收 table state，单元格是普通 Text，不做任何 SparkContext 注册。新增 `bodyHeight`（视口高度；未设时 ≤50 行跟随内容，>50 行默认 480vp）和 `rowKey`（默认行下标）。表体在视口内滚动（`nestedScroll SELF_FIRST`，滚到头再交给页面），表头固定。
+- **STable 插槽模式的 O(N²)**：`SparkTableMembers` 原来每注册一行都要复制并排序 `@Trace ids`，并让所有行重算 `lastInSection`。现在 ids 是普通有序数组（二分插入），"是否最后一行"改为每成员一个 `@Trace` 标志，增删一行只翻转两个标志；`SparkTableState` 的 `widths/total/cards/scrolls` 改为 `@Computed` 缓存。
+- **不改的**：`SScrollArea`（只是滚动容器，内容由使用者决定；长列表请在里面直接用 `List` + `Repeat`，不要用 SScrollArea 包 ForEach）；AppShell / Sidebar 导航（几十项、与插槽内容混排在同一个 Scroll 里，虚拟化收益小）。
+- **SCommand 迁移方案**（由 a11y 负责人实施）：增加数据模式 `SCommand({ items: SparkCommandItemData[] })`，`@Computed` 过滤后展平为 `SparkOptionEntry`（或带 icon/shortcut 的扩展行），用 `SparkOptionList`（或同构的 List + Repeat）渲染；高亮 / ↑↓ / Enter 都按值操作数据数组（`sparkOptionStep`），不再依赖 `CommandEntry` 注册表和 frame-node 位置测量来滚动（改用 `scrollToIndex`）。插槽模式保留给短列表。
+
+### 3. 选项浮层的组件 Token（D13 补充）
+
+- `--select-*` 和 `--combobox-*`：`background` `border-color` `radius` `border-width` `padding` `shadow` `highlight-background` `highlight-foreground` `max-height`；实例覆盖 `tokens: SparkOptionPanelTokens`（`SSelect` / `SSelectContent` / `SCombobox`）。
+- **家族回退**：Select 面板与 DropdownMenu 同属菜单表面，`--select-*` → `--menu-*` → 配方；Combobox 是 Popover + Command，`--combobox-*` → `--popover-*` → 配方。实现为 `sparkSurface(t, component, defaults, tokens, inherit)` 的新参数 `inherit`，以及 `sparkOptionPanel()`。这样一个主题写 `--menu-background` 就能统一所有菜单类浮层，写 `--select-*` 只改 Select。
+- 高亮行和 `max-height` 只读组件自己的 Token（`menu` / `popover` 没有这些属性）。
+
+### 4. 需要真机确认
+
+- 1 000 项 Select / Combobox 打开无卡顿、打开即定位到已选项；快速滑动无白块（`cachedCount(4)`）。
+- 10 000 行表格：首屏、滚动流畅；窄屏卡片模式下也只构建可见卡片；表体滚到底后继续拖动能带动页面滚动。
+- Combobox 打开后搜索框获得焦点（现在只靠 `defaultFocus`，不再用 `setTimeout(0)` 请求焦点）。

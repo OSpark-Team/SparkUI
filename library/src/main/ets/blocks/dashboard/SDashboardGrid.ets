@@ -1,6 +1,6 @@
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkUI } from '../../core/SparkUI';
-import { SCard, SCardContent } from '../../components/card/SCard';
+import { CardTokens, CardVariant, SCard, SCardContent } from '../../components/card/SCard';
 import { SIcon } from '../../icons/SIcon';
 import { SGrid, SGridItem } from '../../layout/SparkLayouts';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -19,6 +19,8 @@ export type DashboardTrend = 'up' | 'down' | 'none';
  *   SDashboardTile({ full: true }) { RecentOrders() }
  * }
  * ```
+ * Heading-row actions go in `actionsBuilder: wrapBuilder(rangePicker)` (a global `@Builder`), so the tiles
+ * keep the trailing closure.
  */
 @ComponentV2
 export struct SDashboardGrid {
@@ -29,8 +31,12 @@ export struct SDashboardGrid {
   @Param gap: number = 16;
   /** upper bound on columns (0 = unlimited) */
   @Param maxColumns: number = 0;
-  /** trailing content of the heading row (filters, a date range, actions); needs a `title` */
-  @BuilderParam actionsBuilder: () => void = sparkEmptyBuilder;
+  /**
+   * Trailing content of the heading row (filters, a date range, actions); needs a `title`. A region, not a slot:
+   * `actionsBuilder: wrapBuilder(myActions)` of a global `@Builder` (no `this`: render a component).
+   */
+  @Param actionsBuilder: WrappedBuilder<[]> | undefined = undefined;
+  /** the tiles — the trailing closure (the component's only @BuilderParam) */
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
@@ -52,7 +58,9 @@ export struct SDashboardGrid {
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
-          this.actionsBuilder()
+          if (this.actionsBuilder !== undefined) {
+            this.actionsBuilder.builder()
+          }
         }
         .width('100%')
       }
@@ -78,6 +86,10 @@ export struct SDashboardTile {
   @Param trend: DashboardTrend = 'none';
   /** columns spanned (clamped to the current column count) */
   @Param span: number = 1;
+  /** card variant of the tile (the theme's `--card-*` tokens apply as to any SCard) */
+  @Param variant: CardVariant = 'default';
+  /** per-instance card tokens (ADR D13), e.g. `{ background: 'transparent', shadow: 'none' }` */
+  @Param tokens: CardTokens = {};
   /** span the whole row */
   @Param full: boolean = false;
   @BuilderParam content: () => void = sparkEmptyBuilder;
@@ -89,7 +101,7 @@ export struct SDashboardTile {
 
   build() {
     SGridItem({ span: this.span, full: this.full }) {
-      SCard() {
+      SCard({ variant: this.variant, tokens: this.tokens }) {
         SCardContent() {
           if (this.title !== undefined || this.icon !== undefined) {
             Row({ space: 8 }) {

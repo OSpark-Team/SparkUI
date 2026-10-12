@@ -1,6 +1,6 @@
 # 布局 Block 的扩展点（headless-first）
 
-> 适用于 `library/src/main/ets/blocks/`：SSidebar 家族、STopbar、SAppShell、SListDetail、SSupportingPane、SDashboardGrid。
+> 适用于 `library/src/main/ets/blocks/`：SSidebar 家族、STopbar、STitleBar、SAppShell、SListDetail、SSupportingPane、SDashboardGrid。
 > 原则：**库不为特定场景写特例**。所有行为都可以由使用方替换或接管，库只提供默认值。
 
 ## 1. 原则
@@ -11,6 +11,7 @@
 4. **插槽是追加式的**：插槽（`xxxBuilder`）追加在内置内容之后。要替换内置内容，把对应的数据 prop 置空即可（例如 `brand: ''`、`leading: 'none'`、`title: ''`）。
 5. **数据驱动只是薄层**：`SAppShell` 只是对 `SSidebarProvider / SSidebar / SSidebarInset / STopbar` 的一层组合。超出它能力范围的需求，直接用这些原语自己组合。
 6. **不内置路由、存储和窗口 API**：只提供 `value` + `onNavigate` 两个钩子，用来接入任意路由；持久化通过 `defaultXxx` + `onXxxChange` 完成，由应用自己存（例如 PersistenceV2）；标题栏只预留一个区域插槽。
+7. **外观是 Token**（ADR D13）：每个 block 的配色、尺寸、圆角、阴影都按 **实例 `tokens` → 主题 `--<block>-<prop>` 组件 Token → 内置配方** 解析，不设置任何 Token 时视觉不变。主题级用 `SparkUI.themes.setVariable(...)` 或主题文件，单个实例用 `tokens` 参数（字段全部可选的 interface）。解析函数是 `BlockTokens.ets` 里的纯函数（`sparkSidebarStyle` 等），自定义部件可以直接复用。
 
 ## 2. 扩展点一览
 
@@ -22,7 +23,8 @@
 | 受控 | `open` / `defaultOpen` / `onOpenChange` / `$open`；`value` / `defaultValue` / `onValueChange` / `$value` |
 | 事件 | `onNavigate(v)`：每次激活都会触发，包括重复点击当前项（路由可借此实现"再点一次回到根"）；`onOpenMobileChange`；`onPresentationChange` |
 | 策略 | `layoutPolicy(input) => 'docked' \| 'rail' \| 'sheet'`。默认是 `sparkSidebarDefaultPolicy`（与 shadcn 一致）；`sparkSidebarRailPolicy(minRailInsetWidth)` 是 Material 风格的三段式。输入为 `SparkSidebarLayoutInput`：容器宽、侧栏宽、rail 宽、`minInsetWidth`、`collapsible` |
-| 阈值 | `sidebarWidth`、`sidebarWidthMobile`、`minInsetWidth`，没有固定断点 |
+| 阈值 | `sidebarWidth`、`sidebarWidthMobile`、`sidebarWidthIcon`（0 表示取 `--sidebar-width` / `-width-mobile` / `-width-icon`，再退回 256 / 288 / 48）、`minInsetWidth`，没有固定断点 |
+| Token | `tokens: SidebarTokens`（provider 解析一次存入 `controller.style`，所有部件读取）；主题 `--sidebar-background` `-border-color` `-border-width` `-frame-gap` `-menu-foreground` `-menu-hover-background` `-menu-active-background` `-menu-active-foreground` `-menu-outline-background` `-menu-radius` `-menu-height[-sm/-lg]` `-menu-pressed-opacity` `-group-label-color` `-floating-radius` `-floating-shadow` `-inset-background` `-inset-radius` `-inset-shadow` `-sheet-shadow`。基础值是语义 Token `--sidebar` / `--sidebar-foreground` / `--sidebar-accent(-foreground)` / `--sidebar-border`，它们仍是语义 Token |
 | 动效 | `motionKey`（默认 'sidebar'）同时用于折叠宽度动画和 sheet，可用 `--motion-<key>-*` 配置或关闭 |
 | 返回 | sheet 自带返回手势处理；页面级的返回调用 `controller.back()` |
 | 持久化 | `defaultOpen`（读取已存的值）+ `onOpenChange`（写入）。传入 controller 时，controller 保留自己的初始状态，由应用自己初始化（`ctrl.open = stored`） |
@@ -40,7 +42,8 @@
 | 类型 | 扩展点 |
 |---|---|
 | 插槽 | `leadingBuilder`（追加在内置 leading 之后，配合 `leading: 'none'` 可整体替换）、`titleBuilder`（追加在标题和副标题之后，`title: ''` 时替换标题）、`content`（尾部） |
-| 阈值 | `condenseBelow`（默认 520）、`barHeight`（0 表示自动：56 / 48） |
+| 阈值 | `condenseBelow`（默认 520）、`barHeight`（0 表示自动：`--topbar-height` / `--topbar-height-condensed`，默认 56 / 48） |
+| Token | `tokens: TopbarTokens`；主题 `--topbar-background` `-translucent-background` `-translucent-blur` `-border-color` `-border-width` `-title-color` `-subtitle-color` `-height` `-height-condensed` `-padding-x` `-padding-x-condensed` |
 | 钩子 | `onBack`、`onAction`、`onSearch` / `onSearchChange` |
 | 控制器 | `sidebarController`：放在 provider 之外时，用它驱动 trigger |
 
@@ -52,16 +55,35 @@
 - 退出内置结构：`showTopbar: false`（改用 `headerBuilder` 放自定义顶栏），`scrollable: false`（内容自己管理滚动和分栏，例如 SListDetail）。
 - **ArkTS 限制**：只要传入了任何其他插槽参数，就**不能**再用尾随闭包，必须用 `content: this.xxx` 具名传入（编译错误 10905102）。不传插槽时，`SAppShell({...}) { ... }` 照常可用。
 - 插槽建议用 `@LocalBuilder` 方法、全局 `@Builder`，或者箭头函数 `(): void => { this.x() }`，以保证 `this` 指向调用方。
+- Token：`tokens: AppShellTokens`，含 `contentMaxWidth` / `contentPadding`（主题 `--app-shell-content-max-width`，默认 1200；`--app-shell-content-padding`，默认按宽度自适应的 gutter）以及透传给内部部件的 `sidebar: SidebarTokens`、`topbar: TopbarTokens`。`maxContentWidth` prop 显式传入时优先（0 = 不限宽）。
 
 ### SListDetail / SSupportingPane
 
 - `controller`（`SparkListDetailState` / `SparkSupportingPaneState`）：提供 `back(): boolean`、`setShowDetail()` / `setOpen()`、`relayout()`。
 - `layoutPolicy(SparkSplitInput) => boolean`（默认分别是 `sparkListDetailDefaultPolicy` 和 `sparkSupportingDefaultPolicy`），配套事件 `onWideChange`，动效用 `motionKey`。
 - `SListDetailPane`：`onBack(): boolean` 返回 true 时视为已处理，不再执行默认的 pop；另有 `headerBuilder`（标题栏尾部）、`empty` + `emptyBuilder`（未选中时的空状态）和 `backLabel`。
+- Token：`SListDetail({ tokens: ListDetailTokens })`，主题 `--list-detail-divider-color` `-list-background` `-detail-background` `-header-height` `-detail-shadow` `-list-width`（`listWidth` prop 为 0 时生效，默认 320）；`SSupportingPane({ tokens: SupportingPaneTokens })`，主题 `--supporting-pane-divider-color` `-divider-width` `-background` `-sheet-background` `-sheet-radius` `-sheet-shadow` `-handle-background` `-width`（`paneWidth` prop 为 0 时生效，默认 320）。两个面板从 provider 状态的 `style` 读取解析结果。
 
 ### SDashboardGrid
 
 - `actionsBuilder`：标题行尾部插槽（筛选、日期范围、操作按钮）。列数由 `minTileWidth` / `maxColumns` 决定。
+- `SDashboardTile` 就是一张 SCard：`variant: CardVariant` 与 `tokens: CardTokens` 原样传给卡片，主题的 `--card-*` Token 同样生效。
+
+### STitleBar
+
+- 插槽：`start`（应用图标之前）、`leading`、`center`、`content`（尾部），均为不可拖动区域。
+- Token：`tokens: TitleBarTokens`；主题 `--titlebar-background` `-translucent-background` `-translucent-blur` `-border-color` `-border-width` `-title-color` `-height`（指针设备，默认 40）`-height-touch`（默认 48）`-caption-size`（按钮底板高度，默认为栏高 − 12，限制在 24…32）`-caption-radius`（keep 模式下也用于系统按钮的圆角）`-caption-foreground` `-caption-hover-background` `-caption-pressed-background` `-close-hover-background`（默认 `--destructive`）`-close-hover-foreground` `-close-pressed-background`。显式传入的 `barHeight` 优先。
+
+### Token 示例
+
+```ts
+// 全局：透明、带边框的侧栏 + 药丸形菜单按钮（随主题导出）
+SparkUI.themes.setVariable('--sidebar-background', 'transparent');
+SparkUI.themes.setVariable('--sidebar-menu-radius', '999px');
+// 单个实例
+SAppShell({ nav: NAV, tokens: { contentMaxWidth: 960, sidebar: { menuHeight: 36 }, topbar: { height: 64 } } }) { ... }
+STitleBar({ title: 'Inbox', tokens: { closeHoverBackground: '#e81123' } })
+```
 
 ## 3. 示例
 

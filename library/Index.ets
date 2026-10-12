@@ -74,8 +74,8 @@ export {
 export { SCard, SCardHeader, SCardTitle, SCardDescription, SCardAction, SCardContent, SCardFooter, SparkCardState, CardVariant, CardSize, CardStyle, CardVariants } from './src/main/ets/components/card/SCard';
 
 // overlay components
-export { OverlayBinding, OverlayConfigurator, SparkActivation } from './src/main/ets/primitives/overlay/OverlayBinding';
-export { MenuRow, MenuSeparator, MenuLabel, MenuIndicator, MenuItemVariant } from './src/main/ets/primitives/menu/MenuRow';
+export { OverlayBinding, OverlayConfigurator } from './src/main/ets/primitives/overlay/OverlayBinding';
+export { MenuRow, MenuSeparator, MenuLabel, MenuIndicator, MenuItemVariant, sparkIsEnterUp } from './src/main/ets/primitives/menu/MenuRow';
 export { SPARK_DIALOG_KEY } from './src/main/ets/components/dialog/SDialog';
 export {
   SAlertDialog, SAlertDialogTrigger, SAlertDialogContent, SAlertDialogAction, SAlertDialogCancel
@@ -195,7 +195,7 @@ export {
   SCommandDialog, SparkCommandState
 } from './src/main/ets/components/command/SCommand';
 export { sparkCommandScore } from './src/main/ets/components/command/CommandScore';
-export { SCombobox } from './src/main/ets/components/combobox/SCombobox';
+export { SCombobox, sparkComboboxEntries } from './src/main/ets/components/combobox/SCombobox';
 export {
   SDrawer, SDrawerTrigger, SDrawerContent, SDrawerHeader, SDrawerFooter, SDrawerTitle, SDrawerDescription, SDrawerClose
 } from './src/main/ets/components/drawer/SDrawer';
@@ -271,3 +271,19 @@ export { SwitchTokens } from './src/main/ets/components/switch/SSwitch';
 export { CheckboxTokens } from './src/main/ets/components/checkbox/SCheckbox';
 export { ProgressTokens } from './src/main/ets/components/progress/SProgress';
 export { TabsTokens, TabsListStyle, sparkTabsListStyle, sparkTabsMetrics } from './src/main/ets/components/tabs/STabs';
+
+// virtual lists (ADR D14) & option panels
+export { SparkOptionPanelTokens, SparkOptionPanelStyle, sparkOptionPanel } from './src/main/ets/theme/tokens/SparkTokenReader';
+export { SparkOptionSource, SparkOptionEntry, sparkOptionEntries, sparkOptionStep, sparkOptionFirst } from './src/main/ets/primitives/list/SparkOptionLogic';
+export { SparkOptionList } from './src/main/ets/primitives/list/SparkOptionList';
+
+// block tokens (ADR D13)
+export {
+  SidebarTokens, SparkSidebarStyle, sparkSidebarStyle, sparkSidebarWidth, sparkSidebarMobileWidth, sparkSidebarRailWidth,
+  TopbarTokens, SparkTopbarStyle, sparkTopbarStyle, TitleBarTokens, SparkTitleBarStyle, sparkTitleBarStyle, sparkCaptionPlate,
+  AppShellTokens, sparkShellMaxWidth, sparkShellPadding, ListDetailTokens, SparkListDetailStyle, sparkListDetailStyle,
+  sparkListWidth, SupportingPaneTokens, SparkSupportingPaneStyle, sparkSupportingPaneStyle, sparkSupportingPaneWidth
+} from './src/main/ets/blocks/BlockTokens';
+export { DrawerTokens, SparkDrawerHandle } from './src/main/ets/components/drawer/SDrawer';
+export { SparkCommandEntryData, SparkCommandEntryInit, SparkCommandRow, sparkCommandEntries, sparkCommandItemOf, sparkCommandMatches } from './src/main/ets/components/command/CommandData';
+export { SparkCommandDataList } from './src/main/ets/components/command/CommandDataList';

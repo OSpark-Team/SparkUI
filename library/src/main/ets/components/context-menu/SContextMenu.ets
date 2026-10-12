@@ -4,8 +4,8 @@ import { SparkUI } from '../../core/SparkUI';
 import { SparkAdaptive, SparkLayoutContext } from '../../layout/SparkLayoutContext';
 import { MenuItemVariant, MenuLabel, MenuSeparator } from '../../primitives/menu/MenuRow';
 import {
-  SparkMenuCheckboxPart, SparkMenuHandle, SparkMenuItemPart, SparkMenuRadioGroupPart, SparkMenuRadioPart,
-  sparkSheetHandle
+  SPARK_SHEET_HANDLE_HEIGHT, SparkMenuCheckboxPart, SparkMenuHandle, SparkMenuItemPart, sparkMenuPanelMaxHeight,
+  SparkMenuRadioGroupPart, SparkMenuRadioPart, SparkMenuScroll, sparkSheetHandle
 } from '../../primitives/menu/SparkMenuParts';
 import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { PlacementRect } from '../../primitives/overlay/Placement';
@@ -53,7 +53,7 @@ export class SparkContextMenuState {
  * SContextMenu() {
  *   SContextMenuTrigger() { Text('Right click here') ... }
  *   SContextMenuContent() {
- *     SContextMenuItem({ text: 'Back', shortcut: '⌘[' }).onClick(() => ...)
+ *     SContextMenuItem({ text: 'Back', shortcut: '⌘[', onSelect: () => ... })
  *     SContextMenuItem({ text: 'Reload', shortcut: '⌘R', onSelect: () => ... })
  *     SContextMenuSeparator()
  *     SContextMenuCheckboxItem({ text: 'Show Bookmarks', checked: this.bookmarks!! })
@@ -173,6 +173,8 @@ export struct SContextMenuContent {
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
   @Local state: SparkContextMenuState | undefined = undefined;
   @Local sheet: boolean = false;
+  /** the open layer (its placement bounds the panel height) */
+  @Local scope: SparkOverlayScope | undefined = undefined;
   private binding: OverlayBinding = new OverlayBinding();
 
   onDidBuild(): void {
@@ -187,6 +189,7 @@ export struct SContextMenuContent {
         this.binding.attach(this.getUIContext(), state.disclosure, (scope: SparkOverlayScope) => {
           this.sheet = !state.viaPointer && sparkUseSheet(this.adaptive);
           state.handle.sheet = this.sheet;
+          this.scope = scope;
           scope.presentation = this.sheet ? 'sheet-bottom' : 'anchored';
           scope.motionKey = 'menu';
           scope.modal = this.sheet;
@@ -211,13 +214,20 @@ export struct SContextMenuContent {
     this.binding.dispose();
   }
 
+  /** padding + border (+ sheet handle and bottom safe area) around the item list */
+  private chrome(): number {
+    return this.sheet ? 8 * 2 + 1 + SPARK_SHEET_HANDLE_HEIGHT + this.layout.env.safeArea.bottom : 4 * 2 + 1 * 2;
+  }
+
   @LocalBuilder
   panel() {
     Column() {
       if (this.sheet) {
         sparkSheetHandle(this.theme.colors.muted)
       }
-      this.content()
+      SparkMenuScroll({ maxListHeight: sparkMenuPanelMaxHeight(this.scope, this.sheet, this.chrome()) }) {
+        this.content()
+      }
     }
     // a definite width: with an auto-width panel, '100%' rows resolve against the overlay layer
     .width(this.sheet ? '100%' : this.panelWidth)
@@ -240,7 +250,10 @@ export struct SContextMenuContent {
   }
 }
 
-/** Action row; closes the menu after activation (`onSelect` and the native `.onClick()` both fire). */
+/**
+ * Action row; closes the menu after activation (unless `keepOpen`). Tap, click, Space / Enter and screen-reader
+ * activation fire `onSelect` (a `.onClick()` chained on the item does not fire).
+ */
 @ComponentV2
 export struct SContextMenuItem {
   @Param text: ResourceStr = '';
@@ -270,6 +283,8 @@ export struct SContextMenuItem {
 
 @ComponentV2
 export struct SContextMenuCheckboxItem {
+  /** identity for the uncontrolled memory (default: the label) */
+  @Param value: string = '';
   @Param text: ResourceStr = '';
   @Param shortcut: string | undefined = undefined;
   @Param checked: boolean | undefined = undefined;
@@ -283,6 +298,7 @@ export struct SContextMenuCheckboxItem {
   build() {
     SparkMenuCheckboxPart({
       menuKey: ITEM_KEY,
+      value: this.value,
       text: this.text,
       shortcut: this.shortcut,
       checked: this.checked,
@@ -296,6 +312,8 @@ export struct SContextMenuCheckboxItem {
 
 @ComponentV2
 export struct SContextMenuRadioGroup {
+  /** identity for the uncontrolled memory (default: the defaultValue) */
+  @Param name: string = '';
   @Param value: string | undefined = undefined;
   @Event $value: (v: string) => void = () => {
   };
@@ -307,6 +325,7 @@ export struct SContextMenuRadioGroup {
   build() {
     SparkMenuRadioGroupPart({
       menuKey: ITEM_KEY,
+      name: this.name,
       value: this.value,
       $value: (v: string) => this.$value(v),
       defaultValue: this.defaultValue,

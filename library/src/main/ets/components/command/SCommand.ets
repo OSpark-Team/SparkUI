@@ -1,16 +1,20 @@
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
-import { SparkTapBlocker } from '../../core/SparkModifier';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkLayoutContext } from '../../layout/SparkLayoutContext';
-import { OverlayBinding, SparkActivation } from '../../primitives/overlay/OverlayBinding';
+import { sparkFocusRing } from '../../core/SparkModifier';
+import { sparkIsEnterUp } from '../../primitives/menu/MenuRow';
+import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
 import { SparkDisclosure } from '../../primitives/SparkDisclosure';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
 import { sparkNoFocusBox } from '../input/SInput';
 import { sparkCommandScore } from './CommandScore';
+import { sparkOptionFirst, sparkOptionStep } from '../../primitives/list/SparkOptionLogic';
+import { SparkCommandEntryData, sparkCommandEntries, sparkCommandItemOf, SparkCommandRow } from './CommandData';
+import { SparkCommandDataList } from './CommandDataList';
 
 const KEY: string = 'spark.command';
 const GROUP_KEY: string = 'spark.command.group';
@@ -22,6 +26,8 @@ const KEY_ENTER: number = 2054;
 const KEY_NUMPAD_ENTER: number = 2119;
 const KEY_HOME: number = 2081;
 const KEY_END: number = 2082;
+/** smallest max height of the data-mode list (vp) */
+const SPARK_COMMAND_MIN_LIST: number = 64;
 
 class CommandEntry {
   uid: number;
@@ -64,6 +70,8 @@ export class SparkCommandState {
   @Trace highlighted: string = '';
   /** bumped whenever the item registry changes */
   @Trace version: number = 0;
+  /** an SCommandInput is present: it keeps focus and drives the highlight (items are then not focusable) */
+  @Trace hasInput: boolean = false;
   /** false: never hide items (the developer filters the data) */
   filtering: boolean = true;
   uiContext: UIContext | undefined = undefined;
@@ -249,7 +257,7 @@ export class SparkCommandState {
  *   SCommandList() {
  *     SCommandEmpty({ text: 'No results found.' })
  *     SCommandGroup({ heading: 'Suggestions' }) {
- *       SCommandItem({ value: 'calendar', text: 'Calendar', icon: 'calendar' }).onClick(() => ...)
+ *       SCommandItem({ value: 'calendar', text: 'Calendar', icon: 'calendar', onSelect: (v: string) => ... })
  *       SCommandItem({ value: 'emoji', text: 'Search Emoji', icon: 'smile', keywords: ['face'] })
  *     }
  *     SCommandSeparator()
@@ -262,6 +270,27 @@ export class SparkCommandState {
  * Items are matched case-insensitively against the query (prefix, substring, then subsequence — see
  * `sparkCommandScore`); groups with no matching item hide; ↑ / ↓ move the highlight, Enter selects it.
  * Results keep their document order (they are filtered, not re-sorted).
+ *
+ * **Data mode** (long lists, ADR D14): pass `items` instead of slot content. The command then renders its own
+ * search field and a virtualized list (`List` + `Repeat.virtualScroll()`): items that do not match the query are
+ * never built, and of the matches only the rows in view are.
+ * ```
+ * SCommand({
+ *   items: [
+ *     new SparkCommandEntryData({ value: 'calendar', label: 'Calendar', icon: 'calendar', group: 'Suggestions',
+ *       keywords: ['date'] }),
+ *     new SparkCommandEntryData({ value: 'profile', label: 'Profile', icon: 'user', group: 'Settings',
+ *       shortcut: '⌘P', onSelect: (v: string) => ... }),
+ *     ...
+ *   ],
+ *   placeholder: 'Type a command or search…',
+ *   emptyText: 'No results found.',
+ *   onItemSelect: (v: string) => ...
+ * })
+ * ```
+ * Consecutive items with the same `group` share a heading. ↑ / ↓ in the field move the highlight (the list
+ * scrolls to it), Enter or a tap activates an item (`onSelect` of the item, then `onItemSelect`). Values must
+ * be unique. `showInput: false` drops the field (rows then take focus).
  */
 @ComponentV2
 export struct SCommand {
@@ -272,11 +301,27 @@ export struct SCommand {
   /** fired after any item is selected (with its value) */
   @Event onItemSelect: (value: string) => void = () => {
   };
+  /** data mode: the items (virtualized list with a built-in search field); undefined = slot mode */
+  @Param items: SparkCommandEntryData[] | undefined = undefined;
+  /** data mode: search field placeholder */
+  @Param placeholder: ResourceStr = 'Type a command or search…';
+  /** data mode: text shown when nothing matches */
+  @Param emptyText: ResourceStr = 'No results found.';
+  /** data mode: max height of the result list (vp) */
+  @Param maxListHeight: number = 300;
+  /** data mode: render the search field (false: rows take focus, the developer drives the query) */
+  @Param showInput: boolean = true;
+  /** data mode: focus the field when the command appears (pointer devices; keeps the keyboard closed on touch) */
+  @Param autoFocus: boolean = false;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkCommandState = new SparkCommandState();
 
   aboutToAppear(): void {
+    if (this.items !== undefined) {
+      this.state.hasInput = this.showInput;
+      this.state.highlighted = sparkOptionFirst(this.dataEntries);
+    }
     this.state.filtering = this.shouldFilter;
     this.state.uiContext = this.getUIContext();
     this.state.emitQuery = (q: string) => this.onQueryChange(q);
@@ -294,9 +339,135 @@ export struct SCommand {
     this.state.version++;
   }
 
+  // ---------------------------------------------------------------------------------------------- data mode
+
+  /** matching rows (headings + items, document order); only the visible ones are built */
+  @Computed
+  get dataEntries(): SparkCommandRow[] {
+    const items = this.items;
+    return items === undefined ? [] : sparkCommandEntries(items, this.state.query, this.shouldFilter);
+  }
+
+  /** keep a valid highlight when the data changes */
+  @Monitor('items', 'showInput')
+  syncItems(): void {
+    if (this.items === undefined) {
+      return;
+    }
+    this.state.hasInput = this.showInput;
+    if (sparkCommandItemOf(this.dataEntries, this.state.highlighted) === undefined) {
+      this.state.highlighted = sparkOptionFirst(this.dataEntries);
+    }
+  }
+
+  private setDataQuery(q: string): void {
+    if (q === this.state.query) {
+      return;
+    }
+    this.state.query = q;
+    this.onQueryChange(q);
+    this.state.highlighted = sparkOptionFirst(this.dataEntries);
+  }
+
+  private pick(value: string): void {
+    const item = sparkCommandItemOf(this.dataEntries, value);
+    if (item === undefined) {
+      return;
+    }
+    this.state.highlighted = value;
+    const cb = item.onSelect;
+    if (cb !== undefined) {
+      cb(value);
+    }
+    this.onItemSelect(value);
+  }
+
+  /** ↑ / ↓ move the highlight (before the IME sees them); true when consumed */
+  private onDataKey(e: KeyEvent): boolean {
+    if (e.keyCode !== KEY_UP && e.keyCode !== KEY_DOWN) {
+      return false;
+    }
+    if (e.type === KeyType.Down) {
+      this.state.highlighted = sparkOptionStep(this.dataEntries, this.state.highlighted,
+        e.keyCode === KEY_UP ? -1 : 1);
+    }
+    return true;
+  }
+
+  private inputKey(): string {
+    return `spark-command-input-${this.getUniqueId()}`;
+  }
+
+  @Builder
+  dataBody() {
+    if (this.showInput) {
+      Row({ space: 8 }) {
+        SIcon({ name: 'search', sizing: 16, color: this.theme.colors.mutedForeground })
+          .opacity(0.5)
+        TextInput({ text: this.state.query, placeholder: this.placeholder })
+          .id(this.inputKey())
+          .layoutWeight(1)
+          .height(36)
+          .padding(0)
+          .borderRadius(0)
+          .backgroundColor(Color.Transparent)
+          .fontSize(this.theme.text.sm)
+          .fontColor(this.theme.colors.popoverForeground)
+          .placeholderColor(this.theme.colors.mutedForeground)
+          .placeholderFont({ size: this.theme.text.sm })
+          .caretColor(this.theme.colors.foreground)
+          .selectedBackgroundColor(SparkColor.alpha(this.theme.colors.primary, 0.25))
+          .enterKeyType(EnterKeyType.Go)
+          .hoverEffect(HoverEffect.None)
+          .focusBox(sparkNoFocusBox())
+          .defaultFocus(this.autoFocus)
+          .accessibilityRole(AccessibilityRoleType.SEARCH_FIELD)
+          .onChange((v: string) => this.setDataQuery(v))
+          .onSubmit((_: EnterKeyType, ev?: SubmitEvent) => {
+            ev?.keepEditableState();
+            this.pick(this.state.highlighted);
+          })
+          .onKeyPreIme((e: KeyEvent): boolean => this.onDataKey(e))
+      }
+      .width('100%')
+      .height(36)
+      .padding({ left: 12, right: 12 })
+      .border({ width: { bottom: 1 }, color: this.theme.colors.border })
+    }
+    if (this.dataEntries.length === 0) {
+      // CommandEmpty: `py-6 text-center text-sm`
+      Text(this.emptyText)
+        .width('100%')
+        .padding({ top: 24, bottom: 24 })
+        .textAlign(TextAlign.Center)
+        .fontSize(this.theme.text.sm)
+        .fontColor(this.theme.colors.popoverForeground)
+    } else {
+      Column() {
+        SparkCommandDataList({
+          entries: this.dataEntries,
+          highlighted: this.state.highlighted,
+          // the list padding (p-1) counts towards the max height
+          maxListHeight: Math.max(SPARK_COMMAND_MIN_LIST, this.maxListHeight - 8),
+          rowsFocusable: !this.showInput,
+          onPick: (v: string) => this.pick(v),
+          onHighlight: (v: string) => {
+            this.state.highlighted = v;
+          }
+        })
+      }
+      .width('100%')
+      .padding(4)
+    }
+  }
+
   build() {
     Column() {
-      this.content()
+      if (this.items !== undefined) {
+        this.dataBody()
+      } else {
+        this.content()
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -306,7 +477,11 @@ export struct SCommand {
     // ↑ / ↓ when focus is elsewhere inside the command (Enter is handled by the input's onSubmit, so that
     // it is not activated twice when the key event bubbles up from the field)
     .onKeyEvent((e: KeyEvent) => {
-      this.state.key(e, false);
+      // without an input the items are focusable and the focused item is the highlight; the data mode's
+      // field handles its own keys before the IME
+      if (this.state.hasInput && this.items === undefined) {
+        this.state.key(e, false);
+      }
     })
   }
 }
@@ -327,6 +502,15 @@ export struct SCommandInput {
   private sparkResolve(): void {
     if (this.state === undefined) {
       this.state = SparkContext.resolve<SparkCommandState>(this.getUIContext(), this.getUniqueId(), KEY);
+      if (this.state !== undefined) {
+        this.state.hasInput = true;
+      }
+    }
+  }
+
+  aboutToDisappear(): void {
+    if (this.state !== undefined) {
+      this.state.hasInput = false;
     }
   }
 
@@ -540,8 +724,11 @@ export struct SCommandSeparator {
 
 /**
  * One result row: `relative flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm`, accent background when
- * highlighted (keyboard ↑/↓ or pointer hover — switches instantly, never cross-fades) or pressed.
- * Activates on tap / click / Enter: fires `onSelect(value)`; the native `.onClick()` on the item also works.
+ * highlighted (keyboard ↑/↓ or pointer hover — switches instantly, never cross-fades); a press only fades the row
+ * (a selection row: a pressed background next to the highlighted one would read as two highlights).
+ * Activation is the row's native onClick — tap, click, the screen reader, Space — plus Enter in the input (or on
+ * the focused row when the command has no input); it fires `onSelect(value)`. A `.onClick()` chained on the item
+ * does not fire (the row's own click takes it).
  */
 @ComponentV2
 export struct SCommandItem {
@@ -558,7 +745,6 @@ export struct SCommandItem {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkCommandState | undefined = undefined;
-  private activation: SparkActivation = new SparkActivation();
 
   onDidBuild(): void {
     SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
@@ -622,18 +808,21 @@ export struct SCommandItem {
   }
 
   @Computed
-  get blocker(): SparkTapBlocker {
-    return new SparkTapBlocker(this.disabled);
+  get focusableRow(): boolean {
+    const s = this.state;
+    return s !== undefined && !s.hasInput && !this.disabled;
   }
 
   @Styles
   normalStyle() {
     .backgroundColor(this.highlighted ? this.theme.colors.accent : Color.Transparent)
+    .opacity(this.disabled ? 0.5 : 1)
   }
 
   @Styles
   pressedStyle() {
-    .backgroundColor(this.disabled ? Color.Transparent : this.theme.colors.accent)
+    .backgroundColor(this.highlighted ? this.theme.colors.accent : Color.Transparent)
+    .opacity(this.disabled ? 0.5 : 0.6)
   }
 
   build() {
@@ -662,7 +851,6 @@ export struct SCommandItem {
     .height(32)
     .padding({ left: 8, right: 8 })
     .borderRadius(this.theme.radiusSm)
-    .opacity(this.disabled ? 0.5 : 1)
     .visibility(this.shown ? Visibility.Visible : Visibility.None)
     .stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })
     .onHover((h: boolean) => {
@@ -671,11 +859,21 @@ export struct SCommandItem {
         this.state?.highlight(this.itemValue);
       }
     })
-    .gestureModifier(this.blocker)
-    .onTouch((e: TouchEvent) => this.activation.touch(e, this.disabled, () => this.select()))
-    .focusable(false)
+    .onClick(() => this.select())
+    // with an input, focus stays in it (↑ / ↓ move the highlight, Enter selects); without one, rows take focus
+    .focusable(this.focusableRow)
+    .focusBox(sparkFocusRing(this.theme))
+    .onFocus(() => this.state?.highlight(this.itemValue))
+    .onKeyEvent((e: KeyEvent) => {
+      if (sparkIsEnterUp(e)) {
+        this.select();
+      }
+    })
+    .accessibilityGroup(true)
+    .accessibilityRole(AccessibilityRoleType.OPTION)
     .accessibilityText(this.plainText)
-    .accessibilitySelected(this.highlighted)
+    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilitySelected(this.checked !== undefined ? this.checked : this.highlighted)
   }
 }
 
@@ -688,7 +886,8 @@ export struct SCommandItem {
  *   SCommandList() { ... }
  * }
  * ```
- * Closes after an item is selected unless `closeOnSelect: false`.
+ * Closes after an item is selected unless `closeOnSelect: false`. Long palettes use the data mode:
+ * `SCommandDialog({ open: this.palette!!, items: COMMANDS, autoFocus: true, onItemSelect: ... })`.
  */
 @ComponentV2
 export struct SCommandDialog {
@@ -702,6 +901,16 @@ export struct SCommandDialog {
   @Param shouldFilter: boolean = true;
   /** accessible title (shadcn renders it sr-only) */
   @Param title: string = 'Command Palette';
+  /** data mode (see SCommand): items of a virtualized palette instead of slot content */
+  @Param items: SparkCommandEntryData[] | undefined = undefined;
+  @Param placeholder: ResourceStr = 'Type a command or search…';
+  @Param emptyText: ResourceStr = 'No results found.';
+  @Param maxListHeight: number = 300;
+  /** data mode: focus the search field on open (pointer devices) */
+  @Param autoFocus: boolean = false;
+  /** fired after any item is selected (with its value) */
+  @Event onItemSelect: (value: string) => void = () => {
+  };
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
@@ -744,7 +953,13 @@ export struct SCommandDialog {
       Column() {
         SCommand({
           shouldFilter: this.shouldFilter,
-          onItemSelect: () => {
+          items: this.items,
+          placeholder: this.placeholder,
+          emptyText: this.emptyText,
+          maxListHeight: this.maxListHeight,
+          autoFocus: this.autoFocus,
+          onItemSelect: (v: string) => {
+            this.onItemSelect(v);
             if (this.closeOnSelect) {
               this.state.setOpen(false);
             }

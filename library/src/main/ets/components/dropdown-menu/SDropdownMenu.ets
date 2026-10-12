@@ -2,7 +2,11 @@ import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkAdaptive, SparkLayoutContext } from '../../layout/SparkLayoutContext';
-import { MenuItemVariant, MenuLabel, MenuRow, MenuSeparator } from '../../primitives/menu/MenuRow';
+import { MenuItemVariant, MenuLabel, MenuSeparator } from '../../primitives/menu/MenuRow';
+import {
+  SPARK_SHEET_HANDLE_HEIGHT, SparkMenuCheckboxPart, SparkMenuHandle, SparkMenuItemPart, sparkMenuPanelMaxHeight,
+  SparkMenuRadioGroupPart, SparkMenuRadioPart, SparkMenuScroll, sparkSheetHandle
+} from '../../primitives/menu/SparkMenuParts';
 import { OverlayBinding } from '../../primitives/overlay/OverlayBinding';
 import { SparkAlign, SparkSide } from '../../primitives/overlay/Placement';
 import { SparkOverlayScope } from '../../primitives/overlay/SparkOverlay';
@@ -14,7 +18,8 @@ import {
 } from '../../theme/tokens/SparkTokenReader';
 
 const KEY: string = 'spark.dropdown';
-const RADIO_KEY: string = 'spark.dropdown.radio';
+/** key of the item handle inside the overlay */
+const ITEM_KEY: string = 'spark.dropdown.items';
 
 /** Whether a menu-like overlay should become a bottom sheet (semantic translation). */
 export function sparkUseSheet(adaptive: SparkAdaptive): boolean {
@@ -25,7 +30,8 @@ export function sparkUseSheet(adaptive: SparkAdaptive): boolean {
 
 /**
  * shadcn-vue `DropdownMenu`. Anchored menu on pointer / wide screens; on compact touch screens it
- * automatically becomes a bottom sheet with touch-sized rows (`adaptive: 'auto'`).
+ * automatically becomes a bottom sheet with touch-sized rows (`adaptive: 'auto'`). Long menus scroll within
+ * the space available next to the trigger.
  *
  * ```
  * SDropdownMenu() {
@@ -33,11 +39,13 @@ export function sparkUseSheet(adaptive: SparkAdaptive): boolean {
  *   SDropdownMenuContent() {
  *     SDropdownMenuLabel({ text: 'My Account' })
  *     SDropdownMenuSeparator()
- *     SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P' }).onClick(() => ...)
+ *     SDropdownMenuItem({ text: 'Profile', icon: 'user', shortcut: '⇧⌘P', onSelect: () => ... })
  *     SDropdownMenuItem({ text: 'Log out', icon: 'log-out', variant: 'destructive' })
  *   }
  * }
  * ```
+ * Items report activation through `onSelect` (a `.onClick()` chained on an item does not fire: the row's own
+ * click — which also serves keyboard and screen readers — takes it).
  */
 @ComponentV2
 export struct SDropdownMenu {
@@ -122,6 +130,10 @@ export struct SDropdownMenuContent {
   @Consumer('sparkLayout') layout: SparkLayoutContext = SparkUI.layout.root;
   @Local ctx: SparkDisclosure | undefined = undefined;
   @Local sheet: boolean = false;
+  /** the open layer (its placement bounds the panel height) */
+  @Local scope: SparkOverlayScope | undefined = undefined;
+  /** long-lived item handle: sheet flag, close, uncontrolled checkbox / radio memory */
+  private handle: SparkMenuHandle = new SparkMenuHandle();
   private binding: OverlayBinding = new OverlayBinding();
 
   onDidBuild(): void {
@@ -133,8 +145,11 @@ export struct SDropdownMenuContent {
       const ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
       this.ctx = ctx;
       if (ctx !== undefined) {
+        this.handle.close = () => ctx.setOpen(false);
         this.binding.attach(this.getUIContext(), ctx, (scope: SparkOverlayScope) => {
           this.sheet = sparkUseSheet(this.adaptive);
+          this.handle.sheet = this.sheet;
+          this.scope = scope;
           ctx.placement = this.sheet ? 'sheet' : 'anchored';
           scope.presentation = this.sheet ? 'sheet-bottom' : 'anchored';
           scope.motionKey = 'menu';
@@ -145,7 +160,8 @@ export struct SDropdownMenuContent {
           scope.alignment = this.alignment;
           scope.sideOffset = this.sideOffset;
           scope.content = this.panel;
-          scope.contextKey = KEY;
+          scope.contextKey = ITEM_KEY;
+          scope.contextValue = this.handle;
           scope.theme = this.theme;
           scope.layout = this.layout;
         });
@@ -165,18 +181,24 @@ export struct SDropdownMenuContent {
       this.sheet ? t.radiusXl : t.radiusMd, this.sheet ? 8 : 4, t.shadows.md), this.tokens);
   }
 
+  /** padding + border (+ sheet handle and bottom safe area) around the item list */
+  private chrome(): number {
+    const s = this.surface;
+    if (this.sheet) {
+      return s.padding * 2 + s.borderWidth + SPARK_SHEET_HANDLE_HEIGHT + this.layout.env.safeArea.bottom;
+    }
+    return s.padding * 2 + s.borderWidth * 2;
+  }
+
   @LocalBuilder
   panel() {
     Column() {
       if (this.sheet) {
-        Row() {
-          Column().width(40).height(4).borderRadius(2).backgroundColor(this.theme.colors.muted)
-        }
-        .width('100%')
-        .justifyContent(FlexAlign.Center)
-        .padding({ top: 4, bottom: 8 })
+        sparkSheetHandle(this.theme.colors.muted)
       }
-      this.content()
+      SparkMenuScroll({ maxListHeight: sparkMenuPanelMaxHeight(this.scope, this.sheet, this.chrome()) }) {
+        this.content()
+      }
     }
     // a definite width: with an auto-width panel, '100%' rows resolve against the overlay layer
     .width(this.sheet ? '100%' : this.panelWidth)
@@ -204,7 +226,7 @@ export struct SDropdownMenuContent {
   }
 }
 
-/** Resolves the dropdown state (inside the overlay) and closes it after activation. */
+/** Action row; closes the menu after activation (unless `keepOpen`). */
 @ComponentV2
 export struct SDropdownMenuItem {
   @Param text: ResourceStr = '';
@@ -215,44 +237,35 @@ export struct SDropdownMenuItem {
   @Param inset: boolean = false;
   /** keep the menu open after activation */
   @Param keepOpen: boolean = false;
-  /** reka-style select event (alternative to `.onClick()`) */
+  /** reka-style select event: tap, click, Space / Enter and screen-reader activation */
   @Event onSelect: () => void = () => {
   };
-  @Local ctx: SparkDisclosure | undefined = undefined;
-
-  onDidBuild(): void {
-    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
-  }
-
-  private sparkResolve(): void {
-    if (this.ctx === undefined) {
-      this.ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
-    }
-  }
 
   build() {
-    MenuRow({
+    SparkMenuItemPart({
+      menuKey: ITEM_KEY,
       text: this.text,
       icon: this.icon,
       shortcut: this.shortcut,
       variant: this.variant,
       disabled: this.disabled,
       inset: this.inset,
-      roomy: this.ctx?.placement === 'sheet',
-      onActivate: () => {
-        this.onSelect();
-        if (!this.keepOpen) {
-          this.ctx?.setOpen(false);
-        }
-      }
+      keepOpen: this.keepOpen,
+      onSelect: () => this.onSelect()
     })
   }
 }
 
-/** Item with a check mark; toggles `checked`. */
+/**
+ * Item with a check mark; toggles `checked`. Uncontrolled (`defaultChecked`) values are remembered across
+ * openings, keyed by `value` (default: the label).
+ */
 @ComponentV2
 export struct SDropdownMenuCheckboxItem {
+  /** identity for the uncontrolled memory (default: the label) */
+  @Param value: string = '';
   @Param text: ResourceStr = '';
+  @Param shortcut: string | undefined = undefined;
   @Param checked: boolean | undefined = undefined;
   @Event $checked: (v: boolean) => void = () => {
   };
@@ -260,58 +273,30 @@ export struct SDropdownMenuCheckboxItem {
   @Event onCheckedChange: (v: boolean) => void = () => {
   };
   @Param disabled: boolean = false;
-  @Local current: boolean = false;
-  @Local ctx: SparkDisclosure | undefined = undefined;
-
-  aboutToAppear(): void {
-    this.current = this.checked ?? this.defaultChecked;
-  }
-
-  @Monitor('checked')
-  sync(): void {
-    if (this.checked !== undefined) {
-      this.current = this.checked;
-    }
-  }
-
-  onDidBuild(): void {
-    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
-  }
-
-  private sparkResolve(): void {
-    if (this.ctx === undefined) {
-      this.ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
-    }
-  }
 
   build() {
-    MenuRow({
+    SparkMenuCheckboxPart({
+      menuKey: ITEM_KEY,
+      value: this.value,
       text: this.text,
-      indicator: 'check-left',
-      selected: this.current,
-      disabled: this.disabled,
-      roomy: this.ctx?.placement === 'sheet',
-      onActivate: () => {
-        const v = !this.current;
-        if (this.checked === undefined) {
-          this.current = v;
-        }
-        this.$checked(v);
-        this.onCheckedChange(v);
-      }
+      shortcut: this.shortcut,
+      checked: this.checked,
+      $checked: (v: boolean) => this.$checked(v),
+      defaultChecked: this.defaultChecked,
+      onCheckedChange: (v: boolean) => this.onCheckedChange(v),
+      disabled: this.disabled
     })
   }
 }
 
-@ObservedV2
-class DropdownRadioState {
-  @Trace value: string = '';
-  emit: (v: string) => void = () => {
-  };
-}
-
+/**
+ * Single-choice group. Uncontrolled (`defaultValue`) values are remembered across openings, keyed by `name`
+ * (default: the defaultValue — give groups sharing a defaultValue distinct names).
+ */
 @ComponentV2
 export struct SDropdownMenuRadioGroup {
+  /** identity for the uncontrolled memory (default: the defaultValue) */
+  @Param name: string = '';
   @Param value: string | undefined = undefined;
   @Event $value: (v: string) => void = () => {
   };
@@ -319,36 +304,18 @@ export struct SDropdownMenuRadioGroup {
   @Event onValueChange: (v: string) => void = () => {
   };
   @BuilderParam content: () => void = sparkEmptyBuilder;
-  @Local state: DropdownRadioState = new DropdownRadioState();
-
-  aboutToAppear(): void {
-    this.state.value = this.value ?? this.defaultValue;
-    this.state.emit = (v: string) => {
-      if (this.value === undefined) {
-        this.state.value = v;
-      }
-      this.$value(v);
-      this.onValueChange(v);
-    };
-    SparkContext.provide(this.getUIContext(), this.getUniqueId(), RADIO_KEY, this.state);
-  }
-
-  aboutToDisappear(): void {
-    SparkContext.revoke(this.getUniqueId());
-  }
-
-  @Monitor('value')
-  sync(): void {
-    if (this.value !== undefined) {
-      this.state.value = this.value;
-    }
-  }
 
   build() {
-    Column() {
+    SparkMenuRadioGroupPart({
+      menuKey: ITEM_KEY,
+      name: this.name,
+      value: this.value,
+      $value: (v: string) => this.$value(v),
+      defaultValue: this.defaultValue,
+      onValueChange: (v: string) => this.onValueChange(v)
+    }) {
       this.content()
     }
-    .width('100%')
   }
 }
 
@@ -357,29 +324,9 @@ export struct SDropdownMenuRadioItem {
   @Param value: string = '';
   @Param text: ResourceStr = '';
   @Param disabled: boolean = false;
-  @Local group: DropdownRadioState | undefined = undefined;
-  @Local ctx: SparkDisclosure | undefined = undefined;
-
-  onDidBuild(): void {
-    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => this.sparkResolve());
-  }
-
-  private sparkResolve(): void {
-    if (this.group === undefined) {
-      this.group = SparkContext.resolve<DropdownRadioState>(this.getUIContext(), this.getUniqueId(), RADIO_KEY);
-      this.ctx = SparkContext.resolve<SparkDisclosure>(this.getUIContext(), this.getUniqueId(), KEY);
-    }
-  }
 
   build() {
-    MenuRow({
-      text: this.text,
-      indicator: 'dot-left',
-      selected: this.group?.value === this.value,
-      disabled: this.disabled,
-      roomy: this.ctx?.placement === 'sheet',
-      onActivate: () => this.group?.emit(this.value)
-    })
+    SparkMenuRadioPart({ menuKey: ITEM_KEY, value: this.value, text: this.text, disabled: this.disabled })
   }
 }
 
