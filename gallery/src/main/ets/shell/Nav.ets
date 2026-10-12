@@ -1,4 +1,4 @@
-import { SparkShellNavGroup, SparkShellNavItem, sparkShellNavTitle } from '@sparkui/core';
+import { SparkShellNavGroup, SparkShellNavItem, sparkShellNavTitle } from '@ospark/sparkui';
 
 /**
  * Gallery routes: every page id rendered by DocContent (pages/Index.ets), grouped for the SAppShell sidebar.

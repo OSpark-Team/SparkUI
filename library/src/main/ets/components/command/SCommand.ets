@@ -1,3 +1,4 @@
+import { sparkText, sparkTextOf } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -304,9 +305,9 @@ export struct SCommand {
   /** data mode: the items (virtualized list with a built-in search field); undefined = slot mode */
   @Param items: SparkCommandEntryData[] | undefined = undefined;
   /** data mode: search field placeholder */
-  @Param placeholder: ResourceStr = 'Type a command or search…';
+  @Param placeholder: ResourceStr = $r('app.string.spark_command_placeholder');
   /** data mode: text shown when nothing matches */
-  @Param emptyText: ResourceStr = 'No results found.';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_results');
   /** data mode: max height of the result list (vp) */
   @Param maxListHeight: number = 300;
   /** data mode: render the search field (false: rows take focus, the developer drives the query) */
@@ -489,7 +490,7 @@ export struct SCommand {
 /** `flex h-9 items-center gap-2 border-b px-3` with a search icon and a borderless input. */
 @ComponentV2
 export struct SCommandInput {
-  @Param placeholder: ResourceStr = 'Type a command or search…';
+  @Param placeholder: ResourceStr = $r('app.string.spark_command_placeholder');
   /** focus the field when it appears (pointer devices; avoid on touch to keep the keyboard closed) */
   @Param autoFocus: boolean = false;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -610,7 +611,7 @@ export struct SCommandList {
 /** Shown when the query matches no item: `py-6 text-center text-sm`. */
 @ComponentV2
 export struct SCommandEmpty {
-  @Param text: ResourceStr = 'No results found.';
+  @Param text: ResourceStr = $r('app.string.spark_no_results');
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local state: SparkCommandState | undefined = undefined;
@@ -872,7 +873,7 @@ export struct SCommandItem {
     .accessibilityGroup(true)
     .accessibilityRole(AccessibilityRoleType.OPTION)
     .accessibilityText(this.plainText)
-    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilityDescription(this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .accessibilitySelected(this.checked !== undefined ? this.checked : this.highlighted)
   }
 }
@@ -900,11 +901,11 @@ export struct SCommandDialog {
   @Param closeOnSelect: boolean = true;
   @Param shouldFilter: boolean = true;
   /** accessible title (shadcn renders it sr-only) */
-  @Param title: string = 'Command Palette';
+  @Param title: ResourceStr = $r('app.string.spark_command_palette');
   /** data mode (see SCommand): items of a virtualized palette instead of slot content */
   @Param items: SparkCommandEntryData[] | undefined = undefined;
-  @Param placeholder: ResourceStr = 'Type a command or search…';
-  @Param emptyText: ResourceStr = 'No results found.';
+  @Param placeholder: ResourceStr = $r('app.string.spark_command_placeholder');
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_results');
   @Param maxListHeight: number = 300;
   /** data mode: focus the search field on open (pointer devices) */
   @Param autoFocus: boolean = false;
@@ -973,7 +974,7 @@ export struct SCommandDialog {
       .backgroundColor(this.theme.colors.popover)
       .border({ width: 1, color: this.theme.colors.border, radius: this.theme.radiusLg })
       .shadow(this.theme.shadows.lg.toOptions())
-      .accessibilityText(this.title)
+      .accessibilityText(sparkTextOf(this.getUIContext(), this.title, 'Command Palette'))
     }
     .width('100%')
     .padding({ left: 16, right: 16 })

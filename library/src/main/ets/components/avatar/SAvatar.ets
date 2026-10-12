@@ -1,3 +1,4 @@
+import { sparkText, sparkTextArg, sparkTextArgs2 } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkTones } from '../../core/SparkTone';
 import { SparkUI } from '../../core/SparkUI';
@@ -121,10 +122,23 @@ export struct SAvatar {
     return Math.max(8, Math.round(this.diameter * 0.28));
   }
 
+  private statusWord(): string {
+    if (this.status === 'away') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_status_away'), 'away');
+    }
+    if (this.status === 'busy') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_status_busy'), 'busy');
+    }
+    if (this.status === 'offline') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_status_offline'), 'offline');
+    }
+    return sparkText(this.getUIContext(), $r('app.string.spark_status_online'), 'online');
+  }
+
   @Computed
   get accessibleName(): string {
     const name = this.label ?? this.fallback;
-    return this.status !== undefined ? `${name}, ${this.status}` : name;
+    return this.status !== undefined ? sparkTextArgs2(this.getUIContext(), $r('app.string.spark_avatar_status'), `${name}, ${this.status}`, name, this.statusWord()) : name;
   }
 
   build() {
@@ -268,7 +282,7 @@ export struct SAvatarGroup {
             style: OutlineStyle.SOLID
           })
           .margin({ left: this.shown.length === 0 ? 0 : -this.gap })
-          .accessibilityText(`${this.hiddenCount} more`)
+          .accessibilityText(sparkTextArg(this.getUIContext(), $r('app.string.spark_avatar_more'), `${this.hiddenCount} more`, this.hiddenCount))
       }
     }
     .padding(2)

@@ -1,7 +1,7 @@
 import {
   SButton, SCard, SCardContent, SCardDescription, SCardFooter, SCardHeader, SCardTitle, SCodeBlock, SColumn,
   SColumns, SFlow, SGrid, SGridItem, SIcon, SStack, SparkColor, SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DocHeader, DocSection } from '../shell/DocKit';
 
 const CODE = `SGrid({ minItemWidth: 200 }) {          // no breakpoints: columns follow the width

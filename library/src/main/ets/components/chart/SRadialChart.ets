@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -72,7 +73,7 @@ export struct SRadialChart {
   @Param legend: boolean = false;
   @Param indicator: SparkChartIndicator = 'dot';
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -306,7 +307,7 @@ export struct SRadialChart {
       }
       .width('100%')
       .height(this.diameter())
-      .accessibilityText(this.centerLabel.length > 0 ? `${this.centerValue} ${this.centerLabel}` : 'radial chart')
+      .accessibilityText(this.centerLabel.length > 0 ? `${this.centerValue} ${this.centerLabel}` : sparkText(this.getUIContext(), $r('app.string.spark_radial_chart'), 'radial chart'))
       .onAreaChange((_: Area, a: Area) => {
         const w = Number(a.width);
         if (Math.abs(w - this.measuredWidth) > 0.5) {

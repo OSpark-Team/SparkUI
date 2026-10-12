@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { LengthMetrics } from '@kit.ArkUI';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
@@ -256,7 +257,7 @@ export struct SFieldError {
         .fontSize(this.theme.text.sm)
         .lineHeight(this.theme.text.leadingSm)
         .fontColor(this.theme.colors.destructive)
-        .accessibilityDescription('error')
+        .accessibilityDescription(sparkText(this.getUIContext(), $r('app.string.spark_state_error'), 'error'))
     }
   }
 }

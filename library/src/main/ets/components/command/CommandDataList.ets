@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkUI } from '../../core/SparkUI';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SIcon } from '../../icons/SIcon';
@@ -192,7 +193,7 @@ struct SparkCommandDataRow {
     .accessibilityGroup(true)
     .accessibilityRole(AccessibilityRoleType.OPTION)
     .accessibilityText(this.entry.label)
-    .accessibilityDescription(this.entry.disabled ? 'disabled' : '')
+    .accessibilityDescription(this.entry.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .accessibilitySelected(this.isHighlighted)
   }
 }

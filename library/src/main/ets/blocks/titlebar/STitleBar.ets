@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
@@ -353,15 +354,15 @@ export struct STitleBar {
 
         if (this.drawCaptions) {
           Row({ space: 2 }) {
-            SCaptionButton({ icon: 'minus', label: 'Minimize', plate: this.plate, look: this.look,
+            SCaptionButton({ icon: 'minus', label: sparkText(this.getUIContext(), $r('app.string.spark_minimize'), 'Minimize'), plate: this.plate, look: this.look,
               onPress: () => this.act('minimize') })
             SCaptionButton({
               icon: sparkMaximizeAction(this.status) === 'restore' ? 'copy' : 'square',
-              label: sparkMaximizeAction(this.status) === 'restore' ? 'Restore' : 'Maximize',
+              label: sparkMaximizeAction(this.status) === 'restore' ? sparkText(this.getUIContext(), $r('app.string.spark_restore'), 'Restore') : sparkText(this.getUIContext(), $r('app.string.spark_maximize'), 'Maximize'),
               plate: this.plate, look: this.look,
               onPress: () => this.act(sparkMaximizeAction(this.status))
             })
-            SCaptionButton({ icon: 'x', label: 'Close', danger: true, plate: this.plate, look: this.look,
+            SCaptionButton({ icon: 'x', label: sparkText(this.getUIContext(), $r('app.string.spark_close'), 'Close'), danger: true, plate: this.plate, look: this.look,
               onPress: () => this.act('close') })
           }
         }

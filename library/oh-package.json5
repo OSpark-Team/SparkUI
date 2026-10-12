@@ -1,5 +1,5 @@
 {
-  "name": "@sparkui/core",
+  "name": "@ospark/sparkui",
   "version": "1.0.0-rc",
   "description": "SparkUI - refined, token-driven ArkTS component library for HarmonyOS, aligned with shadcn-vue.",
   "main": "Index.ets",

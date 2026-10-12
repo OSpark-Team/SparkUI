@@ -1,3 +1,4 @@
+import { sparkText, sparkTextOf } from '../../core/SparkText';
 import { LengthMetrics } from '@kit.ArkUI';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { sparkFocusRing } from '../../core/SparkModifier';
@@ -134,7 +135,7 @@ export struct SBreadcrumbPage {
       .lineHeight(this.theme.text.leadingSm)
       .fontWeight(this.theme.text.weightNormal)
       .fontColor(this.theme.colors.foreground)
-      .accessibilityDescription('current page')
+      .accessibilityDescription(sparkText(this.getUIContext(), $r('app.string.spark_current_page'), 'current page'))
   }
 }
 
@@ -161,7 +162,7 @@ export struct SBreadcrumbSeparator {
 /** Collapsed crumbs: `flex size-9 items-center justify-center` with an ellipsis icon. */
 @ComponentV2
 export struct SBreadcrumbEllipsis {
-  @Param label: string = 'More';
+  @Param label: ResourceStr = $r('app.string.spark_more');
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
   build() {
@@ -172,6 +173,6 @@ export struct SBreadcrumbEllipsis {
     .height(36)
     .justifyContent(FlexAlign.Center)
     .alignItems(VerticalAlign.Center)
-    .accessibilityText(this.label)
+    .accessibilityText(sparkTextOf(this.getUIContext(), this.label, 'More'))
   }
 }

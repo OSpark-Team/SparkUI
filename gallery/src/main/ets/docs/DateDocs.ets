@@ -1,7 +1,7 @@
 import {
   SCalendar, SDatePicker, SDateRangePicker, SparkDate, SparkDateRange, SparkDates, SparkTheme, SparkUI, SRangeCalendar,
   SSwitch
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 function rangeText(r: SparkDateRange): string {

@@ -1,3 +1,4 @@
+import { sparkText, sparkTextArg, sparkTextOf } from '../../core/SparkText';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -38,8 +39,8 @@ export struct SPagination {
   @Param total: number = 1;
   /** Pages shown on each side of the current page (wide layout). */
   @Param siblingCount: number = 1;
-  @Param previousText: ResourceStr = 'Previous';
-  @Param nextText: ResourceStr = 'Next';
+  @Param previousText: ResourceStr = $r('app.string.spark_previous');
+  @Param nextText: ResourceStr = $r('app.string.spark_next');
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local current: number = 1;
   @Local measuredWidth: number = 0;
@@ -99,7 +100,7 @@ export struct SPagination {
         sizing: this.compact ? 'icon' : 'default',
         icon: 'chevron-left',
         text: this.compact ? undefined : this.previousText,
-        label: typeof this.previousText === 'string' ? this.previousText : 'Previous',
+        label: sparkTextOf(this.getUIContext(), this.previousText, 'Previous'),
         disabled: this.current <= 1
       })
         .onClick(() => this.go(this.current - 1))
@@ -113,13 +114,13 @@ export struct SPagination {
           .height(36)
           .justifyContent(FlexAlign.Center)
           .alignItems(VerticalAlign.Center)
-          .accessibilityText('More pages')
+          .accessibilityText(sparkText(this.getUIContext(), $r('app.string.spark_more_pages'), 'More pages'))
         } else {
           SButton({
             variant: p === this.current ? 'outline' : 'ghost',
             sizing: 'icon',
             text: `${p}`,
-            label: p === this.current ? `Page ${p}, current` : `Page ${p}`,
+            label: p === this.current ? sparkTextArg(this.getUIContext(), $r('app.string.spark_page_n_current'), `Page ${p}, current`, p) : sparkTextArg(this.getUIContext(), $r('app.string.spark_page_n'), `Page ${p}`, p),
             pressFeedback: 'opacity'
           })
             .onClick(() => this.go(p))
@@ -132,7 +133,7 @@ export struct SPagination {
         sizing: this.compact ? 'icon' : 'default',
         iconRight: 'chevron-right',
         text: this.compact ? undefined : this.nextText,
-        label: typeof this.nextText === 'string' ? this.nextText : 'Next',
+        label: sparkTextOf(this.getUIContext(), this.nextText, 'Next'),
         disabled: this.current >= this.pageCount
       })
         .onClick(() => this.go(this.current + 1))

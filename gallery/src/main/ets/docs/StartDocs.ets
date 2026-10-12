@@ -5,7 +5,7 @@ import {
   SparkContext, STabs, STabsList, STabsTrigger, STabsContent, SAccordion, SAccordionItem, SAccordionTrigger,
   SAccordionContent, SToggleGroup, SToggleGroupItem, SparkThemeMode, SCard, SCardHeader, SCardTitle,
   SCardDescription, SCardContent, SCardFooter, SSwitch, SSlider, SBadge
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
 
 const TOKENS_CSS = `:root {
@@ -141,9 +141,9 @@ struct ComponentTokensDemo {
   }
 }
 
-const INSTALL = `ohpm install @sparkui/core`;
+const INSTALL = `ohpm install @ospark/sparkui`;
 
-const USAGE = `import { SparkProvider, SButton } from '@sparkui/core';
+const USAGE = `import { SparkProvider, SButton } from '@ospark/sparkui';
 
 @Entry
 @ComponentV2

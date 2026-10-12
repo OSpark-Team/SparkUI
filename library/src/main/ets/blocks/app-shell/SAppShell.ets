@@ -1,3 +1,4 @@
+
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -17,7 +18,6 @@ import {
 } from '../sidebar/SSidebar';
 import { SparkTopbarAction, STopbar, TopbarLeading } from '../topbar/STopbar';
 import { AppShellTokens, sparkShellMaxWidth, sparkShellPadding, SidebarTokens, TopbarTokens } from '../BlockTokens';
-
 const NO_SIDEBAR_TOKENS: SidebarTokens = {};
 const NO_TOPBAR_TOKENS: TopbarTokens = {};
 
@@ -207,7 +207,7 @@ struct AppShellMain {
   @Event onAction: (id: string) => void = () => {
   };
   @Param search: boolean = false;
-  @Param searchPlaceholder: string = 'Search…';
+  @Param searchPlaceholder: ResourceStr = $r('app.string.spark_search_placeholder');
   @Event onSearch: (value: string) => void = () => {
   };
   @Event onSearchChange: (value: string) => void = () => {
@@ -455,7 +455,7 @@ export struct SAppShell {
   @Event onAction: (id: string) => void = () => {
   };
   @Param search: boolean = false;
-  @Param searchPlaceholder: string = 'Search…';
+  @Param searchPlaceholder: ResourceStr = $r('app.string.spark_search_placeholder');
   @Event onSearch: (value: string) => void = () => {
   };
   @Event onSearchChange: (value: string) => void = () => {

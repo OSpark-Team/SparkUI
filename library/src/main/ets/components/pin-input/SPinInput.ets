@@ -1,3 +1,4 @@
+import { sparkTextOf } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
@@ -74,7 +75,7 @@ export struct SPinInput {
   @Param disabled: boolean = false;
   @Param invalid: boolean = false;
   /** Accessible name. */
-  @Param label: string = 'One-time code';
+  @Param label: ResourceStr = $r('app.string.spark_one_time_code');
   @Event onValueChange: (v: string) => void = () => {
   };
   /** Fired when all slots are filled. */
@@ -240,7 +241,7 @@ export struct SPinInput {
           .enabled(!this.disabled)
           .focusable(!this.disabled)
           .focusBox(sparkNoFocusBox())
-          .accessibilityText(this.label)
+          .accessibilityText(sparkTextOf(this.getUIContext(), this.label, 'One-time code'))
           .onChange((v: string) => this.set(v))
           .onFocus(() => {
             this.focused = true;

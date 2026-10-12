@@ -1,0 +1,12 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "SparkUI sample app" },
+    { "name": "EntryAbility_desc", "value": "SparkUI components and foundations demo" },
+    { "name": "EntryAbility_label", "value": "SparkUI Gallery" },
+    { "name": "gallery_brand_detail", "value": "Components & foundations" },
+    { "name": "gallery_sidebar_version", "value": "SparkUI · 1.0.0-rc · API 22" },
+    { "name": "gallery_toggle_theme", "value": "Toggle theme" },
+    { "name": "gallery_preview", "value": "Preview" },
+    { "name": "gallery_code", "value": "Code" }
+  ]
+}

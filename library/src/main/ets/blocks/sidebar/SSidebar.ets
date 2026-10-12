@@ -1,3 +1,4 @@
+import { sparkTextOf } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
@@ -999,7 +1000,7 @@ export struct SSidebarSeparator {
  */
 @ComponentV2
 export struct SSidebarTrigger {
-  @Param label: string = 'Toggle Sidebar';
+  @Param label: ResourceStr = $r('app.string.spark_toggle_sidebar');
   /** lucide icon; defaults to panel-left / panel-right by side */
   @Param icon: string | undefined = undefined;
   /** toggle this controller instead of the nearest provider (a trigger outside the provider) */
@@ -1023,7 +1024,7 @@ export struct SSidebarTrigger {
         variant: 'ghost',
         sizing: 'icon-sm',
         icon: this.icon ?? ((this.controller ?? this.ctx)?.side === 'right' ? 'panel-right' : 'panel-left'),
-        label: this.label
+        label: sparkTextOf(this.getUIContext(), this.label, 'Toggle Sidebar')
       })
         .onClick(() => (this.controller ?? this.ctx)?.toggle())
     }

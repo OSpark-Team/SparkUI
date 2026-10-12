@@ -3,7 +3,7 @@ import {
   SChartContainer, SDonutChart, SIcon, SLineChart, SPieChart, SRadarChart, SRadialChart, SSparkline,
   SparkChartConfig, SparkChartRow, SparkChartSeries, sparkEmptyBuilder, SparkTheme, SparkUI, SToggleGroup,
   SToggleGroupItem
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
 // ------------------------------------------------------------------------------------------------ data

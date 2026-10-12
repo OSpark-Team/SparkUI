@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkNoopModifier } from '../../core/SparkModifier';
 import { SparkTone, SparkToneColors, SparkTones } from '../../core/SparkTone';
@@ -287,7 +288,7 @@ export struct SBadge {
           .border({ width: 0, radius: 9999 })
           .responseRegion({ x: -6, y: -6, width: this.iconSize + 12, height: this.iconSize + 12 })
           .stateStyles({ normal: this.removeNormal, pressed: this.removePressed })
-          .accessibilityText('Remove')
+          .accessibilityText(sparkText(this.getUIContext(), $r('app.string.spark_remove'), 'Remove'))
           .onClick(() => this.onRemove())
         }
       }

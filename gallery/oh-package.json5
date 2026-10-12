@@ -6,6 +6,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@sparkui/core": "file:../library"
+    "@ospark/sparkui": "file:../library"
   }
 }

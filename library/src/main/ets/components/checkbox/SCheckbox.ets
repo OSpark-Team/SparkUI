@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkPressModifier } from '../../core/SparkPress';
@@ -217,7 +218,7 @@ export struct SCheckbox {
     .accessibilityGroup(true)
     .accessibilityText(this.accessibleName)
     .accessibilityChecked(this.indeterminate ? undefined : this.current)
-    .accessibilityDescription(this.indeterminate ? 'mixed' : (this.disabled ? 'disabled' : ''))
+    .accessibilityDescription(this.indeterminate ? sparkText(this.getUIContext(), $r('app.string.spark_state_mixed'), 'mixed') : (this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : ''))
     .onClick(() => this.toggle())
   }
 }

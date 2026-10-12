@@ -1,4 +1,4 @@
-# Lucide icons bundled into @sparkui/core (one name per line). Apps can register any other icon at runtime.
+# Lucide icons bundled into @ospark/sparkui (one name per line). Apps can register any other icon at runtime.
 # --- used by SparkUI components ---
 check
 check-check

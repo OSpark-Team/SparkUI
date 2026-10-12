@@ -6,7 +6,7 @@ import {
   SSidebarMenuButton, SSidebarMenuItem, SSidebarProvider, SSidebarSeparator, SSupportingPane,
   SSupportingPaneAside, SSupportingPaneMain, SSupportingPaneTrigger, SToggleGroup, SToggleGroupItem, STopbar,
   SidebarCollapsible, SidebarSide, SidebarVariant, SupportingCompactMode, toast
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { LengthMetrics } from '@kit.ArkUI';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 import { SIDEBAR_TOKENS_CODE, SidebarTokensDemo } from './SidebarTokensDemo';

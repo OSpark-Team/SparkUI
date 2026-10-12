@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { sparkIsEnterUp } from '../../primitives/menu/MenuRow';
@@ -120,7 +121,7 @@ struct AlertDialogButton {
     .accessibilityGroup(true)
     .accessibilityRole(AccessibilityRoleType.BUTTON)
     .accessibilityText(typeof this.text === 'string' ? this.text : '')
-    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilityDescription(this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
   }
 }
 
@@ -130,7 +131,7 @@ struct AlertDialogButton {
  */
 @ComponentV2
 export struct SAlertDialogAction {
-  @Param text: ResourceStr = 'Continue';
+  @Param text: ResourceStr = $r('app.string.spark_continue');
   /** e.g. 'destructive' for dangerous actions */
   @Param variant: ButtonVariant = 'default';
   @Param disabled: boolean = false;
@@ -150,7 +151,7 @@ export struct SAlertDialogAction {
 /** Cancel button (outline); runs `onCancel`, then closes the dialog. */
 @ComponentV2
 export struct SAlertDialogCancel {
-  @Param text: ResourceStr = 'Cancel';
+  @Param text: ResourceStr = $r('app.string.spark_cancel');
   @Event onCancel: () => void = () => {
   };
 

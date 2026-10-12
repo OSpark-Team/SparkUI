@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { LengthMetrics } from '@kit.ArkUI';
 import { sparkEmptyBuilder } from '../../core/Builders';
@@ -229,7 +230,7 @@ export struct SRadioGroupItem {
     .accessibilityGroup(true)
     .accessibilityText(this.accessibleName)
     .accessibilitySelected(this.selected)
-    .accessibilityDescription(this.isDisabled ? 'disabled' : '')
+    .accessibilityDescription(this.isDisabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .onClick(() => {
       if (!this.isDisabled) {
         this.ctx?.select(this.value);

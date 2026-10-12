@@ -5,7 +5,7 @@
 在 HarmonyOS 工程（API 22，状态管理 V2）的模块目录中执行：
 
 ```bash
-ohpm install @sparkui/core
+ohpm install @ospark/sparkui
 ```
 
 也可以在本仓库中以本地 HAR 依赖的方式引用 `library/`：
@@ -14,7 +14,7 @@ ohpm install @sparkui/core
 // entry/oh-package.json5
 {
   "dependencies": {
-    "@sparkui/core": "file:../library"
+    "@ospark/sparkui": "file:../library"
   }
 }
 ```
@@ -24,7 +24,7 @@ ohpm install @sparkui/core
 `SparkProvider` 为页面提供主题（`sparkTheme`）与布局（`sparkLayout`）上下文，把 Token 同步给原生组件，并绘制 `background` 背景。`@Entry` 的根节点必须是系统容器，所以写成 `Stack() { SparkProvider() { … } }`：
 
 ```arkts [Index.ets]
-import { SparkProvider, SButton } from '@sparkui/core';
+import { SparkProvider, SButton } from '@ospark/sparkui';
 
 @Entry
 @ComponentV2

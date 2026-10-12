@@ -1,3 +1,4 @@
+import { sparkTextArg } from '../../core/SparkText';
 import { KeyCode } from '@kit.InputKit';
 import { LengthMetrics } from '@kit.ArkUI';
 import { SparkAnim } from '../../core/SparkAnim';
@@ -143,7 +144,7 @@ export struct STagsInput {
       .focusable(!this.disabled)
       .focusBox(sparkFocusRing(this.theme))
       .accessibilityRole(AccessibilityRoleType.BUTTON)
-      .accessibilityText(`Remove ${tag}`)
+      .accessibilityText(sparkTextArg(this.getUIContext(), $r('app.string.spark_remove_tag'), `Remove ${tag}`, tag))
       .onClick(() => this.removeAt(index))
     }
     .height(24)

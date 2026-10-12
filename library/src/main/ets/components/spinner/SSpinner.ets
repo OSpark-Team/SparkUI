@@ -1,3 +1,4 @@
+import { sparkTextOf } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
@@ -20,7 +21,7 @@ export struct SSpinner {
   /** Defaults to the `foreground` token (currentColor). */
   @Param color: ResourceColor | undefined = undefined;
   /** Accessible name. */
-  @Param label: string = 'Loading';
+  @Param label: ResourceStr = $r('app.string.spark_loading');
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local angle: number = 0;
 
@@ -31,7 +32,7 @@ export struct SSpinner {
     .width(this.sizing)
     .height(this.sizing)
     .rotate({ angle: this.angle })
-    .accessibilityText(this.label)
+    .accessibilityText(sparkTextOf(this.getUIContext(), this.label, 'Loading'))
     .onAppear(() => sparkSpin(this.getUIContext(), this.theme, (a: number) => {
       this.angle = a;
     }))

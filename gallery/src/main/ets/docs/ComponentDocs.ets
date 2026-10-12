@@ -5,7 +5,7 @@ import {
   SSheetContent, SSheetDescription, SSheetFooter, SSheetHeader, SSheetTitle, SSheetTrigger, SSheetClose, SheetSide,
   SparkIcons, SparkTheme, SparkUI, SparkSide, SCard, SCardHeader, SCardTitle, SCardDescription, SCardContent,
   SCardFooter, SCardAction, SBadge, CodeHighlighter
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };

@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
@@ -225,7 +226,7 @@ export struct SCodeBlock {
         }
 
         if (this.copyable) {
-          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.copied ? 'check' : 'copy', label: 'Copy code' })
+          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: this.copied ? 'check' : 'copy', label: sparkText(this.getUIContext(), $r('app.string.spark_copy_code'), 'Copy code') })
             .onClick(() => this.copy())
         }
       }

@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
 import { SIcon } from '../../icons/SIcon';
@@ -138,7 +139,7 @@ export struct MenuRow {
     .accessibilityGroup(true)
     .accessibilityRole(this.a11yRole)
     .accessibilityText(typeof this.text === 'string' ? this.text : '')
-    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilityDescription(this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .accessibilityChecked(this.checkable ? this.selected : undefined)
     .accessibilitySelected(this.checkable ? undefined : this.selected)
   }

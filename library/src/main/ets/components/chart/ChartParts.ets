@@ -254,7 +254,7 @@ export struct SChartPointer {
 /** Muted "no data" block. */
 @ComponentV2
 export struct SChartEmpty {
-  @Param text: string = 'No data';
+  @Param text: ResourceStr = $r('app.string.spark_no_data');
   @Param boxHeight: number = 200;
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
 
@@ -291,7 +291,7 @@ export struct SChartContainer {
   @Param legendToggle: boolean = true;
   /** show the empty state instead of the content */
   @Param empty: boolean = false;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Param emptyHeight: number = 200;
   @BuilderParam content: () => void = sparkEmptyBuilder;
   @Local state: SparkChartState = new SparkChartState();

@@ -2,7 +2,7 @@ import {
   SBadge, SButton, SIcon, SInputGroup, SInputGroupAddon, SInputGroupButton, SInputGroupInput, SInputGroupText,
   SNumberField, SPinInput, SStepper, SStepperItem, STable, STableBody, STableCell, STableColumn, STableFooter,
   STableHead, STableHeader, STableRow, STagsInput, SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 // ------------------------------------------------------------------------------------------------ InputGroup

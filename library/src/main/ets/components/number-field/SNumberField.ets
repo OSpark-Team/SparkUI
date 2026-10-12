@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { KeyCode } from '@kit.InputKit';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
@@ -206,7 +207,7 @@ export struct SNumberField {
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityRole(AccessibilityRoleType.BUTTON)
     .accessibilityText(label)
-    .accessibilityDescription(atBound || this.disabled ? 'disabled' : '')
+    .accessibilityDescription(atBound || this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .onTouch((e: TouchEvent) => this.onStepTouch(e, direction))
     .onClick(() => this.onStepClick(direction))
     // Space reaches onClick natively; Enter is added here
@@ -268,12 +269,12 @@ export struct SNumberField {
 
       // absolute like shadcn's `absolute left-0` / `right-0`: they do not take part in the layout
       Row() {
-        this.stepButton('minus', -1, 'Decrease', this.atMin, this.decPress)
+        this.stepButton('minus', -1, sparkText(this.getUIContext(), $r('app.string.spark_decrease'), 'Decrease'), this.atMin, this.decPress)
       }
       .position({ left: 1, top: 1 })
 
       Row() {
-        this.stepButton('plus', 1, 'Increase', this.atMax, this.incPress)
+        this.stepButton('plus', 1, sparkText(this.getUIContext(), $r('app.string.spark_increase'), 'Increase'), this.atMax, this.incPress)
       }
       .position({ right: 1, top: 1 })
     }

@@ -40,7 +40,7 @@ features:
 ## In 30 seconds
 
 ```bash
-ohpm install @sparkui/core
+ohpm install @ospark/sparkui
 ```
 
 ```arkts preview

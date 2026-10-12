@@ -3,7 +3,7 @@ import {
   SButton, SCheckbox, SField, SFieldContent, SFieldDescription, SFieldError, SFieldGroup, SFieldLabel, SFieldLegend,
   SFieldSeparator, SFieldSet, SInput, SLabel, SProgress, SRadioGroup, SRadioGroupItem, SSlider, SSwitch, STextarea,
   SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };

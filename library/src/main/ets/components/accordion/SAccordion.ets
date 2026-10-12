@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
@@ -225,7 +226,7 @@ export struct SAccordionTrigger {
     .focusable(!this.disabled)
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityRole(AccessibilityRoleType.BUTTON)
-    .accessibilityDescription(this.open ? 'expanded' : 'collapsed')
+    .accessibilityDescription(this.open ? sparkText(this.getUIContext(), $r('app.string.spark_state_expanded'), 'expanded') : sparkText(this.getUIContext(), $r('app.string.spark_state_collapsed'), 'collapsed'))
     .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
     .onClick(() => this.item?.toggle())
   }

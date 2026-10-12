@@ -47,7 +47,7 @@ export default function codeHighlighterTest() {
           'punctuation:, property:"t" punctuation:: keyword:true punctuation:}');
     });
     it('bash_tokens', 0, () => {
-      const k = kinds(CodeHighlighter.tokenize('ohpm install @sparkui/core # add\ndevecocli build --modules lib', 'bash'));
+      const k = kinds(CodeHighlighter.tokenize('ohpm install @ospark/sparkui # add\ndevecocli build --modules lib', 'bash'));
       expect(k).assertEqual('function:ohpm comment:# add function:devecocli keyword:--modules');
     });
     it('round_trips_text', 0, () => {

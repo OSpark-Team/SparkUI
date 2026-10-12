@@ -1,7 +1,7 @@
 import {
   SAppShell, SPageTransition, SparkProvider, SparkSidebarState, SparkTheme, SparkTopbarAction, SparkUI, SSidebarMenu,
   SSidebarMenuButton, SSidebarMenuItem
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { PersistenceV2 } from '@kit.ArkUI';
 import { ButtonDoc, CardDoc, CodeDoc, DialogDoc, IconsDoc, PopoverDoc, SheetDoc } from '../docs/ComponentDocs';
 import { IntroDoc, LayoutDoc, ThemingDoc } from '../docs/StartDocs';
@@ -47,7 +47,7 @@ function galleryTitleBar() {
 function gallerySidebarFooter() {
   SSidebarMenu() {
     SSidebarMenuItem() {
-      SSidebarMenuButton({ icon: 'info', text: 'SparkUI · 1.0.0-rc · API 22', sizing: 'sm' })
+      SSidebarMenuButton({ icon: 'info', text: $r('app.string.gallery_sidebar_version'), sizing: 'sm' })
     }
   }
 }
@@ -257,13 +257,22 @@ struct GalleryShell {
     if (this.chrome.active) {
       return [];
     }
-    return [new SparkTopbarAction('theme', this.theme.isDark ? 'sun' : 'moon', 'Toggle theme')];
+    return [new SparkTopbarAction('theme', this.theme.isDark ? 'sun' : 'moon', this.themeToggleLabel())];
+  }
+
+  /** Accessible name of the theme toggle, resolved from string.json so it follows the system language. */
+  private themeToggleLabel(): string {
+    try {
+      return this.getUIContext().getHostContext()?.resourceManager.getStringSync($r('app.string.gallery_toggle_theme').id) ?? 'Toggle theme';
+    } catch (err) {
+      return 'Toggle theme';
+    }
   }
 
   build() {
     SAppShell({
       brand: 'SparkUI',
-      brandDetail: 'Components & foundations',
+      brandDetail: $r('app.string.gallery_brand_detail'),
       nav: NAV,
       controller: this.sidebar,
       value: this.prefs.page,

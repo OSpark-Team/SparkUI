@@ -1,4 +1,4 @@
-import { CodeLanguage, SCodeBlock, SparkTheme, SparkUI, SToggleGroup, SToggleGroupItem } from '@sparkui/core';
+import { CodeLanguage, SCodeBlock, SparkTheme, SparkUI, SToggleGroup, SToggleGroupItem } from '@ospark/sparkui';
 
 @Builder
 function emptyDemo() {
@@ -72,8 +72,8 @@ export struct DemoBlock {
             this.showCode = v[0] === 'code';
           }
         } }) {
-        SToggleGroupItem({ value: 'preview', text: 'Preview', icon: 'eye' })
-        SToggleGroupItem({ value: 'code', text: 'Code', icon: 'code' })
+        SToggleGroupItem({ value: 'preview', text: $r('app.string.gallery_preview'), icon: 'eye' })
+        SToggleGroupItem({ value: 'code', text: $r('app.string.gallery_code'), icon: 'code' })
       }
 
       if (this.showCode) {

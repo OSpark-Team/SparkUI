@@ -6,7 +6,7 @@ import {
   SDropdownMenuSeparator, SDropdownMenuTrigger, SSelect, SSelectContent, SSelectItem, SSelectLabel, SSelectTrigger,
   SSelectSeparator, SparkSelectOption, SparkTheme, SparkToast, SparkToastAction, SparkUI, STooltip, STooltipContent,
   STooltipTrigger, SparkSide
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };

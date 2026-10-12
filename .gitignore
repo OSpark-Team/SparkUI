@@ -21,3 +21,4 @@
 # docs site
 /docs/.vitepress/cache
 /docs/.vitepress/dist
+/.claude

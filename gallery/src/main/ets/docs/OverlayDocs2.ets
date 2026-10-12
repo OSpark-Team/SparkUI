@@ -7,7 +7,7 @@ import {
   SDrawerTrigger, SHoverCard, SHoverCardContent, SHoverCardTrigger, SIcon, SMenubar, SMenubarCheckboxItem,
   SMenubarContent, SMenubarItem, SMenubarMenu, SMenubarRadioGroup, SMenubarRadioItem, SMenubarSeparator,
   SMenubarTrigger, SparkCommandEntryData, SparkSelectOption, SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };

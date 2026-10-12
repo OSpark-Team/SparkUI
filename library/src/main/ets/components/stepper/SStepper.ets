@@ -1,3 +1,4 @@
+import { sparkText, sparkTextArgs3 } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
@@ -249,10 +250,20 @@ export struct SStepperItem {
     return this.itemState === 'inactive' ? this.theme.colors.mutedForeground : this.theme.colors.foreground;
   }
 
+  private stepStateWord(): string {
+    if (this.itemState === 'completed') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_step_completed'), 'completed');
+    }
+    if (this.itemState === 'active') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_step_active'), 'active');
+    }
+    return sparkText(this.getUIContext(), $r('app.string.spark_step_inactive'), 'inactive');
+  }
+
   @Computed
   get accessibleName(): string {
     const t = typeof this.title === 'string' ? this.title : '';
-    return `Step ${this.step}: ${t} (${this.itemState})`;
+    return sparkTextArgs3(this.getUIContext(), $r('app.string.spark_stepper_a11y'), `Step ${this.step}: ${t} (${this.itemState})`, this.step, t, this.stepStateWord());
   }
 
   @Builder

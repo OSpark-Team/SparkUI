@@ -66,9 +66,9 @@ export struct SCombobox {
   @Event onValueChange: (v: string) => void = () => {
   };
   @Param options: SparkSelectOption[] = [];
-  @Param placeholder: ResourceStr = 'Select option…';
-  @Param searchPlaceholder: ResourceStr = 'Search…';
-  @Param emptyText: ResourceStr = 'No results found.';
+  @Param placeholder: ResourceStr = $r('app.string.spark_select_option');
+  @Param searchPlaceholder: ResourceStr = $r('app.string.spark_search_placeholder');
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_results');
   /** trigger width (shadcn demo: w-[200px]); '100%' to fill the parent */
   @Param triggerWidth: Length = 200;
   @Param disabled: boolean = false;

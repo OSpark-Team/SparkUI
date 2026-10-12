@@ -4,7 +4,7 @@ import {
   SBreadcrumbLink, SBreadcrumbList, SBreadcrumbPage, SBreadcrumbSeparator, SButton, SButtonGroup,
   SButtonGroupSeparator, SCollapsible, SCollapsibleContent, SCollapsibleTrigger, SPagination, SScrollArea, STabs,
   STabsContent, STabsList, STabsTrigger, SToggle, SToggleGroup, SToggleGroupItem, SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };

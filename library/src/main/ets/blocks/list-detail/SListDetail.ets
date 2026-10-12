@@ -1,3 +1,4 @@
+import { sparkTextOf } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
@@ -292,7 +293,7 @@ export struct SListDetailPane {
   @Param title: ResourceStr | undefined = undefined;
   /** show the back / title bar when narrow (default) */
   @Param showBack: boolean = true;
-  @Param backLabel: string = 'Back';
+  @Param backLabel: ResourceStr = $r('app.string.spark_back');
   /** back button pressed; return true when handled (e.g. pop your own stack) to skip the default pop */
   @Event onBack: () => boolean = () => false;
   /**
@@ -302,7 +303,7 @@ export struct SListDetailPane {
   @Param empty: boolean = false;
   /** lucide icon of the empty state */
   @Param emptyIcon: string = 'inbox';
-  @Param emptyTitle: ResourceStr = 'Nothing selected';
+  @Param emptyTitle: ResourceStr = $r('app.string.spark_nothing_selected');
   @Param emptyDescription: ResourceStr | undefined = undefined;
   /** icon buttons at the trailing end of the title bar (`onAction(id)`) */
   @Param actions: SparkTopbarAction[] = [];
@@ -362,7 +363,7 @@ export struct SListDetailPane {
         this.headerBuilder !== undefined) {
         Row({ space: 8 }) {
           if (!this.s.wide && this.showBack) {
-            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: this.backLabel })
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: sparkTextOf(this.getUIContext(), this.backLabel, 'Back') })
               .onClick(() => this.goBack())
           }
           if (this.title !== undefined) {

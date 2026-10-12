@@ -40,7 +40,7 @@ features:
 ## 30 秒上手
 
 ```bash
-ohpm install @sparkui/core
+ohpm install @ospark/sparkui
 ```
 
 ```arkts preview

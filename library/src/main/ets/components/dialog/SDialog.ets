@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -224,7 +225,7 @@ export struct SDialogContent {
         })
 
         if (this.showCloseButton && !this.drawer) {
-          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: 'Close' })
+          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: sparkText(this.getUIContext(), $r('app.string.spark_close'), 'Close') })
             .margin({ top: 12, right: 12 })
             .opacity(0.7)
             .onClick(() => this.ctx?.setOpen(false))

@@ -1,3 +1,4 @@
+import { sparkText, sparkTextArgs2 } from '../../core/SparkText';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkColor } from '../../theme/color/SparkColor';
@@ -87,6 +88,16 @@ const NO_SERIES: CartesianSeries = new CartesianSeries();
 @ComponentV2
 export struct SparkCartesian {
   @Param kind: SparkCartesianKind = 'line';
+
+  private kindLabel(): string {
+    if (this.kind === 'bar') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_kind_bar'), 'bar');
+    }
+    if (this.kind === 'area') {
+      return sparkText(this.getUIContext(), $r('app.string.spark_kind_area'), 'area');
+    }
+    return sparkText(this.getUIContext(), $r('app.string.spark_kind_line'), 'line');
+  }
   @Param config: SparkChartConfig = new SparkChartConfig([]);
   @Param data: SparkChartRow[] = [];
   @Param chartHeight: number = 0;
@@ -106,7 +117,7 @@ export struct SparkCartesian {
   @Param indicator: SparkChartIndicator = 'dot';
   @Param labelFormatter: (label: string) => string = identityLabel;
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -560,7 +571,7 @@ export struct SparkCartesian {
       .width('100%')
       .height(this.boxHeight())
       .clip(false)
-      .accessibilityText(`${this.kind} chart: ${this.config.series.map((s) => s.label).join(', ')}`)
+      .accessibilityText(sparkTextArgs2(this.getUIContext(), $r('app.string.spark_chart_a11y'), `${this.kind} chart: ${this.config.series.map((s) => s.label).join(', ')}`, this.kindLabel(), this.config.series.map((s) => s.label).join(', ')))
       .onAreaChange((_: Area, a: Area) => {
         const w = Number(a.width);
         if (Math.abs(w - this.measuredWidth) > 0.5) {
@@ -607,7 +618,7 @@ export struct SLineChart {
   @Param indicator: SparkChartIndicator = 'line';
   @Param labelFormatter: (label: string) => string = identityLabel;
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
 
@@ -652,7 +663,7 @@ export struct SAreaChart {
   @Param indicator: SparkChartIndicator = 'dot';
   @Param labelFormatter: (label: string) => string = identityLabel;
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
 
@@ -697,7 +708,7 @@ export struct SBarChart {
   @Param indicator: SparkChartIndicator = 'dot';
   @Param labelFormatter: (label: string) => string = identityLabel;
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
 

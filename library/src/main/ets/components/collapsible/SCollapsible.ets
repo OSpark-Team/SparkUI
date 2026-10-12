@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkCollapse } from '../../primitives/SparkCollapse';
@@ -96,7 +97,7 @@ export struct SCollapsibleTrigger {
       this.content()
     }
     .id(sparkTriggerKey(this.getUniqueId()))
-    .accessibilityDescription(this.ctx?.open === true ? 'expanded' : 'collapsed')
+    .accessibilityDescription(this.ctx?.open === true ? sparkText(this.getUIContext(), $r('app.string.spark_state_expanded'), 'expanded') : sparkText(this.getUIContext(), $r('app.string.spark_state_collapsed'), 'collapsed'))
     .onClick(() => {
       if (this.ctx !== undefined && !this.ctx.disabled) {
         this.ctx.toggle();

@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkTone, SparkToneColors, SparkTones } from '../../core/SparkTone';
@@ -224,7 +225,7 @@ export struct SProgress {
 
   @Computed
   get accessibleValue(): string {
-    return this.indeterminate ? 'loading' : `${Math.round(this.percent)}%`;
+    return this.indeterminate ? sparkText(this.getUIContext(), $r('app.string.spark_state_loading'), 'loading') : `${Math.round(this.percent)}%`;
   }
 
   build() {

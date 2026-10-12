@@ -77,13 +77,13 @@
 
 ## D6. 路由适配（第 4 批实现，届时再次确认细节）
 
-方向性提案：`interface SparkNavigator { push(name, param?); pop(); onBack(...) }`，内置 `NavPathStackNavigator`；ListDetail 自己做单/双栏（不依赖 Navigation 的 Split 模式），绑定 `NavPathStack` 后窄屏把详情作为 `NavDestination` 压栈。`HdsNavigation` 不进入 `@sparkui/core`（`@kit.*` 不支持动态 import，且仅限中国大陆），后续以独立可选 HAR `@sparkui/hds` 提供。
+方向性提案：`interface SparkNavigator { push(name, param?); pop(); onBack(...) }`，内置 `NavPathStackNavigator`；ListDetail 自己做单/双栏（不依赖 Navigation 的 Split 模式），绑定 `NavPathStack` 后窄屏把详情作为 `NavDestination` 压栈。`HdsNavigation` 不进入 `@ospark/sparkui`（`@kit.*` 不支持动态 import，且仅限中国大陆），后续以独立可选 HAR `@sparkui/hds` 提供。
 
 ---
 
 ## D7. 工程结构（按规范执行，无需确认）
 
-- 新增 HAR 模块 `library`（包名 `@sparkui/core`）。
+- 新增 HAR 模块 `library`（包名 `@ospark/sparkui`）。
 - 现有 `entry` 模块迁移为 `gallery`（HAP，示例应用 + 集成测试）。
 - `docs/` 存放设计文档、每轮迭代总结与测试说明。
 

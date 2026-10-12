@@ -1,4 +1,4 @@
-import { SparkUI, SSwitch } from '@sparkui/core';
+import { SparkUI, SSwitch } from '@ospark/sparkui';
 import { DemoCaption } from '../shell/DocKit';
 
 export const SIDEBAR_TOKENS_CODE = `// theme-wide (exported with the theme)

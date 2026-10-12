@@ -4,7 +4,7 @@ import {
   SEmptyDescription, SEmptyHeader, SEmptyMedia, SEmptyTitle, SH1, SH2, SH3, SH4, SBlockquote, SIcon, SInlineCode,
   SItem, SItemActions, SItemContent, SItemDescription, SItemGroup, SItemMedia, SItemTitle, SKbd, SKbdGroup, SLarge,
   SLead, SList, SMuted, SP, SSeparator, SSkeleton, SSmall, SSpinner, SparkTheme, SparkUI
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
 const space8: FlexSpaceOptions = { main: LengthMetrics.vp(8), cross: LengthMetrics.vp(8) };
@@ -1019,7 +1019,7 @@ SH3({ text: 'The Joke Tax' })
 SH4({ text: 'People stopped telling jokes' })
 SBlockquote({ text: '"After all," he said, "everyone enjoys a good joke, so it\\'s only fair that they should pay for the privilege."' })
 SList({ items: ['1st level of puns: 5 gold coins', '2nd level of jokes: 10 gold coins'] })
-SInlineCode({ text: '@sparkui/core' })
+SInlineCode({ text: '@ospark/sparkui' })
 SLarge({ text: 'Are you absolutely sure?' })
 SSmall({ text: 'Email address' })
 SMuted({ text: 'Enter your email address.' })`;
@@ -1050,7 +1050,7 @@ export struct TypographyDoc {
           })
           Row({ space: 8 }) {
             SP({ text: 'Install' })
-            SInlineCode({ text: '@sparkui/core' })
+            SInlineCode({ text: '@ospark/sparkui' })
           }
           SLarge({ text: 'Are you absolutely sure?' })
           SSmall({ text: 'Email address' })

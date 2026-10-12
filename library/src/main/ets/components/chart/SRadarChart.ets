@@ -1,3 +1,4 @@
+import { sparkTextArg } from '../../core/SparkText';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -93,7 +94,7 @@ export struct SRadarChart {
   @Param indicator: SparkChartIndicator = 'dot';
   @Param labelFormatter: (label: string) => string = identityLabel;
   @Param valueFormatter: (value: number) => string = defaultValue;
-  @Param emptyText: string = 'No data';
+  @Param emptyText: ResourceStr = $r('app.string.spark_no_data');
   @Event onActiveChange: (index: number) => void = () => {
   };
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -355,7 +356,7 @@ export struct SRadarChart {
       }
       .width('100%')
       .height(this.boxHeight())
-      .accessibilityText(`radar chart: ${this.config.series.map((s) => s.label).join(', ')}`)
+      .accessibilityText(sparkTextArg(this.getUIContext(), $r('app.string.spark_radar_chart_a11y'), `radar chart: ${this.config.series.map((s) => s.label).join(', ')}`, this.config.series.map((s) => s.label).join(', ')))
       .onAreaChange((_: Area, a: Area) => {
         const w = Number(a.width);
         if (Math.abs(w - this.measuredWidth) > 0.5) {

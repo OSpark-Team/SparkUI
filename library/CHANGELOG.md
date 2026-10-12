@@ -20,3 +20,9 @@ First public release candidate.
 - **Motion**: SparkAnim with `--motion-*` configuration per component; STransition / SSwitchTransition /
   SPageTransition / STransitionGroup.
 - **Layout**: breakpoint-free SGrid / SColumns / SFlow / SStack, adaptive context, immersive safe areas.
+- **i18n**: built-in texts are string resources (`spark_*`), Chinese by default, English under en_US;
+  formatted strings use %d / %s placeholders. Follows the system language.
+
+### Known issues
+
+- Menubar: when switching menus, the previous trigger's background may briefly flash.

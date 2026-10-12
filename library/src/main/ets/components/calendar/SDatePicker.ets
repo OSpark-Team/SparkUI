@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
@@ -79,7 +80,7 @@ struct SparkDateTrigger {
     .focusable(!this.disabled)
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityText(typeof this.text === 'string' ? this.text : '')
-    .accessibilityDescription(this.open ? 'expanded' : 'collapsed')
+    .accessibilityDescription(this.open ? sparkText(this.getUIContext(), $r('app.string.spark_state_expanded'), 'expanded') : sparkText(this.getUIContext(), $r('app.string.spark_state_collapsed'), 'collapsed'))
     .onHover((h: boolean) => this.ix.hover(this.getUIContext(), this.theme, h))
     .onClick(() => {
       if (!this.disabled) {
@@ -107,7 +108,7 @@ export struct SDatePicker {
   };
   @Event onValueChange: (d: SparkDate | undefined) => void = () => {
   };
-  @Param placeholder: ResourceStr = 'Pick a date';
+  @Param placeholder: ResourceStr = $r('app.string.spark_pick_date');
   @Param format: string = 'PPP';
   @Param locale: SparkDateLocale = 'en';
   @Param minDate: SparkDate | undefined = undefined;
@@ -240,7 +241,7 @@ export struct SDateRangePicker {
   };
   @Event onValueChange: (r: SparkDateRange) => void = () => {
   };
-  @Param placeholder: ResourceStr = 'Pick a date range';
+  @Param placeholder: ResourceStr = $r('app.string.spark_pick_date_range');
   @Param format: string = 'PPP';
   @Param locale: SparkDateLocale = 'en';
   @Param minDate: SparkDate | undefined = undefined;

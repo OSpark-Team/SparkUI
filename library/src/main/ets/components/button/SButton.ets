@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkNoopModifier, sparkFocusRing, SparkTapBlocker } from '../../core/SparkModifier';
 import { SparkInteraction } from '../../core/SparkInteraction';
@@ -157,7 +158,7 @@ export struct SButton {
     .attributeModifier(this.modifier)
     .focusable(!this.disabled && !this.loading)
     .gestureModifier(this.tapBlocker)
-    .accessibilityDescription(this.disabled ? 'disabled' : (this.loading ? 'loading' : ''))
+    .accessibilityDescription(this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : (this.loading ? sparkText(this.getUIContext(), $r('app.string.spark_state_loading'), 'loading') : ''))
     .focusBox(sparkFocusRing(this.theme))
     .accessibilityText(this.accessibleName)
     .onHover((isHover: boolean) => this.ix.hover(this.getUIContext(), this.theme, isHover))

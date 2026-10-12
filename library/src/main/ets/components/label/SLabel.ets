@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -45,6 +46,6 @@ export struct SLabel {
     }
     .alignItems(VerticalAlign.Center)
     .opacity(this.disabled ? 0.5 : 1)
-    .accessibilityDescription(this.required ? 'required' : '')
+    .accessibilityDescription(this.required ? sparkText(this.getUIContext(), $r('app.string.spark_state_required'), 'required') : '')
   }
 }

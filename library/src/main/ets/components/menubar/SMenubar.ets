@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkInteraction } from '../../core/SparkInteraction';
@@ -39,7 +40,7 @@ export class SparkMenubarMenuState {
   readonly id: number;
   readonly disclosure: SparkDisclosure = new SparkDisclosure();
   readonly handle: SparkMenuHandle = new SparkMenuHandle();
-  @Trace label: string = '';
+  @Trace label: ResourceStr = '';
   /** measured trigger width while visible (vp) */
   naturalWidth: number = 0;
   /** renders this menu's items (for the overflow "More" menu) */
@@ -89,7 +90,7 @@ export class SparkMenubarState {
   };
 
   constructor() {
-    this.more.label = 'More';
+    this.more.label = $r('app.string.spark_more');
     this.wire(this.more);
   }
 
@@ -540,7 +541,7 @@ struct MenubarMoreTrigger {
       MenubarTriggerLook({ icon: 'ellipsis', active: this.bar.openId === MORE_ID })
     }
     .id(sparkTriggerKey(this.getUniqueId()))
-    .accessibilityText('More menus')
+    .accessibilityText(sparkText(this.getUIContext(), $r('app.string.spark_more_menus'), 'More menus'))
     .onHover((h: boolean) => {
       if (h) {
         this.bar.hover(MORE_ID);

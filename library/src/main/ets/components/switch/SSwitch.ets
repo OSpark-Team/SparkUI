@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkPressModifier } from '../../core/SparkPress';
@@ -204,7 +205,7 @@ export struct SSwitch {
     .accessibilityGroup(true)
     .accessibilityText(this.accessibleName)
     .accessibilityChecked(this.current)
-    .accessibilityDescription(this.disabled ? 'disabled' : '')
+    .accessibilityDescription(this.disabled ? sparkText(this.getUIContext(), $r('app.string.spark_state_disabled'), 'disabled') : '')
     .onClick(() => this.toggle())
   }
 

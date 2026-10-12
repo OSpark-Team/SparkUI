@@ -1,7 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
-import { SparkWindowChrome } from '@sparkui/core';
+import { SparkWindowChrome } from '@ospark/sparkui';
 
 const DOMAIN = 0x0000;
 

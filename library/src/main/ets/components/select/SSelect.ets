@@ -122,7 +122,7 @@ export struct SSelect {
   @Param defaultValue: string = '';
   @Event onValueChange: (v: string) => void = () => {
   };
-  @Param placeholder: ResourceStr = 'Select…';
+  @Param placeholder: ResourceStr = $r('app.string.spark_select_placeholder');
   /** data-driven mode: renders its own trigger + (virtualized) content */
   @Param options: SparkSelectOption[] = [];
   @Param disabled: boolean = false;
@@ -183,7 +183,7 @@ export struct SSelect {
 /** Input-styled trigger showing the selected label (or the placeholder) and a chevron. */
 @ComponentV2
 export struct SSelectTrigger {
-  @Param placeholder: ResourceStr = 'Select…';
+  @Param placeholder: ResourceStr = $r('app.string.spark_select_placeholder');
   /** 'default' h-9, 'sm' h-8 */
   @Param sizing: 'default' | 'sm' = 'default';
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;

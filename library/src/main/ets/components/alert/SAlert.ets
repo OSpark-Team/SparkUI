@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
@@ -213,7 +214,7 @@ export struct SAlert {
               .onClick(() => this.onAction())
           }
           if (this.dismissible) {
-            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: 'Dismiss' })
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: sparkText(this.getUIContext(), $r('app.string.spark_dismiss'), 'Dismiss') })
               .margin({ top: -6, bottom: -6, right: -6 })
               .onClick(() => this.dismiss())
           }

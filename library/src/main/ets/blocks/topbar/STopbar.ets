@@ -1,3 +1,4 @@
+import { sparkText, sparkTextOf } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -67,7 +68,7 @@ export struct STopbar {
   };
   /** show a search field (an icon that expands when condensed) */
   @Param search: boolean = false;
-  @Param searchPlaceholder: string = 'Search…';
+  @Param searchPlaceholder: ResourceStr = $r('app.string.spark_search_placeholder');
   @Event onSearchChange: (value: string) => void = () => {
   };
   @Event onSearch: (value: string) => void = () => {
@@ -165,7 +166,7 @@ export struct STopbar {
     Row() {
       SInput({
         placeholder: this.searchPlaceholder,
-        label: this.searchPlaceholder,
+        label: sparkTextOf(this.getUIContext(), this.searchPlaceholder, 'Search…'),
         onValueChange: (v: string) => this.onSearchChange(v),
         onSubmit: (v: string) => this.onSearch(v)
       })
@@ -181,7 +182,7 @@ export struct STopbar {
         }
         .layoutWeight(1)
 
-        SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: 'Close search' })
+        SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: sparkText(this.getUIContext(), $r('app.string.spark_close_search'), 'Close search') })
           .onClick(() => {
             this.searchOpen = false;
           })
@@ -189,7 +190,7 @@ export struct STopbar {
         if (this.showTrigger) {
           SSidebarTrigger({ controller: this.sidebarController })
         } else if (this.leading === 'back') {
-          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: 'Back' })
+          SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'arrow-left', label: sparkText(this.getUIContext(), $r('app.string.spark_back'), 'Back') })
             .onClick(() => this.onBack())
         }
         if (this.leadingBuilder !== undefined) {
@@ -227,7 +228,7 @@ export struct STopbar {
 
         if (this.search) {
           if (this.condensed) {
-            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'search', label: this.searchPlaceholder })
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'search', label: sparkTextOf(this.getUIContext(), this.searchPlaceholder, 'Search…') })
               .onClick(() => {
                 this.searchOpen = true;
               })

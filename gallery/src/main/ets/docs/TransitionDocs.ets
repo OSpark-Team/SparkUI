@@ -1,7 +1,7 @@
 import {
   SButton, SparkTheme, SparkTransitionEnv, SparkTransitionMode, SparkTransitionName, SparkUI, SPageTransition,
   SSwitchTransition, STransition, STransitionGroup, SToggleGroup, SToggleGroupItem
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
 const SHOW_PRESETS: string[] = ['fade', 'slide-down', 'slide-up', 'scale', 'zoom'];

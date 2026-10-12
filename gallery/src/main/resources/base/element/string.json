@@ -1,16 +1,12 @@
 {
   "string": [
-    {
-      "name": "module_desc",
-      "value": "module description"
-    },
-    {
-      "name": "EntryAbility_desc",
-      "value": "description"
-    },
-    {
-      "name": "EntryAbility_label",
-      "value": "label"
-    }
+    { "name": "module_desc", "value": "SparkUI 示例应用" },
+    { "name": "EntryAbility_desc", "value": "SparkUI 组件与基础示例" },
+    { "name": "EntryAbility_label", "value": "SparkUI 画廊" },
+    { "name": "gallery_brand_detail", "value": "组件与基础" },
+    { "name": "gallery_sidebar_version", "value": "SparkUI · 1.0.0-rc · API 22" },
+    { "name": "gallery_toggle_theme", "value": "切换主题" },
+    { "name": "gallery_preview", "value": "预览" },
+    { "name": "gallery_code", "value": "代码" }
   ]
 }

@@ -1,3 +1,4 @@
+import { sparkText, sparkTextArg } from '../../core/SparkText';
 import { LengthMetrics } from '@kit.ArkUI';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkUI } from '../../core/SparkUI';
@@ -470,7 +471,7 @@ export struct SCalendar {
       a11y = `${SparkDates.weekdayName(SparkDates.weekday(d), 'en', true)}, ${SparkDates.format(d, 'PPP', 'en')}`;
     }
     if (info.today) {
-      a11y = (this.locale === 'zh' ? '今天，' : 'Today, ') + a11y;
+      a11y = sparkTextArg(this.getUIContext(), $r('app.string.spark_calendar_today'), 'Today, ' + a11y, a11y);
     }
     info.a11y = a11y;
     return info;
@@ -679,8 +680,8 @@ export struct SCalendar {
       variant: 'ghost',
       sizing: 'icon-sm',
       icon: prev ? 'chevron-left' : 'chevron-right',
-      label: prev ? (this.locale === 'zh' ? '上个月' : 'Go to the previous month') :
-        (this.locale === 'zh' ? '下个月' : 'Go to the next month'),
+      label: prev ? sparkText(this.getUIContext(), $r('app.string.spark_calendar_prev_month'), 'Go to the previous month') :
+        sparkText(this.getUIContext(), $r('app.string.spark_calendar_next_month'), 'Go to the next month'),
       disabled: prev ? this.prevDisabled : this.nextDisabled,
       modifier: new SparkCalendarNavSize(this.cell)
     })

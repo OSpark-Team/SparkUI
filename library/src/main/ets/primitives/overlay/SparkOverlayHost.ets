@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
@@ -179,7 +180,7 @@ export struct SparkOverlayHost {
           .opacity(this.scope.visible ? 1 : 0)
           .expandSafeArea([SafeAreaType.SYSTEM, SafeAreaType.CUTOUT])
           .onClick(() => this.dismiss())
-          .accessibilityText('Close')
+          .accessibilityText(sparkText(this.getUIContext(), $r('app.string.spark_close'), 'Close'))
       } else if (!this.scope.passThrough) {
         Column()
           .width('100%')

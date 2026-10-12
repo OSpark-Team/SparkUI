@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { SparkAnim } from '../../core/SparkAnim';
 import { SparkContext } from '../../core/SparkContext';
 import { sparkColorMetrics, SparkNoopModifier } from '../../core/SparkModifier';
@@ -309,7 +310,7 @@ export struct SInput {
               .border({ width: 0, radius: 10 })
               .responseRegion({ x: -6, y: -8, width: 32, height: 36 })
               .stateStyles({ normal: this.clearNormal, pressed: this.clearPressed })
-              .accessibilityText('Clear')
+              .accessibilityText(sparkText(this.getUIContext(), $r('app.string.spark_clear'), 'Clear'))
               .onClick(() => this.set(''))
             }
             if (this.iconRight !== undefined) {

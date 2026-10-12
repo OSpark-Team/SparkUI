@@ -5,7 +5,7 @@
 In a HarmonyOS module (API 22, State Management V2):
 
 ```bash
-ohpm install @sparkui/core
+ohpm install @ospark/sparkui
 ```
 
 Inside this repository you can also depend on `library/` as a local HAR:
@@ -14,7 +14,7 @@ Inside this repository you can also depend on `library/` as a local HAR:
 // entry/oh-package.json5
 {
   "dependencies": {
-    "@sparkui/core": "file:../library"
+    "@ospark/sparkui": "file:../library"
   }
 }
 ```
@@ -24,7 +24,7 @@ Inside this repository you can also depend on `library/` as a local HAR:
 `SparkProvider` provides the theme (`sparkTheme`) and layout (`sparkLayout`) contexts, bridges tokens to native components and paints the `background` token. The root of an `@Entry` page must be a system container, so write `Stack() { SparkProvider() { … } }`:
 
 ```arkts [Index.ets]
-import { SparkProvider, SButton } from '@sparkui/core';
+import { SparkProvider, SButton } from '@ospark/sparkui';
 
 @Entry
 @ComponentV2

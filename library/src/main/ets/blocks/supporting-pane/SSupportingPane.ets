@@ -1,3 +1,4 @@
+import { sparkText } from '../../core/SparkText';
 import { sparkEmptyBuilder } from '../../core/Builders';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -362,7 +363,7 @@ export struct SSupportingPaneAside {
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
 
-        SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: 'Close' })
+        SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'x', label: sparkText(this.getUIContext(), $r('app.string.spark_close'), 'Close') })
           .onClick(() => this.ctx?.setOpen(false))
       }
       .width('100%')
@@ -417,7 +418,7 @@ export struct SSupportingPaneAside {
 /** Opens the supporting pane's sheet; renders nothing unless the pane currently lives in a sheet. */
 @ComponentV2
 export struct SSupportingPaneTrigger {
-  @Param text: ResourceStr = 'Details';
+  @Param text: ResourceStr = $r('app.string.spark_details');
   @Param icon: string = 'panel-right';
   @Local ctx: SparkSupportingPaneState | undefined = undefined;
 

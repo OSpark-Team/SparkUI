@@ -1,7 +1,7 @@
 import {
   SButton, SIcon, SparkCaptionAction, SparkSystemButtons, SparkTheme, SparkUI, SparkWindowChrome, SSwitch,
   STitleBar, SToggleGroup, SToggleGroupItem, SparkSidebarState, sparkTitleBarVisible
-} from '@sparkui/core';
+} from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DemoPropRow, DocHeader, DocSection } from '../shell/DocKit';
 
 const PREVIEW_CODE = `STitleBar({ title: 'SparkUI Gallery', icon: 'sparkles', systemButtons: 'custom' }) {
