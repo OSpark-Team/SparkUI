@@ -272,6 +272,7 @@ theme.comp.has(...) / raw(...) / keys()
 | switch | `background` `checked-background` `thumb` `checked-thumb` `shadow` |
 | checkbox | `background` `border-color` `checked-background` `checked-border-color` `checked-foreground` `radius` `border-width` |
 | progress | `indicator-background` `track-background`（仅 default tone）`height` `radius` |
+| color-picker（SColorPanel / SColorPicker；弹层表面仍走 popover） | `border-color` `checker-light` `checker-dark` `thumb-border-color` `width` `area-height` `radius` `track-height` `thumb-size` `swatch-size` `swatch-radius` `swatch-gap` `gap` `thumb-shadow` |
 | toast | `background` `foreground` `description-color` `border-color` `radius` `border-width` `padding` `shadow` |
 | tooltip | `background` `foreground` `radius` |
 | code（SCodeBlock） | `background` `foreground` `keyword` `string` `comment` `number` `decorator` `type` `function` `property` `punctuation` `variable` `tag` `attribute` `regex` `meta` `inserted` `deleted`（未设置时取 `SparkCodeTheme.github()` 的值；没传 `codeTheme` 的代码块会跟随这些 Token） |

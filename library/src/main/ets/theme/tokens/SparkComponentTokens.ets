@@ -247,6 +247,12 @@ export class SparkComponentTokenRegistry {
     SparkComponentTokenRegistry.add('checkbox', ['radius', 'border-width'], 'length');
     SparkComponentTokenRegistry.add('progress', ['indicator-background', 'track-background'], 'color');
     SparkComponentTokenRegistry.add('progress', ['height', 'radius'], 'length');
+    // SColorPanel / SColorPicker (the picker's popover surface follows --popover-*)
+    SparkComponentTokenRegistry.add('color-picker', ['border-color', 'checker-light', 'checker-dark',
+      'thumb-border-color'], 'color');
+    SparkComponentTokenRegistry.add('color-picker', ['width', 'area-height', 'radius', 'track-height', 'thumb-size',
+      'swatch-size', 'swatch-radius', 'swatch-gap', 'gap'], 'length');
+    SparkComponentTokenRegistry.add('color-picker', ['thumb-shadow'], 'shadow');
 
     SparkComponentTokenRegistry.add('toast', ['background', 'foreground', 'description-color', 'border-color'], 'color');
     SparkComponentTokenRegistry.add('toast', ['radius', 'border-width', 'padding'], 'length');

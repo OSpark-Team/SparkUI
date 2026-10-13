@@ -18,6 +18,7 @@ import {
   sparkSidebarStyle, sparkSidebarWidth, sparkSupportingPaneStyle, sparkTitleBarStyle, sparkTopbarStyle
 } from '../main/ets/blocks/BlockTokens';
 import { sparkSidebarRowWidth } from '../main/ets/blocks/BlocksLogic';
+import { sparkColorPickerStyle } from '../main/ets/components/color-picker/ColorPickerStyle';
 
 const SHADCN_EXPORT = `
 @import "tailwindcss";
@@ -388,6 +389,43 @@ export default function themeCssTest() {
       // the shared surface helper honours the family too
       expect(sparkSurface(t, 'select', defaults, undefined, 'menu').background).assertEqual('#FF111111');
       expect(sparkSurface(t, 'select', defaults).background).assertEqual(t.colors.popover);
+    });
+
+    it('color_picker_tokens', 0, () => {
+      expect(SparkComponentTokenRegistry.kindOf('color-picker', 'checker-dark')).assertEqual('color');
+      expect(SparkComponentTokenRegistry.kindOf('color-picker', 'area-height')).assertEqual('length');
+      expect(SparkComponentTokenRegistry.kindOf('color-picker', 'thumb-shadow')).assertEqual('shadow');
+      // longest prefix: color-picker-…, not a semantic token
+      expect(SparkComponentTokenRegistry.match('color-picker-swatch-size')?.component).assertEqual('color-picker');
+      expect(SparkComponentTokenRegistry.match('color-picker-swatch-size')?.property).assertEqual('swatch-size');
+      const t = new SparkTheme();
+      const plain = sparkColorPickerStyle(t);
+      expect(plain.borderColor).assertEqual(t.colors.border);
+      expect(plain.checkerLight).assertEqual(t.colors.background);
+      expect(plain.width).assertEqual(240);
+      expect(plain.areaHeight).assertEqual(160);
+      expect(plain.radius).assertEqual(t.radiusMd);
+      expect(plain.swatchRadius).assertEqual(t.radiusSm);
+      expect(plain.thumbBorderColor).assertEqual('#FFFFFFFF');
+      const diags = ThemeResolver.apply(ThemeCssParser.parse(':root { --color-picker-area-height: 200px; ' +
+        '--color-picker-radius: 0; --color-picker-checker-dark: #cccccc; --color-picker-thumb-shadow: none; ' +
+        '--color-picker-swatch-size: 1.5rem; }'), false, 'compact', t);
+      expect(diags.length).assertEqual(0);
+      const s = sparkColorPickerStyle(t);
+      expect(s.areaHeight).assertEqual(200);
+      expect(s.radius).assertEqual(0);
+      expect(s.checkerDark).assertEqual('#FFCCCCCC');
+      expect(s.thumbShadow?.isNone).assertTrue();
+      expect(s.swatchSize).assertEqual(24);
+      // instance tokens win
+      const inst = sparkColorPickerStyle(t, { areaHeight: 120, checkerDark: 'transparent', width: 300 });
+      expect(inst.areaHeight).assertEqual(120);
+      expect(inst.checkerDark).assertEqual('#00000000');
+      expect(inst.width).assertEqual(300);
+      // a wrongly typed value is an error and keeps the recipe
+      const bad = ThemeResolver.apply(ThemeCssParser.parse(':root { --color-picker-border-color: 12px; }'), false,
+        'compact', new SparkTheme());
+      expect(bad.length > 0).assertTrue();
     });
 
     it('block_tokens', 0, () => {

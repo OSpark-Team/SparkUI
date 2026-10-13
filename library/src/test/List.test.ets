@@ -12,6 +12,7 @@ import chartTest from './Chart.test';
 import variantsTest from './Variants.test';
 import transitionTest from './Transition.test';
 import virtualListTest from './VirtualList.test';
+import colorPickerTest from './ColorPicker.test';
 
 export default function testsuite() {
   sparkColorTest();
@@ -28,4 +29,5 @@ export default function testsuite() {
   variantsTest();
   transitionTest();
   virtualListTest();
+  colorPickerTest();
 }

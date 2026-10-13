@@ -170,6 +170,17 @@ export { SRangeCalendar } from './src/main/ets/components/calendar/SRangeCalenda
 export { SDatePicker, SDateRangePicker } from './src/main/ets/components/calendar/SDatePicker';
 export { SparkDate, SparkDateRange, SparkDates, SparkWeekStart, SparkDateLocale } from './src/main/ets/components/calendar/SparkDate';
 
+// color picker
+export { SColorPanel } from './src/main/ets/components/color-picker/SColorPanel';
+export { SColorPicker } from './src/main/ets/components/color-picker/SColorPicker';
+export { SparkColorRecents } from './src/main/ets/components/color-picker/ColorPickerParts';
+export { ColorPickerTokens, ColorPickerStyle, sparkColorPickerStyle } from './src/main/ets/components/color-picker/ColorPickerStyle';
+export {
+  ColorPickerFormat, SparkHsva, SPARK_COLOR_FORMATS, SPARK_DEFAULT_SWATCHES, sparkHsvToRgb, sparkRgbToHsv, sparkRgbToHsl,
+  sparkParseHex, sparkIsHexColor, sparkFormatHex, sparkParseColor, sparkFormatColor, sparkColorValueToArgb,
+  sparkColorClamp
+} from './src/main/ets/components/color-picker/ColorPickerLogic';
+
 // data & input
 export { SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput, SparkInputGroupState, InputGroupAddonAlignment, InputGroupButtonSize } from './src/main/ets/components/input-group/SInputGroup';
 export { SNumberField } from './src/main/ets/components/number-field/SNumberField';

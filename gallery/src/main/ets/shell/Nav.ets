@@ -62,6 +62,7 @@ export const NAV: SparkShellNavGroup[] = [
   new SparkShellNavGroup('Forms', [
     new SparkShellNavItem('calendar', 'Calendar', 'calendar'),
     new SparkShellNavItem('checkbox', 'Checkbox', 'square-check'),
+    new SparkShellNavItem('color-picker', 'Color Picker', 'palette'),
     new SparkShellNavItem('date-picker', 'Date Picker', 'calendar-days'),
     new SparkShellNavItem('field', 'Field', 'text-align-start'),
     new SparkShellNavItem('input', 'Input & Label', 'type'),

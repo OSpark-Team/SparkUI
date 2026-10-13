@@ -13,6 +13,7 @@ import { isEnumProxy } from './interp.js';
 import { charts } from './charts.js';
 import { blocks } from './blocks.js';
 import { tokenVars } from './tokens.js';
+import { SColorPanel, SColorPicker } from './color-picker.js';
 
 // ------------------------------------------------------------------------------------------------ helpers
 
@@ -1615,6 +1616,7 @@ export function createRegistry() {
     SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput: C(SInputGroupInput),
     SStepper: C(SStepper), SStepperItem: C(SStepperItem), SCodeBlock, SCalendar: C(SCalendar),
     SRangeCalendar: C(SCalendar), SDatePicker: C(SDatePicker), SDateRangePicker: C(SDatePicker),
+    SColorPanel: C(SColorPanel), SColorPicker: C(SColorPicker),
     // charts (charts.js), layout blocks (blocks.js)
     ...charts,
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.0
+
+- **Color picker**: `SColorPanel` (inline: saturation / brightness area, hue and alpha sliders over a
+  checkerboard, preview, validated input accepting #RGB / #RRGGBB / #RRGGBBAA and CSS colours, HEX / RGB / HSL /
+  OKLCH format toggle, preset swatches, recent colours, keyboard and screen-reader support) and `SColorPicker`
+  (trigger with chip + value or `iconOnly`, popover / bottom sheet on compact touch). Controlled / uncontrolled
+  `value` in 'hex' | 'rgb' | 'hsl' | 'oklch', live `onValueChange` and `onValueCommit`, `--color-picker-*`
+  component tokens and per-instance `tokens`. Pure colour helpers (`sparkHsvToRgb`, `sparkParseHex`,
+  `sparkFormatColor` …) are exported.
+
+### Fixed
+
+- Icons, chart paths and progress arcs clipped after the window density changes (free window).
+- Slider value bubble rendered empty.
+
+### Known issues
+
+- Menubar: when switching menus, the previous trigger's background may briefly flash (see TODO.md).
+
 ## 1.0.0-rc
 
 First public release candidate.

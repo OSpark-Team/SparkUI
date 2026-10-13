@@ -16,6 +16,7 @@ import {
 } from '../docs/DisplayDocs';
 import { AlertDialogDoc, DropdownMenuDoc, SelectDoc, ToastDoc, TooltipDoc } from '../docs/OverlayDocs';
 import { CalendarDoc, DatePickerDoc } from '../docs/DateDocs';
+import { ColorPickerDoc } from '../docs/ColorPickerDocs';
 import { AreaChartDoc, BarChartDoc, ChartsOverviewDoc, LineChartDoc, PieChartDoc, RadarChartDoc, RadialChartDoc } from '../docs/ChartDocs';
 import { AppShellDoc, DashboardGridDoc, ListDetailDoc, SidebarDoc, SupportingPaneDoc, TopbarDoc } from '../docs/BlocksDocs';
 import { InputGroupDoc, NumberFieldDoc, PinInputDoc, StepperDoc, TableDoc, TagsInputDoc } from '../docs/DataDocs';
@@ -108,6 +109,8 @@ struct DocContent {
       DashboardGridDoc()
     } else if (this.page === 'calendar') {
       CalendarDoc()
+    } else if (this.page === 'color-picker') {
+      ColorPickerDoc()
     } else if (this.page === 'date-picker') {
       DatePickerDoc()
     } else if (this.page === 'input-group') {

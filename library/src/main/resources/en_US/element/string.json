@@ -64,6 +64,15 @@
     { "name": "spark_stepper_a11y", "value": "Step %d: %s (%s)" },
     { "name": "spark_step_completed", "value": "completed" },
     { "name": "spark_step_active", "value": "active" },
-    { "name": "spark_step_inactive", "value": "inactive" }
+    { "name": "spark_step_inactive", "value": "inactive" },
+    { "name": "spark_pick_color", "value": "Pick a color" },
+    { "name": "spark_color_area", "value": "Saturation and brightness" },
+    { "name": "spark_color_sv_value", "value": "saturation %d, brightness %d" },
+    { "name": "spark_color_hue", "value": "Hue" },
+    { "name": "spark_color_alpha", "value": "Opacity" },
+    { "name": "spark_color_value", "value": "Color value" },
+    { "name": "spark_color_format", "value": "Color format: %s" },
+    { "name": "spark_color_swatch", "value": "Color %s" },
+    { "name": "spark_color_recent", "value": "Recent" }
   ]
 }
