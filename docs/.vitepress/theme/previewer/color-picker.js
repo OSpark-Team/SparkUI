@@ -247,12 +247,12 @@ function panelView(p, o, display, setDisplay, footer) {
     ]));
   }
   if (swatches.length) {
-    kids.push(h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '4px' } }, swatches.map((sw) => {
+    kids.push(h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px' } }, swatches.map((sw) => {
       const c = parse(sw) || [0, 0, 0, 0];
       const on = c.slice(0, 3).every((x, i) => Math.abs(x - cur[i]) < 1.5);
-      // selected: background gap + foreground ring (same as the library swatch)
-      return h('span', { title: sw, style: { cursor: 'pointer', display: 'inline-flex', borderRadius: 'var(--ark-radius-sm)',
-        boxShadow: on ? '0 0 0 2px var(--background), 0 0 0 4px var(--foreground)' : 'none' },
+      // selected: rounded 2px border around a 1px inset, like a focused input (same as the library swatch)
+      return h('span', { title: sw, style: { cursor: 'pointer', display: 'inline-flex', padding: '1px', borderRadius: 'calc(var(--ark-radius-sm) + 3px)',
+        border: '2px solid ' + (on ? 'var(--ring)' : 'transparent') },
         onClick: () => !o.disabled && p.pick(sw) && p.commit() },
         chip(c, 20, 'var(--ark-radius-sm)'));
     })));

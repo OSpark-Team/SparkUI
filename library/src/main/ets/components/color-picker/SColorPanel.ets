@@ -411,8 +411,6 @@ export struct SColorPanel {
           }, (v: string, i: number) => `${i}:${v}`)
         }
         .width('100%')
-        // room for the selected ring (drawn outside the swatch) at the edges
-        .padding(4)
       }
 
       if (this.recent && this.recents.items.length > 0) {
@@ -437,7 +435,6 @@ export struct SColorPanel {
             }, (v: string) => v)
           }
           .width('100%')
-          .padding(4)
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)

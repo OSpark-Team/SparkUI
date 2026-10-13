@@ -379,11 +379,11 @@ export struct SparkColorTrack {
   }
 }
 
-/** selected swatch: background-coloured gap + foreground ring (vp) */
-const SWATCH_GAP: number = 2;
-const SWATCH_RING: number = 2;
+/** swatch frame: inset around the chip and the selected / hover border (vp) */
+const SWATCH_INSET: number = 3;
+const SWATCH_BORDER: number = 2;
 
-/** A preset / recent swatch button: instant hover ring, pressed fade (system pressed state), gap + ring when selected. */
+/** A preset / recent swatch button: instant hover ring, pressed fade (system pressed state), rounded border when selected (like a focused Input). */
 @ComponentV2
 export struct SparkColorSwatch {
   /** `#AARRGGBB` */
@@ -420,6 +420,9 @@ export struct SparkColorSwatch {
   }
 
   build() {
+    // The chip sits in a padded frame. Selected: the frame draws a rounded 2vp border like a focused Input (radius =
+    // chip radius + inset, so the corners stay concentric); otherwise the border is transparent so the layout never
+    // shifts. Hover tints the border (instant, never animated).
     Stack() {
       SparkColorChip({
         argb: this.argb,
@@ -428,23 +431,14 @@ export struct SparkColorSwatch {
         radius: this.style.swatchRadius,
         style: this.style
       })
-      if (this.selected) {
-        // a 2vp background-coloured gap between the colour and the ring (ring-offset look)
-        Column()
-          .width(this.style.swatchSize)
-          .height(this.style.swatchSize)
-          .border({ width: SWATCH_GAP, color: this.theme.colors.background, radius: this.style.swatchRadius })
-          .hitTestBehavior(HitTestMode.None)
-      }
     }
-    .width(this.style.swatchSize)
-    .height(this.style.swatchSize)
-    // selected: solid foreground ring around the gap; hover: a faint 1vp ring (instant, never animated)
-    .outline({
-      width: this.selected ? SWATCH_RING : (this.ix.hovered ? 1 : 0),
-      color: this.selected ? this.theme.colors.foreground : SparkColor.alpha(this.theme.colors.foreground, 0.25),
-      radius: this.style.swatchRadius + (this.selected ? SWATCH_RING : 1),
-      style: OutlineStyle.SOLID
+    .width(this.style.swatchSize + SWATCH_INSET * 2)
+    .height(this.style.swatchSize + SWATCH_INSET * 2)
+    .border({
+      width: SWATCH_BORDER,
+      color: this.selected ? this.theme.colors.ring :
+        (this.ix.hovered ? this.theme.colors.border : Color.Transparent),
+      radius: this.style.swatchRadius + SWATCH_INSET
     })
     .stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })
     .focusable(!this.disabled)

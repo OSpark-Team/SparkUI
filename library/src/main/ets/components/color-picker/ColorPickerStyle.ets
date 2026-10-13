@@ -48,7 +48,7 @@ export class ColorPickerStyle {
   thumbSize: number = 16;
   swatchSize: number = 20;
   swatchRadius: number = 4;
-  swatchGap: number = 8;
+  swatchGap: number = 4;
   gap: number = 12;
   thumbShadow: SparkShadow | undefined = undefined;
 }
@@ -75,7 +75,7 @@ export function sparkColorPickerStyle(t: SparkTheme, tokens?: ColorPickerTokens)
   s.thumbSize = r.len('thumb-size', tokens?.thumbSize, 16);
   s.swatchSize = r.len('swatch-size', tokens?.swatchSize, 20);
   s.swatchRadius = r.len('swatch-radius', tokens?.swatchRadius, t.radiusSm);
-  s.swatchGap = r.len('swatch-gap', tokens?.swatchGap, 8);
+  s.swatchGap = r.len('swatch-gap', tokens?.swatchGap, 4);
   s.gap = r.len('gap', tokens?.gap, 12);
   s.thumbShadow = r.shadow('thumb-shadow', tokens?.thumbShadow, t.shadows.sm);
   return s;
