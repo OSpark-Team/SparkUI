@@ -432,24 +432,28 @@ export struct SSlider {
       ForEach(this.thumbIndices, (i: number) => {
         Stack({ alignContent: Alignment.Bottom }) {
           if (this.showTooltip(i)) {
-            // Explicit size: the bubble lives in the 16vp thumb Stack, and an auto-sized Text is clamped to that
-            // width (padding left nothing for the value — an empty black bubble). A sized child may overflow.
-            Text(this.formatValue(this.thumbValues[i] ?? 0))
-              .fontSize(this.theme.text.xs)
-              .fontWeight(this.theme.text.weightMedium)
-              .fontColor(this.theme.colors.primaryForeground)
-              .fontFeature('"tnum" on')
-              .maxLines(1)
-              .textAlign(TextAlign.Center)
-              .width(this.bubbleWidth(this.formatValue(this.thumbValues[i] ?? 0)))
-              .height(BUBBLE_HEIGHT)
-              .padding({ left: 8, right: 8, top: 0, bottom: 0 })
-              .backgroundColor(this.theme.colors.primary)
-              .border({ width: 0, radius: this.theme.radiusSm })
-              .position({ x: '50%', y: -8 })
-              .markAnchor({ x: '50%', y: '100%' })
-              .hitTestBehavior(HitTestMode.None)
-              .transition(SparkAnim.enter(this.theme, 'tooltip', 'fast', 0.9))
+            // The bubble lives in the 16vp thumb Stack. An auto-sized node there is clamped to 16vp (empty bubble,
+            // text pushed below the background), so a fixed-size Column (sized children may overflow) owns the
+            // background and placement, and centres the Text inside its own 22vp box.
+            Column() {
+              Text(this.formatValue(this.thumbValues[i] ?? 0))
+                .fontSize(this.theme.text.xs)
+                .fontWeight(this.theme.text.weightMedium)
+                .fontColor(this.theme.colors.primaryForeground)
+                .fontFeature('"tnum" on')
+                .maxLines(1)
+                .textAlign(TextAlign.Center)
+            }
+            .width(this.bubbleWidth(this.formatValue(this.thumbValues[i] ?? 0)))
+            .height(BUBBLE_HEIGHT)
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+            .backgroundColor(this.theme.colors.primary)
+            .border({ width: 0, radius: this.theme.radiusSm })
+            .position({ x: '50%', y: -8 })
+            .markAnchor({ x: '50%', y: '100%' })
+            .hitTestBehavior(HitTestMode.None)
+            .transition(SparkAnim.enter(this.theme, 'tooltip', 'fast', 0.9))
           }
           Row()
             .width(THUMB)

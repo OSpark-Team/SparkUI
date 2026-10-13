@@ -2,7 +2,6 @@ import { KeyCode } from '@kit.InputKit';
 import { sparkFocusRing } from '../../core/SparkModifier';
 import { SparkInteraction } from '../../core/SparkInteraction';
 import { SparkUI } from '../../core/SparkUI';
-import { SIcon } from '../../icons/SIcon';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTokenOverride } from '../../theme/tokens/SparkComponentTokens';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -380,7 +379,11 @@ export struct SparkColorTrack {
   }
 }
 
-/** A preset / recent swatch button: instant hover ring, pressed fade (system pressed state), check when selected. */
+/** selected swatch: background-coloured gap + foreground ring (vp) */
+const SWATCH_GAP: number = 2;
+const SWATCH_RING: number = 2;
+
+/** A preset / recent swatch button: instant hover ring, pressed fade (system pressed state), gap + ring when selected. */
 @ComponentV2
 export struct SparkColorSwatch {
   /** `#AARRGGBB` */
@@ -406,13 +409,6 @@ export struct SparkColorSwatch {
     }
   }
 
-  @Computed
-  get checkColor(): string {
-    const c = SparkColor.fromArgbHex(this.argb);
-    // contrast against the swatch (over the light checkerboard when translucent)
-    return c.a > 0.5 && SparkColor.isDark(this.argb) ? SV_WHITE : SV_BLACK;
-  }
-
   @Styles
   normalStyle() {
     .opacity(1)
@@ -433,15 +429,21 @@ export struct SparkColorSwatch {
         style: this.style
       })
       if (this.selected) {
-        SIcon({ name: 'check', sizing: Math.round(this.style.swatchSize * 0.6), color: this.checkColor })
+        // a 2vp background-coloured gap between the colour and the ring (ring-offset look)
+        Column()
+          .width(this.style.swatchSize)
+          .height(this.style.swatchSize)
+          .border({ width: SWATCH_GAP, color: this.theme.colors.background, radius: this.style.swatchRadius })
+          .hitTestBehavior(HitTestMode.None)
       }
     }
     .width(this.style.swatchSize)
     .height(this.style.swatchSize)
+    // selected: solid foreground ring around the gap; hover: a faint 1vp ring (instant, never animated)
     .outline({
-      width: this.selected || this.ix.hovered ? 2 : 0,
-      color: this.selected ? this.theme.colors.ring : SparkColor.alpha(this.theme.colors.ring, 0.5),
-      radius: this.style.swatchRadius + 2,
+      width: this.selected ? SWATCH_RING : (this.ix.hovered ? 1 : 0),
+      color: this.selected ? this.theme.colors.foreground : SparkColor.alpha(this.theme.colors.foreground, 0.25),
+      radius: this.style.swatchRadius + (this.selected ? SWATCH_RING : 1),
       style: OutlineStyle.SOLID
     })
     .stateStyles({ normal: this.normalStyle, pressed: this.pressedStyle })
