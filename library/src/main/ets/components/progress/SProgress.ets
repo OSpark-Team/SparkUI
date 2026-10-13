@@ -181,8 +181,11 @@ export struct SProgress {
   private arc(start: number, sweep: number): SparkProgressArc {
     const ctx = this.getUIContext();
     const d = this.ringDiameter;
+    // px geometry: read the window density so callers in @Computed recompute when it changes
+    const density = SparkUI.layout.env.pxPerVp;
     const r = Math.max(0, (d - this.barThickness) / 2);
-    return new SparkProgressArc(ctx.vp2px(d / 2), ctx.vp2px(d / 2), ctx.vp2px(r), start, sweep);
+    return density > 0 ? new SparkProgressArc(ctx.vp2px(d / 2), ctx.vp2px(d / 2), ctx.vp2px(r), start, sweep) :
+      new SparkProgressArc(d / 2, d / 2, r, start, sweep);
   }
 
   @Computed
@@ -439,6 +442,10 @@ struct SProgressSpin {
   get commands(): string {
     const ctx = this.getUIContext();
     const r = Math.max(0, (this.diameter - this.thickness) / 2);
+    const density = SparkUI.layout.env.pxPerVp; // dependency: recompute when the window density changes
+    if (density <= 0) {
+      return '';
+    }
     return sparkRingArcPath(ctx.vp2px(this.diameter / 2), ctx.vp2px(this.diameter / 2), ctx.vp2px(r), 0, SPIN_SWEEP);
   }
 

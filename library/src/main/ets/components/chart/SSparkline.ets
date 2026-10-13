@@ -1,3 +1,4 @@
+import { SparkEnvironment } from '../../layout/SparkLayoutContext';
 import { SparkUI } from '../../core/SparkUI';
 import { SparkColor } from '../../theme/color/SparkColor';
 import { SparkTheme } from '../../theme/tokens/SparkTheme';
@@ -41,6 +42,13 @@ export struct SSparkline {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local measuredWidth: number = 0;
   @Local pxRatio: number = 1;
+  /** window density (px per vp) — chart paths are in px and must be rebuilt when it changes */
+  @Local sparkEnv: SparkEnvironment = SparkUI.layout.env;
+
+  @Monitor('sparkEnv.pxPerVp')
+  syncDensity(): void {
+    this.pxRatio = this.getUIContext().vp2px(1);
+  }
   @Local morph: boolean = true;
 
   aboutToAppear(): void {

@@ -30,14 +30,20 @@ export struct SIcon {
     return SparkIcons.get(this.name);
   }
 
-  /** Path data scaled from the 24-unit box to px at the current size. */
+  /**
+   * Path data scaled from the 24-unit box to px at the current size. Path commands are in px, so this depends on
+   * the window density as well: reading `env.pxPerVp` recomputes the paths when it changes (a tablet window
+   * switching into free-window mode is rescaled — cached px paths then no longer fit the vp box and the icon
+   * shows clipped / offset).
+   */
   @Computed
   get scaledPaths(): string[] {
     const d = this.data;
     if (d === undefined) {
       return [];
     }
-    const k = this.getUIContext().vp2px(this.sizing) / 24;
+    const density = SparkUI.layout.env.pxPerVp;
+    const k = (density > 0 ? this.getUIContext().vp2px(this.sizing) : this.sizing) / 24;
     return d.paths.map((p: string) => scalePathCommands(p, k));
   }
 

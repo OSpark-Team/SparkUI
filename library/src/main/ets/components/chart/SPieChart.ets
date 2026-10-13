@@ -1,3 +1,4 @@
+import { SparkEnvironment } from '../../layout/SparkLayoutContext';
 import { sparkText } from '../../core/SparkText';
 import { SparkContext } from '../../core/SparkContext';
 import { SparkUI } from '../../core/SparkUI';
@@ -80,6 +81,13 @@ export struct SPieChart {
   @Local ctx: SparkChartState | undefined = undefined;
   @Local measuredWidth: number = 0;
   @Local pxRatio: number = 1;
+  /** window density (px per vp) — chart paths are in px and must be rebuilt when it changes */
+  @Local sparkEnv: SparkEnvironment = SparkUI.layout.env;
+
+  @Monitor('sparkEnv.pxPerVp')
+  syncDensity(): void {
+    this.pxRatio = this.getUIContext().vp2px(1);
+  }
   /** data row index of the active slice */
   @Local active: number = -1;
   @Local pointerX: number = 0;

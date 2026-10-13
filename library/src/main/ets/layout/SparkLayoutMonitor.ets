@@ -182,10 +182,21 @@ export class SparkLayoutMonitor {
     return this.uiContext !== undefined ? this.uiContext.px2vp(px) : px;
   }
 
+  /** Re-read the window density (px per vp); cheap, called on every window size / status change. */
+  private readDensity(): void {
+    if (this.uiContext !== undefined) {
+      const k = this.uiContext.vp2px(1);
+      if (k > 0 && Math.abs(k - this.env.pxPerVp) > 0.0001) {
+        this.env.pxPerVp = k;
+      }
+    }
+  }
+
   private refreshAll(): void {
     if (this.win !== undefined) {
       try {
         const rect = this.win.getWindowProperties().windowRect;
+        this.readDensity();
         this.updateRootSize(this.px2vp(rect.width), this.px2vp(rect.height));
         this.readAvoidAreas();
         this.readWindowStatus();
@@ -208,9 +219,11 @@ export class SparkLayoutMonitor {
     }
     try {
       const rect = this.win.getWindowProperties().windowRect;
+      this.readDensity();
       this.updateRootSize(this.px2vp(rect.width), this.px2vp(rect.height));
       this.sizeCb = (size: window.Size) => {
         if (!this.env.simulated) {
+          this.readDensity();
           this.updateRootSize(this.px2vp(size.width), this.px2vp(size.height));
           this.readFold();
         }

@@ -10,6 +10,8 @@ import { resolveSparkField, SparkFieldState, sparkFieldGrows } from '../field/SF
 import { sparkDecimalsOf } from '../number-field/NumberFieldLogic';
 
 const THUMB: number = 16;
+/** value bubble height (vp): text-xs line + vertical padding */
+const BUBBLE_HEIGHT: number = 22;
 const TRACK_H: number = 6;
 /** most step dots drawn by `ticks` (more would be visual noise) */
 const MAX_TICKS: number = 41;
@@ -344,6 +346,20 @@ export struct SSlider {
     this.commit();
   }
 
+  /** Bubble width (vp) for `text`: measured single-line width + horizontal padding (official MeasureUtils). */
+  private bubbleWidth(text: string): number {
+    try {
+      const px = this.getUIContext().getMeasureUtils().measureText({
+        textContent: text,
+        fontSize: this.theme.text.xs,
+        fontWeight: this.theme.text.weightMedium
+      });
+      return Math.ceil(this.getUIContext().px2vp(px)) + 16 + 2;
+    } catch (e) {
+      return text.length * 7 + 18;
+    }
+  }
+
   private showTooltip(i: number): boolean {
     if (this.tooltip === 'always') {
       return true;
@@ -416,13 +432,18 @@ export struct SSlider {
       ForEach(this.thumbIndices, (i: number) => {
         Stack({ alignContent: Alignment.Bottom }) {
           if (this.showTooltip(i)) {
+            // Explicit size: the bubble lives in the 16vp thumb Stack, and an auto-sized Text is clamped to that
+            // width (padding left nothing for the value — an empty black bubble). A sized child may overflow.
             Text(this.formatValue(this.thumbValues[i] ?? 0))
               .fontSize(this.theme.text.xs)
               .fontWeight(this.theme.text.weightMedium)
               .fontColor(this.theme.colors.primaryForeground)
               .fontFeature('"tnum" on')
               .maxLines(1)
-              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .textAlign(TextAlign.Center)
+              .width(this.bubbleWidth(this.formatValue(this.thumbValues[i] ?? 0)))
+              .height(BUBBLE_HEIGHT)
+              .padding({ left: 8, right: 8, top: 0, bottom: 0 })
               .backgroundColor(this.theme.colors.primary)
               .border({ width: 0, radius: this.theme.radiusSm })
               .position({ x: '50%', y: -8 })

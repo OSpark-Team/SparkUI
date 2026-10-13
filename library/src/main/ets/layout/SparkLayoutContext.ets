@@ -87,6 +87,11 @@ export class SparkEnvironment {
   @Trace safeArea: SparkInsets = new SparkInsets(0, 0, 0, 0);
   /** docked soft keyboard height (vp), 0 when hidden */
   @Trace keyboardHeight: number = 0;
+  /**
+   * Physical pixels per vp of the window. It can change at runtime — e.g. a tablet window entering free-window mode
+   * is scaled — so anything converted to px once (icon paths) must re-read it.
+   */
+  @Trace pxPerVp: number = 1;
   @Trace landscape: boolean = false;
   /** `deviceInfo.deviceType`: phone / tablet / 2in1 / … */
   @Trace deviceType: string = 'phone';
