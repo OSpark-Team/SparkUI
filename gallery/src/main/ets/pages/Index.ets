@@ -15,7 +15,7 @@ import {
   AlertDoc, AspectRatioDoc, AvatarDoc, BadgeDoc, EmptyDoc, ItemDoc, SeparatorDoc, SkeletonDoc, TypographyDoc
 } from '../docs/DisplayDocs';
 import { AlertDialogDoc, DropdownMenuDoc, SelectDoc, ToastDoc, TooltipDoc } from '../docs/OverlayDocs';
-import { CalendarDoc, DatePickerDoc, TimePickerDoc } from '../docs/DateDocs';
+import { CalendarDoc, DatePickerDoc, TimePickerDoc, TimeRangePickerDoc } from '../docs/DateDocs';
 import { ColorPickerDoc } from '../docs/ColorPickerDocs';
 import { AreaChartDoc, BarChartDoc, ChartsOverviewDoc, LineChartDoc, PieChartDoc, RadarChartDoc, RadialChartDoc } from '../docs/ChartDocs';
 import { AppShellDoc, DashboardGridDoc, ListDetailDoc, SidebarDoc, SupportingPaneDoc, TopbarDoc } from '../docs/BlocksDocs';
@@ -115,6 +115,8 @@ struct DocContent {
       DatePickerDoc()
     } else if (this.page === 'time-picker') {
       TimePickerDoc()
+    } else if (this.page === 'time-range-picker') {
+      TimeRangePickerDoc()
     } else if (this.page === 'input-group') {
       InputGroupDoc()
     } else if (this.page === 'number-field') {

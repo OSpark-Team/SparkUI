@@ -368,5 +368,13 @@
   "Tap and long-press": "点按与长按",
   "A row that opens on tap and has a context menu: pass the tap as onTap instead of chaining .onClick() on the trigger content. The click that ends a long-press (or follows a right click) is swallowed, so onTap only fires for real taps.": "点按打开、同时带有右键菜单的行：把点按交给 onTap，而不是在触发器内容上链式调用 .onClick()。长按结束（或右键点击之后）产生的那次点击会被吞掉，因此 onTap 只在真正的点按时触发。",
   "Foreground token": "前景色 Token",
-  "tokens.foreground recolours the label and icons of any variant. Colours use the theme file syntax (CSS #RRGGBBAA); theme.colors values can be passed as they are, other #AARRGGBB strings go through SparkColor.toCss().": "tokens.foreground 可为任意变体重新设置文字与图标颜色。颜色使用主题文件语法（CSS #RRGGBBAA）；theme.colors 的值可以直接传入，其他 #AARRGGBB 字符串请先经过 SparkColor.toCss() 转换。"
+  "tokens.foreground recolours the label and icons of any variant. Colours use the theme file syntax (CSS #RRGGBBAA); theme.colors values can be passed as they are, other #AARRGGBB strings go through SparkColor.toCss().": "tokens.foreground 可为任意变体重新设置文字与图标颜色。颜色使用主题文件语法（CSS #RRGGBBAA）；theme.colors 的值可以直接传入，其他 #AARRGGBB 字符串请先经过 SparkColor.toCss() 转换。",
+  "Inside a drawer": "在抽屉中使用",
+  "The wheels open in their own layer above the drawer, so dragging them scrolls the wheels; the drawer's drag-to-dismiss never takes the gesture.": "滚轮在抽屉之上的独立浮层中打开，因此拖动滚轮只会滚动滚轮，抽屉的下拉关闭手势不会抢走这次拖动。",
+  "Time Range Picker": "时间段选择器",
+  "Picks a start and an end time with two sets of snapping wheels side by side. Ranges may cross midnight: an end at or before the start is on the next day. Opens a popover; on compact touch screens it becomes a bottom sheet.": "通过并排的两组可吸附滚轮选择开始与结束时间。时间段可以跨越午夜：结束时间早于或等于开始时间即表示次日。打开弹出框；在紧凑触屏上变为底部面板。",
+  "Across midnight": "跨越午夜",
+  "An end at or before the start ends on the next day; the End wheels show a \"Next day\" hint.": "结束时间早于或等于开始时间时表示次日结束，结束一侧的滚轮上方会显示“次日”提示。",
+  "hour12 adds AM / PM columns to both ends (values stay HH:mm).": "hour12 为两端各增加上午 / 下午列（值仍为 HH:mm）。",
+  "The wheels open in their own layer above the drawer and keep vertical drags to themselves.": "滚轮在抽屉之上的独立浮层中打开，竖向拖动始终由滚轮自己处理。"
 }

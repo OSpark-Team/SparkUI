@@ -16,6 +16,8 @@ export const PAGE_EXTRA_STRUCTS = {
   toggle: ['SToggle', 'SToggleGroup', 'SToggleGroupItem'],
   calendar: ['SCalendar', 'SRangeCalendar'],
   'date-picker': ['SDatePicker', 'SDateRangePicker'],
+  'time-picker': ['STimePicker'],
+  'time-range-picker': ['STimeRangePicker'],
   'dashboard-grid': ['SDashboardGrid', 'SDashboardTile'],
   charts: ['SChartContainer', 'SChartLegend', 'SChartTooltipCard', 'SChartEmpty', 'SSparkline'],
   'area-chart': ['SAreaChart'],

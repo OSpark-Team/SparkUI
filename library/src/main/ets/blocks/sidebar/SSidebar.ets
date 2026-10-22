@@ -676,24 +676,34 @@ export struct SSidebar {
 
 // ------------------------------------------------------------------------------------------------ sections
 
-/** Top section (brand, team switcher…): `flex flex-col gap-2 p-2`. */
-@ComponentV2
-export struct SSidebarHeader {
-  @BuilderParam content: () => void = sparkEmptyBuilder;
+/**
+ * Whether a header / footer sits in the icon rail (not inside the sheet): its content is then centred on the
+ * rail like the menu buttons' icons, so a trigger or avatar lines up with the nav icons below it.
+ */
+@ObservedV2
+class SidebarSectionState {
+  @Trace ctx: SparkSidebarState | undefined = undefined;
+  @Trace inSheet: boolean = false;
 
-  build() {
-    Column({ space: 8 }) {
-      this.content()
-    }
-    .width('100%')
-    .padding(8)
-    .alignItems(HorizontalAlign.Start)
+  get iconOnly(): boolean {
+    return !this.inSheet && (this.ctx?.iconOnly ?? false);
   }
 }
 
+/** Top section (brand, team switcher…): `flex flex-col gap-2 p-2`; centred in the icon rail. */
 @ComponentV2
-export struct SSidebarFooter {
+export struct SSidebarHeader {
   @BuilderParam content: () => void = sparkEmptyBuilder;
+  @Local section: SidebarSectionState = new SidebarSectionState();
+
+  onDidBuild(): void {
+    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => {
+      if (this.section.ctx === undefined) {
+        this.section.ctx = resolveSparkSidebar(this.getUIContext(), this.getUniqueId());
+        this.section.inSheet = sparkSidebarInSheet(this.getUIContext(), this.getUniqueId());
+      }
+    });
+  }
 
   build() {
     Column({ space: 8 }) {
@@ -701,7 +711,32 @@ export struct SSidebarFooter {
     }
     .width('100%')
     .padding(8)
-    .alignItems(HorizontalAlign.Start)
+    .alignItems(this.section.iconOnly ? HorizontalAlign.Center : HorizontalAlign.Start)
+  }
+}
+
+/** Bottom section (user, settings…); centred in the icon rail. */
+@ComponentV2
+export struct SSidebarFooter {
+  @BuilderParam content: () => void = sparkEmptyBuilder;
+  @Local section: SidebarSectionState = new SidebarSectionState();
+
+  onDidBuild(): void {
+    SparkContext.whenAttached(this.getUIContext(), this.getUniqueId(), () => {
+      if (this.section.ctx === undefined) {
+        this.section.ctx = resolveSparkSidebar(this.getUIContext(), this.getUniqueId());
+        this.section.inSheet = sparkSidebarInSheet(this.getUIContext(), this.getUniqueId());
+      }
+    });
+  }
+
+  build() {
+    Column({ space: 8 }) {
+      this.content()
+    }
+    .width('100%')
+    .padding(8)
+    .alignItems(this.section.iconOnly ? HorizontalAlign.Center : HorizontalAlign.Start)
   }
 }
 

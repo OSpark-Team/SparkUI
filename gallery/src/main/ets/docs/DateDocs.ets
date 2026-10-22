@@ -1,6 +1,7 @@
 import {
   SCalendar, SDatePicker, SDateRangePicker, SparkDate, SparkDateRange, SparkDates, SparkTheme, SparkUI, SRangeCalendar,
-  SSwitch, STimePicker
+  SButton, SDrawer, SDrawerClose, SDrawerContent, SDrawerDescription, SDrawerFooter, SDrawerHeader, SDrawerTitle,
+  SDrawerTrigger, sparkParseTime, SSwitch, STimePicker, STimeRangePicker, sparkTimeRangeNextDay
 } from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -171,12 +172,28 @@ const TIME_RANGE_CODE = `STimePicker({ value: this.meeting!!, minuteStep: 15, mi
 
 const TIME_DISABLED_CODE = `STimePicker({ value: '22:00', disabled: true })`;
 
+const TIME_DRAWER_CODE = `SDrawer({ open: this.drawerOpen!! }) {
+  SDrawerTrigger() { SButton({ text: 'Set alarm', variant: 'outline' }) }
+  SDrawerContent() {
+    SDrawerHeader() {
+      SDrawerTitle({ text: 'Alarm' })
+      SDrawerDescription({ text: 'Drag the wheels up and down to pick a time.' })
+    }
+    STimePicker({ value: this.wake!!, minuteStep: 5 })
+    SDrawerFooter() {
+      SDrawerClose() { SButton({ text: 'Done' }) }
+    }
+  }
+}`;
+
 @ComponentV2
 export struct TimePickerDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
   @Local time: string | undefined = undefined;
   @Local alarm: string | undefined = '07:30';
   @Local meeting: string | undefined = '10:00';
+  @Local wake: string | undefined = '06:45';
+  @Local drawerOpen: boolean = false;
 
   build() {
     Column({ space: 16 }) {
@@ -211,9 +228,162 @@ export struct TimePickerDoc {
         }
       }
 
+      DocSection({
+        title: 'Inside a drawer',
+        description: 'The wheels open in their own layer above the drawer, so dragging them scrolls the wheels; ' +
+          'the drawer\'s drag-to-dismiss never takes the gesture.'
+      })
+      DemoBlock({ code: TIME_DRAWER_CODE }) {
+        Column() {
+          SDrawer({ open: this.drawerOpen!! }) {
+            SDrawerTrigger() {
+              SButton({ text: 'Set alarm', variant: 'outline' })
+            }
+            SDrawerContent() {
+              SDrawerHeader() {
+                SDrawerTitle({ text: 'Alarm' })
+                SDrawerDescription({ text: 'Drag the wheels up and down to pick a time.' })
+              }
+              Row() {
+                STimePicker({ value: this.wake!!, minuteStep: 5 })
+              }
+              .width('100%')
+              .justifyContent(FlexAlign.Center)
+              SDrawerFooter() {
+                SDrawerClose() {
+                  SButton({ text: 'Done' }).width('100%')
+                }
+              }
+            }
+          }
+          DemoCaption({ text: `value: ${this.wake ?? 'undefined'}` })
+        }
+      }
+
       DocSection({ title: 'Disabled' })
       DemoBlock({ code: TIME_DISABLED_CODE }) {
         STimePicker({ value: '22:00', disabled: true })
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ Time Range Picker
+
+const TIME_RANGE_PICKER_CODE = `@Local from: string | undefined = undefined;
+@Local to: string | undefined = undefined;
+
+STimeRangePicker({ start: this.from!!, end: this.to!! })`;
+
+const TIME_RANGE_NIGHT_CODE = `STimeRangePicker({ start: this.quietStart!!, end: this.quietEnd!!, minuteStep: 15 })`;
+
+const TIME_RANGE_12H_CODE = `STimeRangePicker({ start: this.shiftStart!!, end: this.shiftEnd!!, hour12: true, minuteStep: 5 })`;
+
+const TIME_RANGE_DRAWER_CODE = `SDrawer({ open: this.open!! }) {
+  SDrawerTrigger() { SButton({ text: 'Quiet hours', variant: 'outline' }) }
+  SDrawerContent() {
+    SDrawerHeader() {
+      SDrawerTitle({ text: 'Quiet hours' })
+      SDrawerDescription({ text: 'Notifications are muted in this window.' })
+    }
+    STimeRangePicker({ start: this.quietStart!!, end: this.quietEnd!!, minuteStep: 15 })
+    SDrawerFooter() {
+      SDrawerClose() { SButton({ text: 'Done' }) }
+    }
+  }
+}`;
+
+const TIME_RANGE_DISABLED_CODE = `STimeRangePicker({ start: '09:00', end: '17:30', disabled: true })`;
+
+function timeRangeText(start: string | undefined, end: string | undefined): string {
+  const next = sparkTimeRangeNextDay(sparkParseTime(start), sparkParseTime(end));
+  return `start: ${start ?? 'undefined'} · end: ${end ?? 'undefined'}${next ? ' (next day)' : ''}`;
+}
+
+@ComponentV2
+export struct TimeRangePickerDoc {
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local from: string | undefined = undefined;
+  @Local to: string | undefined = undefined;
+  @Local quietStart: string | undefined = '22:00';
+  @Local quietEnd: string | undefined = '07:00';
+  @Local shiftStart: string | undefined = '08:30';
+  @Local shiftEnd: string | undefined = '17:00';
+  @Local open: boolean = false;
+
+  build() {
+    Column({ space: 16 }) {
+      DocHeader({
+        title: 'Time Range Picker',
+        lead: 'Picks a start and an end time with two sets of snapping wheels side by side. Ranges may cross ' +
+          'midnight: an end at or before the start is on the next day. Opens a popover; on compact touch screens ' +
+          'it becomes a bottom sheet.'
+      })
+      DemoBlock({ code: TIME_RANGE_PICKER_CODE }) {
+        Column() {
+          STimeRangePicker({ start: this.from!!, end: this.to!! })
+          DemoCaption({ text: timeRangeText(this.from, this.to) })
+        }
+      }
+
+      DocSection({
+        title: 'Across midnight',
+        description: 'An end at or before the start ends on the next day; the End wheels show a "Next day" hint.'
+      })
+      DemoBlock({ code: TIME_RANGE_NIGHT_CODE }) {
+        Column() {
+          STimeRangePicker({ start: this.quietStart!!, end: this.quietEnd!!, minuteStep: 15 })
+          DemoCaption({ text: timeRangeText(this.quietStart, this.quietEnd) })
+        }
+      }
+
+      DocSection({
+        title: '12-hour clock & minute step',
+        description: 'hour12 adds AM / PM columns to both ends (values stay HH:mm).'
+      })
+      DemoBlock({ code: TIME_RANGE_12H_CODE }) {
+        Column() {
+          STimeRangePicker({ start: this.shiftStart!!, end: this.shiftEnd!!, hour12: true, minuteStep: 5 })
+          DemoCaption({ text: timeRangeText(this.shiftStart, this.shiftEnd) })
+        }
+      }
+
+      DocSection({
+        title: 'Inside a drawer',
+        description: 'The wheels open in their own layer above the drawer and keep vertical drags to themselves.'
+      })
+      DemoBlock({ code: TIME_RANGE_DRAWER_CODE }) {
+        Column() {
+          SDrawer({ open: this.open!! }) {
+            SDrawerTrigger() {
+              SButton({ text: 'Quiet hours', variant: 'outline' })
+            }
+            SDrawerContent() {
+              SDrawerHeader() {
+                SDrawerTitle({ text: 'Quiet hours' })
+                SDrawerDescription({ text: 'Notifications are muted in this window.' })
+              }
+              Row() {
+                STimeRangePicker({ start: this.quietStart!!, end: this.quietEnd!!, minuteStep: 15 })
+              }
+              .width('100%')
+              .justifyContent(FlexAlign.Center)
+              SDrawerFooter() {
+                SDrawerClose() {
+                  SButton({ text: 'Done' }).width('100%')
+                }
+              }
+            }
+          }
+          DemoCaption({ text: timeRangeText(this.quietStart, this.quietEnd) })
+        }
+      }
+
+      DocSection({ title: 'Disabled' })
+      DemoBlock({ code: TIME_RANGE_DISABLED_CODE }) {
+        STimeRangePicker({ start: '09:00', end: '17:30', disabled: true })
       }
     }
     .alignItems(HorizontalAlign.Start)

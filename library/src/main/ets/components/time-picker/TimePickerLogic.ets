@@ -150,3 +150,71 @@ export function sparkStepEnabled(disabled: boolean[], index: number, dir: number
   }
   return index;
 }
+
+// ------------------------------------------------------------------------------------------------ wheel layout
+
+/** Width of the ':' between the hour and minute wheels (vp). */
+export const SPARK_TIME_COLON_WIDTH: number = 12;
+/** Gap before the AM / PM wheel (vp). */
+export const SPARK_TIME_PERIOD_GAP: number = 8;
+/** Gap between the start and end wheel sets of a range picker (vp). */
+export const SPARK_TIME_SET_GAP: number = 16;
+
+/** Width of one wheel set (hours : minutes [AM/PM]) for a column width. */
+export function sparkTimeWheelsWidth(columnWidth: number, hour12: boolean): number {
+  return 2 * columnWidth + SPARK_TIME_COLON_WIDTH + (hour12 ? SPARK_TIME_PERIOD_GAP + columnWidth : 0);
+}
+
+/**
+ * Widest column (≤ `max`, ≥ `min`) with which `sets` wheel sets (separated by {@link SPARK_TIME_SET_GAP}) fit
+ * into `available` vp. An unknown width (≤ 0) gives `max`.
+ */
+export function sparkFitColumnWidth(available: number, sets: number, hour12: boolean, max: number,
+  min: number = 40): number {
+  if (available <= 0 || sets <= 0) {
+    return max;
+  }
+  const perSet = (available - (sets - 1) * SPARK_TIME_SET_GAP) / sets;
+  const fixed = SPARK_TIME_COLON_WIDTH + (hour12 ? SPARK_TIME_PERIOD_GAP : 0);
+  const w = Math.floor((perSet - fixed) / (hour12 ? 3 : 2));
+  return Math.max(min, Math.min(max, w));
+}
+
+// ------------------------------------------------------------------------------------------------ ranges
+
+/**
+ * True when a range ends on the next day: `end <= start` (an equal end means a full 24 hours). False while
+ * either end is empty.
+ */
+export function sparkTimeRangeNextDay(start: number, end: number): boolean {
+  return start >= 0 && end >= 0 && end <= start;
+}
+
+/** Length of a range in minutes (1..1440, crossing midnight when `end <= start`); -1 while either end is empty. */
+export function sparkTimeRangeMinutes(start: number, end: number): number {
+  if (start < 0 || end < 0) {
+    return -1;
+  }
+  const d = ((end - start) % SPARK_DAY_MINUTES + SPARK_DAY_MINUTES) % SPARK_DAY_MINUTES;
+  return d === 0 ? SPARK_DAY_MINUTES : d;
+}
+
+/**
+ * Trigger text of a range: `09:00 – 17:30` (`--:--` for an empty end); undefined when both ends are empty.
+ */
+export function sparkTimeRangeLabel(start: number, end: number, hour12: boolean, am: string,
+  pm: string): string | undefined {
+  if (start < 0 && end < 0) {
+    return undefined;
+  }
+  const a = start >= 0 ? sparkTimeLabel(start, hour12, am, pm) : '--:--';
+  const b = end >= 0 ? sparkTimeLabel(end, hour12, am, pm) : '--:--';
+  return `${a} – ${b}`;
+}
+
+/** Default end shown for a start: one hour later (wrapping past midnight), snapped to the minute step. */
+export function sparkDefaultRangeEnd(start: number, step: number): number {
+  const t = ((Math.max(0, start) + 60) % SPARK_DAY_MINUTES);
+  const snapped = sparkNearestTime(t, step, -1, -1);
+  return snapped >= 0 ? snapped : t;
+}

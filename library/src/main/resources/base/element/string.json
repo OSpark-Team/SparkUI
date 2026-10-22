@@ -79,6 +79,10 @@
     { "name": "spark_minutes", "value": "分" },
     { "name": "spark_time_am", "value": "上午" },
     { "name": "spark_time_pm", "value": "下午" },
-    { "name": "spark_done", "value": "完成" }
+    { "name": "spark_done", "value": "完成" },
+    { "name": "spark_pick_time_range", "value": "选择时间段" },
+    { "name": "spark_time_start", "value": "开始" },
+    { "name": "spark_time_end", "value": "结束" },
+    { "name": "spark_time_next_day", "value": "次日" }
   ]
 }

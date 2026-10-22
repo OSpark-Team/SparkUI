@@ -79,6 +79,10 @@
     { "name": "spark_minutes", "value": "Minutes" },
     { "name": "spark_time_am", "value": "AM" },
     { "name": "spark_time_pm", "value": "PM" },
-    { "name": "spark_done", "value": "Done" }
+    { "name": "spark_done", "value": "Done" },
+    { "name": "spark_pick_time_range", "value": "Pick a time range" },
+    { "name": "spark_time_start", "value": "Start" },
+    { "name": "spark_time_end", "value": "End" },
+    { "name": "spark_time_next_day", "value": "Next day" }
   ]
 }

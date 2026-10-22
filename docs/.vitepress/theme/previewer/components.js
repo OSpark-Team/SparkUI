@@ -1593,8 +1593,81 @@ function timeColumn(items, selected, onPick) {
   }, it.label)));
 }
 
-const STimePicker = def('STimePicker', (props) => {
-  const [value, set] = useModel(props, 'value', 'defaultValue', '', 'onValueChange');
+const timePad = (n) => String(n).padStart(2, '0');
+
+/** `H:mm` / `HH:mm` → minutes since midnight, -1 when empty or invalid */
+function parseTime(v) {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(v ?? ''));
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) {
+    return -1;
+  }
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+const formatTime = (t) => `${timePad(Math.floor(t / 60))}:${timePad(t % 60)}`;
+
+function timeLabel(t, h12, am, pm) {
+  return h12 ? `${(Math.floor(t / 60) % 12) || 12}:${timePad(t % 60)} ${t < 720 ? am : pm}` : formatTime(t);
+}
+
+function minuteOptions(stepProp) {
+  const step = Math.max(1, Math.min(60, Math.floor(Number(stepProp ?? 1)) || 1));
+  const mins = [];
+  for (let m = 0; m < 60; m += step) {
+    mins.push(m);
+  }
+  return mins;
+}
+
+/** `t` snapped to the nearest minute option (within its day) */
+function snapTime(t, mins) {
+  let best = 0;
+  let bestD = Infinity;
+  for (let hh = 0; hh < 24; hh++) {
+    for (const m of mins) {
+      const d = Math.abs(hh * 60 + m - t);
+      if (d < bestD) {
+        bestD = d;
+        best = hh * 60 + m;
+      }
+    }
+  }
+  return best;
+}
+
+/** one wheel set (hours : minutes [AM/PM]) over the selection highlight — SparkTimeWheels */
+function timeWheels({ shown, mins, h12, am, pm, inRange = () => true, commit }) {
+  const hour = Math.floor(shown / 60);
+  const minute = shown % 60;
+  const hourOk = (hh) => mins.some((m) => inRange(hh * 60 + m));
+  const hourAt = (i) => (h12 ? (hour < 12 ? 0 : 12) + i : i);
+  const hours = Array.from({ length: h12 ? 12 : 24 }, (_, i) => ({
+    label: h12 ? String(i === 0 ? 12 : i) : timePad(i), disabled: !hourOk(hourAt(i))
+  }));
+  const minutes = mins.map((m) => ({ label: timePad(m), disabled: !inRange(hour * 60 + m) }));
+  const nearestIn = (hh) => {
+    const ok = mins.filter((m) => inRange(hh * 60 + m));
+    if (!ok.length) {
+      return -1;
+    }
+    return hh * 60 + ok.reduce((a, b) => (Math.abs(b - minute) < Math.abs(a - minute) ? b : a));
+  };
+  const emit = (t) => { if (t >= 0) { commit(t); } };
+  const cols = [
+    timeColumn(hours, h12 ? hour % 12 : hour, (i) => emit(nearestIn(hourAt(i)))),
+    h('div', { class: 'ark-time-colon' }, ':'),
+    timeColumn(minutes, Math.max(0, mins.indexOf(minute)), (i) => emit(hour * 60 + mins[i]))
+  ];
+  if (h12) {
+    cols.push(timeColumn([{ label: am, disabled: ![...Array(12).keys()].some(hourOk) },
+      { label: pm, disabled: ![...Array(12).keys()].some((i) => hourOk(i + 12)) }], hour < 12 ? 0 : 1,
+      (p) => emit(nearestIn(p * 12 + (hour % 12)))));
+  }
+  return h('div', { class: 'ark-time-wheels' }, [h('div', { class: 'ark-time-highlight' }), ...cols]);
+}
+
+/** open state that closes on a pointerdown outside `el` */
+function useOutsideClose() {
   const open = ref(false);
   const el = ref(null);
   const onDoc = (e) => {
@@ -1604,69 +1677,91 @@ const STimePicker = def('STimePicker', (props) => {
   };
   onMounted(() => document.addEventListener('pointerdown', onDoc));
   onBeforeUnmount(() => document.removeEventListener('pointerdown', onDoc));
-  const parse = (v) => {
-    const m = /^(d{1,2}):(d{2})$/.exec(String(v ?? ''));
-    return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
-  };
-  const pad = (n) => String(n).padStart(2, '0');
+  return [open, el];
+}
+
+function timeTrigger(o, width, label, placeholder, onClick) {
+  return h('button', {
+    class: ['ark-btn', 'ark-btn-outline', o.disabled && 'disabled'],
+    style: { width: `${typeof o.triggerWidth === 'number' ? o.triggerWidth : width}px`, justifyContent: 'flex-start', fontWeight: 400, fontVariantNumeric: 'tabular-nums' },
+    disabled: !!o.disabled,
+    onClick: () => !o.disabled && onClick()
+  }, [
+    icon('clock', 16),
+    h('span', { class: label ? '' : 'ark-placeholder' }, label ?? placeholder)
+  ]);
+}
+
+const STimePicker = def('STimePicker', (props) => {
+  const [value, set] = useModel(props, 'value', 'defaultValue', '', 'onValueChange');
+  const [open, el] = useOutsideClose();
   return () => {
     const o = props.n.props;
-    const step = Math.max(1, Math.min(60, Math.floor(Number(o.minuteStep ?? 1)) || 1));
+    const mins = minuteOptions(o.minuteStep);
     const zh = o.locale === 'zh';
     const am = zh ? '上午' : 'AM';
     const pm = zh ? '下午' : 'PM';
-    const min = parse(o.minTime);
-    const max = parse(o.maxTime);
+    const min = parseTime(o.minTime);
+    const max = parseTime(o.maxTime);
     const inRange = (t) => (min < 0 || t >= min) && (max < 0 || t <= max);
-    const cur = parse(value.value);
+    const cur = parseTime(value.value);
     const now = new Date();
-    const shown = cur >= 0 ? cur : now.getHours() * 60 + Math.floor(now.getMinutes() / step) * step;
-    const hour = Math.floor(shown / 60);
-    const minute = shown % 60;
-    const h12 = !!o.hour12;
-    const mins = [];
-    for (let m = 0; m < 60; m += step) {
-      mins.push(m);
-    }
-    const hourOk = (hh) => mins.some((m) => inRange(hh * 60 + m));
-    const hourAt = (i) => (h12 ? (hour < 12 ? 0 : 12) + i : i);
-    const hours = Array.from({ length: h12 ? 12 : 24 }, (_, i) => ({
-      label: h12 ? String(i === 0 ? 12 : i) : pad(i), disabled: !hourOk(hourAt(i))
-    }));
-    const minutes = mins.map((m) => ({ label: pad(m), disabled: !inRange(hour * 60 + m) }));
-    const commit = (t) => { if (t >= 0) { set(`${pad(Math.floor(t / 60))}:${pad(t % 60)}`); } };
-    const nearestIn = (hh) => {
-      const ok = mins.filter((m) => inRange(hh * 60 + m));
-      if (!ok.length) {
-        return -1;
-      }
-      return hh * 60 + ok.reduce((a, b) => (Math.abs(b - minute) < Math.abs(a - minute) ? b : a));
-    };
-    const label = cur >= 0
-      ? (h12 ? `${(Math.floor(cur / 60) % 12) || 12}:${pad(cur % 60)} ${cur < 720 ? am : pm}` : `${pad(Math.floor(cur / 60))}:${pad(cur % 60)}`)
-      : undefined;
-    const cols = [
-      timeColumn(hours, h12 ? hour % 12 : hour, (i) => commit(nearestIn(hourAt(i)))),
-      h('div', { class: 'ark-time-colon' }, ':'),
-      timeColumn(minutes, Math.max(0, mins.indexOf(minute)), (i) => commit(hour * 60 + mins[i]))
-    ];
-    if (h12) {
-      cols.push(timeColumn([{ label: am, disabled: ![...Array(12).keys()].some(hourOk) },
-        { label: pm, disabled: ![...Array(12).keys()].some((i) => hourOk(i + 12)) }], hour < 12 ? 0 : 1,
-        (p) => commit(nearestIn(p * 12 + (hour % 12)))));
-    }
+    const shown = cur >= 0 ? cur : snapTime(now.getHours() * 60 + now.getMinutes(), mins);
+    const label = cur >= 0 ? timeLabel(cur, !!o.hour12, am, pm) : undefined;
     return h('span', rootProps(props.n, 'ark-overlay-root', {}, { ref: el }), [
-      h('button', {
-        class: ['ark-btn', 'ark-btn-outline', o.disabled && 'disabled'],
-        style: { width: `${typeof o.triggerWidth === 'number' ? o.triggerWidth : 140}px`, justifyContent: 'flex-start', fontWeight: 400, fontVariantNumeric: 'tabular-nums' },
-        disabled: !!o.disabled,
-        onClick: () => !o.disabled && (open.value = !open.value)
-      }, [
-        icon('clock', 16),
-        h('span', { class: label ? '' : 'ark-placeholder' }, label ?? txt(o.placeholder ?? (zh ? '选择时间' : 'Pick a time')))
-      ]),
+      timeTrigger(o, 140, label, txt(o.placeholder ?? (zh ? '选择时间' : 'Pick a time')), () => { open.value = !open.value; }),
       open.value ? h('div', { class: 'ark-floating ark-time-panel side-bottom align-start' },
-        h('div', { class: 'ark-time-wheels' }, [h('div', { class: 'ark-time-highlight' }), ...cols])) : null
+        timeWheels({ shown, mins, h12: !!o.hour12, am, pm, inRange, commit: (t) => set(formatTime(t)) })) : null
+    ]);
+  };
+});
+
+const STimeRangePicker = def('STimeRangePicker', (props) => {
+  const [start, setStart] = useModel(props, 'start', 'defaultStart', '', 'onStartChange');
+  const [end, setEnd] = useModel(props, 'end', 'defaultEnd', '', 'onEndChange');
+  const [open, el] = useOutsideClose();
+  return () => {
+    const o = props.n.props;
+    const mins = minuteOptions(o.minuteStep);
+    const zh = o.locale === 'zh';
+    const am = zh ? '上午' : 'AM';
+    const pm = zh ? '下午' : 'PM';
+    const h12 = !!o.hour12;
+    const s = parseTime(start.value);
+    const e = parseTime(end.value);
+    const now = new Date();
+    const shownStart = s >= 0 ? s : snapTime(now.getHours() * 60 + now.getMinutes(), mins);
+    const shownEnd = e >= 0 ? e : snapTime((shownStart + 60) % 1440, mins);
+    const nextDay = shownEnd <= shownStart;
+    const label = s < 0 && e < 0 ? undefined :
+      `${s >= 0 ? timeLabel(s, h12, am, pm) : '--:--'} – ${e >= 0 ? timeLabel(e, h12, am, pm) : '--:--'}`;
+    // like the component: a resting wheel commits both ends (an empty one gets its default)
+    const commit = (a, b) => {
+      if (a !== s) {
+        setStart(formatTime(a));
+      }
+      if (b !== e) {
+        setEnd(formatTime(b));
+      }
+      call(o.onValueChange, formatTime(a), formatTime(b));
+    };
+    const caption = (text, hint) => h('div', { class: 'ark-time-caption' }, [
+      h('span', {}, text),
+      hint ? h('span', { class: 'ark-time-hint' }, zh ? '次日' : 'Next day') : null
+    ]);
+    return h('span', rootProps(props.n, 'ark-overlay-root', {}, { ref: el }), [
+      timeTrigger(o, 200, label, txt(o.placeholder ?? (zh ? '选择时间段' : 'Pick a time range')), () => { open.value = !open.value; }),
+      open.value ? h('div', { class: 'ark-floating ark-time-panel side-bottom align-start' },
+        h('div', { class: 'ark-time-range' }, [
+          h('div', { class: 'ark-time-set' }, [
+            caption(txt(o.startLabel ?? (zh ? '开始' : 'Start')), false),
+            timeWheels({ shown: shownStart, mins, h12, am, pm, commit: (t) => commit(t, shownEnd) })
+          ]),
+          h('div', { class: 'ark-time-set' }, [
+            caption(txt(o.endLabel ?? (zh ? '结束' : 'End')), nextDay),
+            timeWheels({ shown: shownEnd, mins, h12, am, pm, commit: (t) => commit(shownStart, t) })
+          ])
+        ])) : null
     ]);
   };
 });
@@ -1727,6 +1822,7 @@ export function createRegistry() {
     SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput: C(SInputGroupInput),
     SStepper: C(SStepper), SStepperItem: C(SStepperItem), SCodeBlock, SCalendar: C(SCalendar),
     SRangeCalendar: C(SCalendar), SDatePicker: C(SDatePicker), SDateRangePicker: C(SDatePicker), STimePicker: C(STimePicker),
+    STimeRangePicker: C(STimeRangePicker),
     SColorPanel: C(SColorPanel), SColorPicker: C(SColorPicker),
     // charts (charts.js), layout blocks (blocks.js)
     ...charts,

@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- **Time range picker**: `STimeRangePicker` — a start and an end time of day as 24-hour `HH:mm` strings
+  (`start` / `end` with `!!`, `onStartChange` / `onEndChange`, and `onValueChange(start, end)` whenever either
+  changes), the `SDateRangePicker` pattern for times. One outline trigger with a clock icon showing
+  `09:00 – 17:30`; the overlay shows two sets of snapping wheels side by side with localized Start / End
+  captions (开始 / 结束), in a popover or — on compact touch windows (`adaptive: 'auto'`) — in a bottom sheet with
+  touch-sized rows and a Done button. Ranges may cross midnight: an end at or before the start ends on the next
+  day and the End side shows a "Next day" (次日) hint. `hour12`, `minuteStep`, `placeholder`, `startLabel` /
+  `endLabel`, `disabled`, `triggerWidth`, `label`, `surfaceTokens`, `onOpenChange`. Pure helpers
+  `sparkTimeRangeNextDay`, `sparkTimeRangeMinutes` and `sparkTimeRangeLabel` are exported.
+
+### Fixed
+- Time picker: the hour / minute wheels of `STimePicker` could not be scrolled by touch (dragging did nothing;
+  only a mouse wheel worked). The soft edge fades are stacked above the wheel lists, and only their container
+  was `HitTestMode.None`: its children still hit-tested with `Default`, and a hit on the top-most child of a
+  Stack stops the Stack from testing the children below it, so the lists never received the drag (mouse-wheel
+  axis events are routed differently, which hid the problem on 2in1). Every decoration node (fades and
+  highlight) is now `HitTestMode.None` and the empty spacer between the fades is gone, so the wheels are the
+  only hit-testable layer: they scroll and snap by touch in the popover and the bottom sheet, and by mouse
+  wheel / touchpad. The wheels live in their own overlay layer, so a picker placed inside an `SDrawer` keeps
+  vertical drags away from the drawer's drag-to-dismiss.
+- Sidebar: `SSidebarHeader` / `SSidebarFooter` centre their content in the icon rail, so a header trigger
+  (e.g. `SSidebarTrigger` passed through AppShell's `sidebarHeaderBuilder`) or a footer avatar lines up with
+  the centred nav icons instead of staying on the left edge.
+
 ## 1.1.1
 
 ### Added

@@ -1,7 +1,9 @@
 import { describe, it, expect } from '@ohos/hypium';
 import {
   sparkFormatTime, sparkHour12, sparkHourEnabled, sparkMinuteOptions, sparkMinuteStep, sparkNearestEnabled,
-  sparkNearestInHour, sparkNearestTime, sparkParseTime, sparkStepEnabled, sparkTimeInRange, sparkTimeLabel
+  sparkNearestInHour, sparkNearestTime, sparkParseTime, sparkStepEnabled, sparkTimeInRange, sparkTimeLabel,
+  sparkDefaultRangeEnd, sparkFitColumnWidth, sparkTimeRangeLabel, sparkTimeRangeMinutes, sparkTimeRangeNextDay,
+  sparkTimeWheelsWidth
 } from '../main/ets/components/time-picker/TimePickerLogic';
 
 export default function timePickerTest() {
@@ -56,6 +58,37 @@ export default function timePickerTest() {
       expect(sparkNearestEnabled([true, true], 0)).assertEqual(-1);
       expect(sparkStepEnabled(d, 1, 1)).assertEqual(4);
       expect(sparkStepEnabled(d, 1, -1)).assertEqual(1);
+    });
+
+    it('time_range', 0, () => {
+      expect(sparkTimeRangeNextDay(9 * 60, 17 * 60)).assertFalse();
+      expect(sparkTimeRangeNextDay(22 * 60, 6 * 60)).assertTrue();
+      expect(sparkTimeRangeNextDay(600, 600)).assertTrue();
+      expect(sparkTimeRangeNextDay(-1, 600)).assertFalse();
+      expect(sparkTimeRangeNextDay(600, -1)).assertFalse();
+      expect(sparkTimeRangeMinutes(9 * 60, 17 * 60 + 30)).assertEqual(510);
+      expect(sparkTimeRangeMinutes(22 * 60, 6 * 60)).assertEqual(480);
+      expect(sparkTimeRangeMinutes(600, 600)).assertEqual(1440);
+      expect(sparkTimeRangeMinutes(-1, 600)).assertEqual(-1);
+      expect(sparkTimeRangeLabel(540, 1050, false, 'AM', 'PM')).assertEqual('09:00 – 17:30');
+      expect(sparkTimeRangeLabel(1320, 360, true, 'AM', 'PM')).assertEqual('10:00 PM – 6:00 AM');
+      expect(sparkTimeRangeLabel(540, -1, false, 'AM', 'PM')).assertEqual('09:00 – --:--');
+      expect(sparkTimeRangeLabel(-1, -1, false, 'AM', 'PM') === undefined).assertTrue();
+      expect(sparkDefaultRangeEnd(540, 1)).assertEqual(600);
+      expect(sparkDefaultRangeEnd(23 * 60 + 30, 15)).assertEqual(30);
+      expect(sparkDefaultRangeEnd(23 * 60 + 50, 15)).assertEqual(45);
+      expect(sparkDefaultRangeEnd(23 * 60 + 59, 1)).assertEqual(59);
+    });
+
+    it('wheel_layout', 0, () => {
+      expect(sparkTimeWheelsWidth(56, false)).assertEqual(124);
+      expect(sparkTimeWheelsWidth(56, true)).assertEqual(188);
+      expect(sparkFitColumnWidth(328, 2, false, 72)).assertEqual(72);
+      expect(sparkFitColumnWidth(328, 2, true, 72)).assertEqual(45);
+      expect(sparkFitColumnWidth(200, 2, false, 72)).assertEqual(40);
+      expect(sparkFitColumnWidth(150, 2, false, 72)).assertEqual(40);
+      expect(sparkFitColumnWidth(0, 2, false, 72)).assertEqual(72);
+      expect(sparkFitColumnWidth(1000, 1, true, 72)).assertEqual(72);
     });
   });
 }

@@ -75,7 +75,8 @@ export const NAV: SparkShellNavGroup[] = [
     new SparkShellNavItem('switch', 'Switch', 'toggle-right'),
     new SparkShellNavItem('tags-input', 'Tags Input', 'tag'),
     new SparkShellNavItem('textarea', 'Textarea', 'text-align-start'),
-    new SparkShellNavItem('time-picker', 'Time Picker', 'clock')
+    new SparkShellNavItem('time-picker', 'Time Picker', 'clock'),
+    new SparkShellNavItem('time-range-picker', 'Time Range Picker', 'hourglass')
   ]),
   new SparkShellNavGroup('Overlays', [
     new SparkShellNavItem('alert-dialog', 'Alert Dialog', 'triangle-alert'),
