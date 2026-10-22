@@ -100,12 +100,26 @@ export struct SContextMenu {
 /**
  * The area that opens the menu: right mouse button → at the pointer; touch long-press (500 ms without moving
  * more than 10 vp) → at the finger. Long-press uses a touch timer (a LongPressGesture loses to inner buttons).
+ *
+ * Plain taps: use `onTap` instead of an `.onClick()` on the trigger content. The finger lift that ends a
+ * long-press still produces a click; the trigger swallows that one (and the click after a right-click), so
+ * `onTap` fires for real taps only, while an `.onClick()` on the content would also fire after the menu opened.
+ * Screen-reader activation goes through the same click, so it reaches `onTap` as well.
+ *
+ * ```
+ * SContextMenuTrigger({ onTap: () => this.openDetail() }) { Card() }
+ * ```
  */
 @ComponentV2
 export struct SContextMenuTrigger {
   @BuilderParam content: () => void = sparkEmptyBuilder;
+  /** a plain tap / click on the trigger (not fired for the click that ends a long-press or follows a right-click) */
+  @Event onTap: () => void = () => {
+  };
   @Local state: SparkContextMenuState | undefined = undefined;
   private timer: number = -1;
+  /** a long-press / right-click opened the menu during this press: swallow the click it ends with */
+  private suppressNextClick: boolean = false;
   private downX: number = 0;
   private downY: number = 0;
 
@@ -124,15 +138,24 @@ export struct SContextMenuTrigger {
   }
 
   private mouse(e: MouseEvent): void {
+    if (e.button === MouseButton.Left && e.action === MouseAction.Press) {
+      // the click after a right-click (if any) is gone by now: a left click is a real tap
+      this.suppressNextClick = false;
+    }
     if (e.button === MouseButton.Right && e.action === MouseAction.Press && this.state !== undefined) {
       SparkUI.layout.reportPointerEvent(true);
       this.state.openAt(e.windowX, e.windowY, true);
+      this.suppressNextClick = true;
       e.stopPropagation();
     }
   }
 
   private touch(e: TouchEvent): void {
     const state = this.state;
+    if (e.type === TouchType.Down && e.source !== SourceType.Mouse) {
+      // a new press: a stale flag (e.g. a long-press whose lift produced no click) must not eat this tap
+      this.suppressNextClick = false;
+    }
     if (state === undefined || e.source === SourceType.Mouse) {
       return;
     }
@@ -143,7 +166,10 @@ export struct SContextMenuTrigger {
       clearTimeout(this.timer);
       const x = t.windowX;
       const y = t.windowY;
-      this.timer = setTimeout(() => state.openAt(x, y, false), LONG_PRESS_MS);
+      this.timer = setTimeout(() => {
+        this.suppressNextClick = true;
+        state.openAt(x, y, false);
+      }, LONG_PRESS_MS);
     } else if (e.type === TouchType.Move && t !== undefined) {
       if (Math.abs(t.windowX - this.downX) > 10 || Math.abs(t.windowY - this.downY) > 10) {
         clearTimeout(this.timer);
@@ -153,12 +179,21 @@ export struct SContextMenuTrigger {
     }
   }
 
+  private click(): void {
+    if (this.suppressNextClick) {
+      this.suppressNextClick = false;
+      return;
+    }
+    this.onTap();
+  }
+
   build() {
     Stack() {
       this.content()
     }
     .onMouse((e: MouseEvent) => this.mouse(e))
     .onTouch((e: TouchEvent) => this.touch(e))
+    .onClick(() => this.click())
   }
 }
 

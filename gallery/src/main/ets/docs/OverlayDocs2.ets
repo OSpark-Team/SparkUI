@@ -4,7 +4,8 @@ import {
   SCommandList, SCommandSeparator, SContextMenu, SContextMenuCheckboxItem, SContextMenuContent, SContextMenuItem,
   SContextMenuLabel, SContextMenuRadioGroup, SContextMenuRadioItem, SContextMenuSeparator, SContextMenuTrigger,
   SDrawer, SDrawerClose, SDrawerContent, SDrawerDescription, SDrawerFooter, SDrawerHeader, SDrawerTitle,
-  SDrawerTrigger, SHoverCard, SHoverCardContent, SHoverCardTrigger, SIcon, SMenubar, SMenubarCheckboxItem,
+  SDrawerTrigger, SHoverCard, SHoverCardContent, SHoverCardTrigger, SIcon, SItem, SItemActions, SItemContent,
+  SItemDescription, SItemMedia, SItemTitle, SMenubar, SMenubarCheckboxItem,
   SMenubarContent, SMenubarItem, SMenubarMenu, SMenubarRadioGroup, SMenubarRadioItem, SMenubarSeparator,
   SMenubarTrigger, SparkCommandEntryData, SparkSelectOption, SparkTheme, SparkUI
 } from '@ospark/sparkui';
@@ -99,6 +100,15 @@ const CONTEXT_MENU_CODE = `SContextMenu() {
   }
 }`;
 
+const CONTEXT_MENU_TAP_CODE = `// don't chain .onClick() on the trigger content: it also fires after a long-press
+SContextMenu() {
+  SContextMenuTrigger({ onTap: () => this.openItem() }) { SItem() { ... } }
+  SContextMenuContent() {
+    SContextMenuItem({ text: 'Edit', icon: 'pencil', onSelect: () => ... })
+    SContextMenuItem({ text: 'Delete', icon: 'trash', variant: 'destructive', onSelect: () => ... })
+  }
+}`;
+
 @ComponentV2
 export struct ContextMenuDoc {
   @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
@@ -106,6 +116,8 @@ export struct ContextMenuDoc {
   @Local bookmarks: boolean = true;
   @Local urls: boolean = false;
   @Local person: string = 'pedro';
+  @Local taps: number = 0;
+  @Local rowAction: string = '—';
 
   build() {
     Column({ space: 16 }) {
@@ -155,6 +167,48 @@ export struct ContextMenuDoc {
       Text(`last = ${this.last} · bookmarks = ${this.bookmarks} · urls = ${this.urls} · person = ${this.person}`)
         .fontSize(this.theme.text.xs)
         .fontColor(this.theme.colors.mutedForeground)
+
+      DocSection({
+        title: 'Tap and long-press',
+        description: 'A row that opens on tap and has a context menu: pass the tap as onTap instead of chaining ' +
+          '.onClick() on the trigger content. The click that ends a long-press (or follows a right click) is ' +
+          'swallowed, so onTap only fires for real taps.'
+      })
+      DemoBlock({ code: CONTEXT_MENU_TAP_CODE }) {
+        Column({ space: 8 }) {
+          SContextMenu() {
+            SContextMenuTrigger({
+              onTap: () => {
+                this.taps++;
+              }
+            }) {
+              SItem({ variant: 'outline', interactive: true }) {
+                SItemMedia({ icon: 'file-text', variant: 'icon' })
+                SItemContent() {
+                  SItemTitle({ text: 'Quarterly report' })
+                  SItemDescription({ text: 'Tap to open · long-press or right click for actions' })
+                }
+                SItemActions() {
+                  SIcon({ name: 'chevron-right', sizing: 16, color: this.theme.colors.mutedForeground })
+                }
+              }
+            }
+            SContextMenuContent() {
+              SContextMenuItem({ text: 'Edit', icon: 'pencil', onSelect: () => {
+                this.rowAction = 'Edit';
+              } })
+              SContextMenuItem({ text: 'Delete', icon: 'trash', variant: 'destructive', onSelect: () => {
+                this.rowAction = 'Delete';
+              } })
+            }
+          }
+          Text(`taps = ${this.taps} · menu = ${this.rowAction}`)
+            .fontSize(this.theme.text.xs)
+            .fontColor(this.theme.colors.mutedForeground)
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 420 })
+      }
     }
     .alignItems(HorizontalAlign.Start)
     .width('100%')

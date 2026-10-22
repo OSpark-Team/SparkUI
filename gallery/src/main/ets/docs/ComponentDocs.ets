@@ -4,7 +4,7 @@ import {
   SDialogHeader, SDialogTitle, SDialogTrigger, SIcon, SPopover, SPopoverContent, SPopoverTrigger, SSheet,
   SSheetContent, SSheetDescription, SSheetFooter, SSheetHeader, SSheetTitle, SSheetTrigger, SSheetClose, SheetSide,
   SparkIcons, SparkTheme, SparkUI, SparkSide, SCard, SCardHeader, SCardTitle, SCardDescription, SCardContent,
-  SCardFooter, SCardAction, SBadge, CodeHighlighter
+  SCardFooter, SCardAction, SBadge, CodeHighlighter, SparkColor
 } from '@ospark/sparkui';
 import { DemoBlock, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -33,6 +33,13 @@ SButton({ text: 'Disabled', disabled: true })
 const BTN_BLOCK = `SButton({ text: 'Continue', block: true })
 SButton({ text: 'Sign in with Google', variant: 'outline', icon: 'globe', block: true })
 SButton({ text: 'Save changes', loading: this.saving, loadingText: 'Saving…', block: true })`;
+
+const BTN_TOKENS = `// colour tokens use CSS syntax (#RRGGBBAA); theme.colors.* (#AARRGGBB) may be passed as is
+SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'pencil', label: 'Edit', tokens: { foreground: '#4169e1' } })
+SButton({ variant: 'outline', sizing: 'icon-sm', icon: 'x', label: 'Remove',
+  tokens: { radius: 999, foreground: theme.colors.destructive } })
+SButton({ text: 'Discard', variant: 'outline', icon: 'circle-x', block: true,
+  tokens: { foreground: SparkColor.toCss(theme.colors.destructive) } })`;
 
 @ComponentV2
 export struct ButtonDoc {
@@ -95,6 +102,37 @@ export struct ButtonDoc {
                 this.saving = false;
               }, 1500);
             })
+        }
+        .width('100%')
+        .constraintSize({ maxWidth: 320 })
+      }
+      DocSection({
+        title: 'Foreground token',
+        description: 'tokens.foreground recolours the label and icons of any variant. Colours use the theme file ' +
+          'syntax (CSS #RRGGBBAA); theme.colors values can be passed as they are, other #AARRGGBB strings go ' +
+          'through SparkColor.toCss().'
+      })
+      DemoBlock({ code: BTN_TOKENS }) {
+        Column({ space: 8 }) {
+          Row({ space: 8 }) {
+            SButton({ variant: 'ghost', sizing: 'icon-sm', icon: 'pencil', label: 'Edit', tokens: { foreground: '#4169e1' } })
+            SButton({
+              variant: 'outline', sizing: 'icon-sm', icon: 'x', label: 'Remove',
+              tokens: { radius: 999, foreground: this.theme.colors.destructive }
+            })
+            SButton({
+              variant: 'ghost', sizing: 'icon-sm', icon: 'pencil', label: 'Edit',
+              tokens: { foreground: this.theme.colors.primary }
+            })
+          }
+          SButton({
+            text: 'Discard', variant: 'outline', icon: 'circle-x', block: true,
+            tokens: { foreground: SparkColor.toCss(this.theme.colors.destructive) }
+          })
+          SButton({
+            text: 'Discard (disabled)', variant: 'outline', icon: 'circle-x', block: true, disabled: true,
+            tokens: { foreground: this.theme.colors.destructive }
+          })
         }
         .width('100%')
         .constraintSize({ maxWidth: 320 })

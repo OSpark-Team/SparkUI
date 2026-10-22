@@ -815,8 +815,9 @@ export struct ItemDoc {
     Column({ space: 16 }) {
       DocHeader({
         title: 'Item',
-        lead: 'A versatile row for lists and settings: media, title, description and actions. When an item is ' +
-          'narrower than 360vp its actions wrap under the text.'
+        lead: 'A versatile row for lists and settings: media, title, description and actions. Small trailing ' +
+          'actions always stay on the row; wide action groups wrap under the text when an item is narrower ' +
+          'than 360vp.'
       })
       DemoBlock({ code: ITEM_CODE }) {
         Column({ space: 16 }) {
@@ -986,9 +987,23 @@ export struct ItemDoc {
         .constraintSize({ maxWidth: 520 })
       }
 
-      DocSection({ title: 'Narrow', description: 'Below 360vp the actions move to their own line under the text.' })
-      DemoBlock({ code: '// same SItem, placed in a 300vp wide column' }) {
-        Column() {
+      DocSection({
+        title: 'Narrow',
+        description: 'Small trailing actions (chevron, icon, switch, badge) always stay on the row and the text ' +
+          'shrinks. Wide action groups move to their own line under the text below 360vp.'
+      })
+      DemoBlock({ code: '// same SItems, placed in a 300vp wide column' }) {
+        Column({ space: 16 }) {
+          SItem({ variant: 'outline' }) {
+            SItemMedia({ icon: 'bell', variant: 'icon' })
+            SItemContent() {
+              SItemTitle({ text: 'Notification preferences' })
+              SItemDescription({ text: 'Push, email and in-app alerts for every device.' })
+            }
+            SItemActions() {
+              SIcon({ name: 'chevron-right', sizing: 16, color: this.theme.colors.mutedForeground })
+            }
+          }
           SItem({ variant: 'outline' }) {
             SItemMedia({ icon: 'cloud-upload', variant: 'icon' })
             SItemContent() {

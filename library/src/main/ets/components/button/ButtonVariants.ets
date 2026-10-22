@@ -36,7 +36,9 @@ export class ButtonStyle {
 /**
  * Per-instance token overrides of a button (ADR D13): `SButton({ text: 'Go', tokens: { radius: 999 } })`.
  * They win over the theme's `--button-*` tokens, which win over the variant recipe. Colours / shadows use the
- * theme file syntax (`transparent`, `#0ea5e9`, `oklch(0.6 0.2 250 / 50%)`, `none`); lengths are vp.
+ * theme file syntax (`transparent`, `#0ea5e9`, `#4169e1cc` = CSS `#RRGGBBAA`, `oklch(0.6 0.2 250 / 50%)`, `none`);
+ * a `theme.colors.*` value (ArkUI `#AARRGGBB`) can be passed as is, other `#AARRGGBB` strings go through
+ * `SparkColor.toCss()`. Lengths are vp.
  */
 export interface ButtonTokens {
   background?: string;

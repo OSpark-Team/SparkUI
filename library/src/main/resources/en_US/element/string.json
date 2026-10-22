@@ -73,6 +73,12 @@
     { "name": "spark_color_value", "value": "Color value" },
     { "name": "spark_color_format", "value": "Color format: %s" },
     { "name": "spark_color_swatch", "value": "Color %s" },
-    { "name": "spark_color_recent", "value": "Recent" }
+    { "name": "spark_color_recent", "value": "Recent" },
+    { "name": "spark_pick_time", "value": "Pick a time" },
+    { "name": "spark_hours", "value": "Hours" },
+    { "name": "spark_minutes", "value": "Minutes" },
+    { "name": "spark_time_am", "value": "AM" },
+    { "name": "spark_time_pm", "value": "PM" },
+    { "name": "spark_done", "value": "Done" }
   ]
 }

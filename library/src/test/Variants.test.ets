@@ -1,6 +1,8 @@
 import { describe, it, expect } from '@ohos/hypium';
 import { SparkTones } from '../main/ets/core/SparkTone';
 import { SparkTheme } from '../main/ets/theme/tokens/SparkTheme';
+import { SparkColor } from '../main/ets/theme/color/SparkColor';
+import { ButtonTokens, ButtonVariants } from '../main/ets/components/button/ButtonVariants';
 import {
   SparkProgressArc, sparkRingArcPath, sparkProgressLabel, sparkProgressPercent, sparkSegmentFills
 } from '../main/ets/components/progress/ProgressLogic';
@@ -117,6 +119,25 @@ export default function variantsTest() {
       expect(list(sparkSliderTicks(0, 4, 1, 41))).assertEqual('0,1,2,3,4');
       expect(list(sparkSliderTicks(0, 1, 0.25, 41))).assertEqual('0,0.25,0.5,0.75,1');
       expect(sparkSliderTicks(0, 100, 1, 41).length).assertEqual(0);
+    });
+    it('button_foreground_token_channel_order', 0, () => {
+      const t = new SparkTheme();
+      t.colors.primary = '#FF4169E1';
+      t.colors.destructive = '#FFE7000B';
+      expect(SparkColor.toCss('#FF4169E1')).assertEqual('#4169E1FF');
+      expect(SparkColor.toCss('#4169e1')).assertEqual('#4169e1');
+      const blue: ButtonTokens = { foreground: '#4169E1FF' };
+      const red: ButtonTokens = { foreground: '#e7000b' };
+      const themeBlue: ButtonTokens = { foreground: t.colors.primary };
+      const themeRed: ButtonTokens = { foreground: t.colors.destructive };
+      const converted: ButtonTokens = { foreground: SparkColor.toCss('#80E7000B') };
+      // CSS #RRGGBBAA
+      expect(ButtonVariants.resolve(t, 'ghost', 'icon-sm', blue).foreground).assertEqual('#FF4169E1');
+      expect(ButtonVariants.resolve(t, 'outline', 'icon-sm', red).foreground).assertEqual('#FFE7000B');
+      // a theme colour (ArkUI #AARRGGBB) passed straight through keeps its colour
+      expect(ButtonVariants.resolve(t, 'ghost', 'icon-sm', themeBlue).foreground).assertEqual('#FF4169E1');
+      expect(ButtonVariants.resolve(t, 'outline', 'default', themeRed).foreground).assertEqual('#FFE7000B');
+      expect(ButtonVariants.resolve(t, 'outline', 'default', converted).foreground).assertEqual('#80E7000B');
     });
   });
 }

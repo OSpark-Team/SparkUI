@@ -1,3 +1,5 @@
+import { SparkColor } from '../color/SparkColor';
+import { SPARK_COLOR_TOKENS } from './SparkColors';
 import { SparkShadow } from './SparkShadow';
 import { SparkTokenOverride } from './SparkComponentTokens';
 import { SparkTheme } from './SparkTheme';
@@ -43,7 +45,30 @@ export class SparkTokenReader {
   color(props: string | string[], instance: string | undefined, fallback: string): string {
     const p = this.find(props);
     const base = p === undefined ? fallback : this.theme.comp.color(this.component, p, fallback);
-    return SparkTokenOverride.color(instance, base);
+    return SparkTokenOverride.color(this.themeColorAsCss(instance), base);
+  }
+
+  /**
+   * Instance colour tokens use the theme-file (CSS) syntax, where 8 hex digits mean `#RRGGBBAA`; every
+   * `theme.colors.*` value is ArkUI `#AARRGGBB`. Passing one straight through
+   * (`tokens: { foreground: theme.colors.primary }`) read it with the channels rotated — '#FF4169E1' (royal
+   * blue) became a pink, '#FFE7000B' (red) an almost transparent yellow. A value that is exactly one of the
+   * current theme colours is therefore taken as `#AARRGGBB`. Other ARGB strings (e.g. `SparkColor.alpha()`
+   * results) must be converted with `SparkColor.toCss()`.
+   */
+  private themeColorAsCss(instance: string | undefined): string | undefined {
+    if (instance === undefined || !/^s*#[0-9a-fA-F]{8}s*$/.test(instance)) {
+      return instance;
+    }
+    const v = instance.trim().toUpperCase();
+    const colors = this.theme.colors;
+    for (let i = 0; i < SPARK_COLOR_TOKENS.length; i++) {
+      const c = colors.get(SPARK_COLOR_TOKENS[i]);
+      if (c !== undefined && c.toUpperCase() === v) {
+        return SparkColor.toCss(v);
+      }
+    }
+    return instance;
   }
 
   len(props: string | string[], instance: number | undefined, fallback: number): number {

@@ -2,7 +2,7 @@
 
 精致、由 Token 驱动的 HarmonyOS ArkTS 组件库，对齐 [shadcn/ui](https://ui.shadcn.com) / shadcn-vue。
 
-- 90+ 组件：按钮、表单、浮层、菜单、数据表格、日历与日期选择、图表、Toast……
+- 90+ 组件：按钮、表单、浮层、菜单、数据表格、日历、日期与时间选择、图表、Toast……
 - 布局块：AppShell、Sidebar、顶栏、窗口标题栏（自由多窗 / PC）、列表-详情、辅助面板
 - 主题系统：直接粘贴 shadcn / tweakcn 主题 CSS；支持亮暗模式、实时切换、状态色（`--success` / `--warning` / `--info`），以及组件级 Token（`--card-background`、`--button-radius`……）
 - 无感断点的响应式：组件根据实际拿到的空间自动适配

@@ -251,6 +251,19 @@ export class SparkColor {
     return new Rgba(0, 0, 0, 0);
   }
 
+  /**
+   * ArkUI `#AARRGGBB` (every `theme.colors.*` value, `SparkColor.alpha` / `mix` results) → CSS `#RRGGBBAA`, the
+   * theme-file syntax that component `tokens` take: `tokens: { foreground: SparkColor.toCss(theme.colors.primary) }`.
+   * `#RRGGBB` and anything else is returned unchanged.
+   */
+  static toCss(argbHex: string): string {
+    const v = argbHex.trim();
+    if (/^#[0-9a-fA-F]{8}$/.test(v)) {
+      return `#${v.substring(3)}${v.substring(1, 3)}`;
+    }
+    return v;
+  }
+
   /** Multiply the alpha channel, like Tailwind `bg-primary/90`. */
   static alpha(argbHex: string, opacity: number): string {
     const c = SparkColor.fromArgbHex(argbHex);

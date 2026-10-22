@@ -70,7 +70,7 @@ Components tune details to the width they get:
 - `SCard` tightens its padding from 24 to 16 below 360vp;
 - `SField` puts the label beside the control when wide and above it when narrow (`orientation: 'responsive'`);
 - `STabsList` scrolls horizontally when it doesn't fit, `SPagination` shows only previous / page / next when narrow;
-- `SItem` moves its actions under the text below 360vp;
+- `SItem` moves wide action groups under the text below 360vp (small actions such as a chevron, icon or badge stay on the row);
 - overlays become bottom drawers on compact touch screens (see [Overlays](/en/guide/overlays)).
 
 For window-level signals (input modality, fold posture) see [Adaptive Context](/en/guide/adaptive).

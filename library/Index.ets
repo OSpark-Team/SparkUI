@@ -1,4 +1,4 @@
-export const SPARKUI_VERSION: string = '0.1.0';
+export const SPARKUI_VERSION: string = '1.1.0';
 
 // core
 export { SparkUI } from './src/main/ets/core/SparkUI';
@@ -169,6 +169,13 @@ export { SCalendar, SparkCalendarMode, SparkDateMatcher } from './src/main/ets/c
 export { SRangeCalendar } from './src/main/ets/components/calendar/SRangeCalendar';
 export { SDatePicker, SDateRangePicker } from './src/main/ets/components/calendar/SDatePicker';
 export { SparkDate, SparkDateRange, SparkDates, SparkWeekStart, SparkDateLocale } from './src/main/ets/components/calendar/SparkDate';
+
+// time
+export { STimePicker } from './src/main/ets/components/time-picker/STimePicker';
+export {
+  SPARK_DAY_MINUTES, sparkParseTime, sparkFormatTime, sparkTimeLabel, sparkHour12, sparkMinuteStep, sparkMinuteOptions,
+  sparkTimeInRange, sparkHourEnabled, sparkNearestTime, sparkNearestInHour
+} from './src/main/ets/components/time-picker/TimePickerLogic';
 
 // color picker
 export { SColorPanel } from './src/main/ets/components/color-picker/SColorPanel';

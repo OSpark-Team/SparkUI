@@ -1,6 +1,6 @@
 import {
   SCalendar, SDatePicker, SDateRangePicker, SparkDate, SparkDateRange, SparkDates, SparkTheme, SparkUI, SRangeCalendar,
-  SSwitch
+  SSwitch, STimePicker
 } from '@ospark/sparkui';
 import { DemoBlock, DemoCaption, DocHeader, DocSection } from '../shell/DocKit';
 
@@ -152,6 +152,68 @@ export struct DatePickerDoc {
           SDateRangePicker({ value: this.range!! })
           DemoCaption({ text: rangeText(this.range) })
         }
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ Time Picker
+
+const TIME_CODE = `@Local time: string | undefined = undefined;
+
+STimePicker({ value: this.time!! })`;
+
+const TIME_12H_CODE = `STimePicker({ value: this.alarm!!, hour12: true, minuteStep: 5 })`;
+
+const TIME_RANGE_CODE = `STimePicker({ value: this.meeting!!, minuteStep: 15, minTime: '09:00', maxTime: '17:30' })`;
+
+const TIME_DISABLED_CODE = `STimePicker({ value: '22:00', disabled: true })`;
+
+@ComponentV2
+export struct TimePickerDoc {
+  @Consumer('sparkTheme') theme: SparkTheme = SparkUI.theme;
+  @Local time: string | undefined = undefined;
+  @Local alarm: string | undefined = '07:30';
+  @Local meeting: string | undefined = '10:00';
+
+  build() {
+    Column({ space: 16 }) {
+      DocHeader({
+        title: 'Time Picker',
+        lead: 'Picks a time of day with snapping hour and minute wheels. Opens a popover anchored to the trigger; ' +
+          'on compact touch screens it becomes a bottom sheet. The value updates as soon as a wheel comes to rest.'
+      })
+      DemoBlock({ code: TIME_CODE }) {
+        Column() {
+          STimePicker({ value: this.time!! })
+          DemoCaption({ text: `value: ${this.time ?? 'undefined'}` })
+        }
+      }
+
+      DocSection({
+        title: '12-hour clock & minute step',
+        description: 'hour12 adds an AM / PM column (values stay HH:mm); minuteStep: 1 | 5 | 15 …'
+      })
+      DemoBlock({ code: TIME_12H_CODE }) {
+        Column() {
+          STimePicker({ value: this.alarm!!, hour12: true, minuteStep: 5 })
+          DemoCaption({ text: `value: ${this.alarm ?? 'undefined'}` })
+        }
+      }
+
+      DocSection({ title: 'Min & max', description: 'Times outside minTime – maxTime are dimmed and skipped.' })
+      DemoBlock({ code: TIME_RANGE_CODE }) {
+        Column() {
+          STimePicker({ value: this.meeting!!, minuteStep: 15, minTime: '09:00', maxTime: '17:30' })
+          DemoCaption({ text: `value: ${this.meeting ?? 'undefined'}` })
+        }
+      }
+
+      DocSection({ title: 'Disabled' })
+      DemoBlock({ code: TIME_DISABLED_CODE }) {
+        STimePicker({ value: '22:00', disabled: true })
       }
     }
     .alignItems(HorizontalAlign.Start)

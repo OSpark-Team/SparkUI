@@ -2,7 +2,7 @@
 
 Refined, token-driven ArkTS component library for HarmonyOS, aligned with [shadcn/ui](https://ui.shadcn.com) / shadcn-vue.
 
-- 90+ components: buttons, forms, overlays, menus, data table, calendar & date picker, charts, toasts …
+- 90+ components: buttons, forms, overlays, menus, data table, calendar, date & time pickers, charts, toasts …
 - Layout blocks: AppShell, Sidebar, Top bar, window Title bar (free window / PC), List-detail, Supporting pane
 - Theme system: paste a shadcn / tweakcn CSS theme, light & dark, live switching, status colours
   (`--success` / `--warning` / `--info`) and per-component tokens (`--card-background`, `--button-radius` …)

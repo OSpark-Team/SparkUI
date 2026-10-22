@@ -10,8 +10,12 @@ import { SparkTheme } from '../../theme/tokens/SparkTheme';
 
 const ITEM_KEY: string = 'spark.item';
 const GROUP_KEY: string = 'spark.itemGroup';
-/** Below this own width the actions wrap under the content. */
+/** Below this own width wide actions may wrap under the content. */
 const NARROW_WIDTH: number = 360;
+/** Actions up to this width (chevron, icon, switch, badge, a small button) always stay on the row. */
+const INLINE_ACTIONS_MAX: number = 96;
+/** Wide actions only wrap when they would squeeze the text column below this width. */
+const MIN_CONTENT_WIDTH: number = 120;
 
 export type ItemVariant = 'default' | 'outline' | 'muted';
 export type ItemSize = 'default' | 'sm';
@@ -20,7 +24,7 @@ export type ItemMediaVariant = 'default' | 'icon' | 'image';
 /** Per-item layout state shared with SItemMedia / SItemContent / SItemActions / SItemDescription. */
 @ObservedV2
 export class SparkItemState {
-  /** own width < 360vp: actions wrap below the content */
+  /** own width < 360vp and wide actions that would squeeze the text: actions wrap below the content */
   @Trace narrow: boolean = false;
   /** `sizing: 'sm'` */
   @Trace compact: boolean = false;
@@ -30,6 +34,10 @@ export class SparkItemState {
   @Trace mediaWidth: number = 0;
   /** number of SItemDescription parts (media aligns to the top when > 0) */
   @Trace descriptions: number = 0;
+  /** intrinsic width of SItemActions' content (0 = none / not measured) */
+  @Trace actionsWidth: number = 0;
+  /** the item's own measured width */
+  private width: number = 0;
 
   /** gap between media / content / actions: gap-4, or gap-2.5 for sm */
   @Computed
@@ -50,11 +58,40 @@ export class SparkItemState {
   }
 
   update(width: number, horizontalChrome: number): void {
+    this.width = width;
     const inner = Math.max(0, width - horizontalChrome);
     if (inner !== this.innerWidth) {
       this.innerWidth = inner;
     }
-    const narrow = width > 0 && width < NARROW_WIDTH;
+    this.relayout();
+  }
+
+  /** SItemActions reports its intrinsic content width (independent of the wrapping, so it cannot oscillate). */
+  measureActions(width: number): void {
+    if (Math.abs(width - this.actionsWidth) >= 0.5) {
+      this.actionsWidth = width;
+      this.relayout();
+    }
+  }
+
+  /** SItemMedia reports its width. */
+  measureMedia(width: number): void {
+    if (this.mediaWidth !== width) {
+      this.mediaWidth = width;
+      this.relayout();
+    }
+  }
+
+  /**
+   * Wrap only when it helps: the item is narrow AND the actions are wide (button groups) AND keeping them on
+   * the row would leave the text column less than MIN_CONTENT_WIDTH. A chevron / icon / switch / badge never
+   * wraps — the text column shrinks (wrapping / ellipsizing its text) instead.
+   */
+  private relayout(): void {
+    const actions = this.actionsWidth;
+    const free = this.innerWidth - this.contentStart - (actions > 0 ? this.gap + actions : 0);
+    const narrow = this.width > 0 && this.width < NARROW_WIDTH && actions > INLINE_ACTIONS_MAX &&
+      free < MIN_CONTENT_WIDTH;
     if (narrow !== this.narrow) {
       this.narrow = narrow;
     }
@@ -170,7 +207,9 @@ export struct SItemGroup {
  * `interactive` adds hover (`bg-accent/50`) and pressed (`bg-accent`) feedback and focusability; attach the
  * action with a wrapping `Stack() { SItem(...) { ... } }.onClick(...)` (slot components cannot chain events).
  *
- * Responsive: when the item itself is narrower than 360vp, SItemActions wraps onto its own line under the text.
+ * Responsive: the row never wraps for small trailing actions (chevron, icon, switch, badge) — the text column
+ * shrinks instead. Only wide actions (button groups) wrap onto their own line under the text, and only when the
+ * item is narrower than 360vp and keeping them inline would leave the text less than 120vp.
  */
 @ComponentV2
 export struct SItem {
@@ -353,9 +392,7 @@ export struct SItemMedia {
   }
 
   aboutToDisappear(): void {
-    if (this.item !== undefined) {
-      this.item.mediaWidth = 0;
-    }
+    this.item?.measureMedia(0);
   }
 
   @Computed
@@ -405,10 +442,7 @@ export struct SItemMedia {
     .alignSelf(this.item !== undefined && this.item.descriptions > 0 ? ItemAlign.Start : ItemAlign.Center)
     .translate({ y: this.variant === 'default' && this.item !== undefined && this.item.descriptions > 0 ? 2 : 0 })
     .onAreaChange((_: Area, n: Area) => {
-      const w = Number(n.width);
-      if (this.item !== undefined && this.item.mediaWidth !== w) {
-        this.item.mediaWidth = w;
-      }
+      this.item?.measureMedia(Number(n.width));
     })
   }
 }
@@ -541,7 +575,10 @@ class ItemActionsModifier implements AttributeModifier<RowAttribute> {
   }
 }
 
-/** `flex items-center gap-2`, trailing; wraps under the text (aligned with it) when the item is narrow. */
+/**
+ * `flex items-center gap-2`, trailing. Stays on the row; only wide actions wrap under the text (aligned with
+ * it) when the item is narrow (see {@link SItem}).
+ */
 @ComponentV2
 export struct SItemActions {
   @BuilderParam content: () => void = sparkEmptyBuilder;
@@ -557,6 +594,10 @@ export struct SItemActions {
     }
   }
 
+  aboutToDisappear(): void {
+    this.item?.measureActions(0);
+  }
+
   @Computed
   get sizer(): ItemActionsModifier {
     const it = this.item;
@@ -564,8 +605,13 @@ export struct SItemActions {
   }
 
   build() {
-    Row({ space: 8 }) {
-      this.content()
+    Row() {
+      // intrinsic width, measured for the wrap decision whatever width the outer row gets
+      Row({ space: 8 }) {
+        this.content()
+      }
+      .alignItems(VerticalAlign.Center)
+      .onAreaChange((_: Area, n: Area) => this.item?.measureActions(Number(n.width)))
     }
     .alignItems(VerticalAlign.Center)
     .justifyContent(FlexAlign.Start)

@@ -13,6 +13,7 @@ import variantsTest from './Variants.test';
 import transitionTest from './Transition.test';
 import virtualListTest from './VirtualList.test';
 import colorPickerTest from './ColorPicker.test';
+import timePickerTest from './TimePicker.test';
 
 export default function testsuite() {
   sparkColorTest();
@@ -30,4 +31,5 @@ export default function testsuite() {
   transitionTest();
   virtualListTest();
   colorPickerTest();
+  timePickerTest();
 }

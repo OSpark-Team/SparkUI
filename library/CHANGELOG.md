@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- **Time picker**: `STimePicker` — time of day as 24-hour `HH:mm` (`value` / `!!` + `onValueChange`), optional
+  12-hour display with an AM / PM column (`hour12`), `minuteStep` (1 / 5 / 15 …), `minTime` / `maxTime`,
+  `disabled`, `placeholder`, `triggerWidth`. Outline trigger with a clock icon like `SDatePicker`; two snapping
+  wheel columns (hours, minutes) with a selection highlight in a popover, or in a bottom sheet with touch-sized
+  rows and a Done button on compact touch windows (`adaptive: 'auto'`). Updates live when a column comes to rest;
+  arrow / Home / End keys and screen readers supported; `surfaceTokens` restyle the popover. Pure helpers
+  (`sparkParseTime`, `sparkFormatTime`, `sparkTimeLabel`, `sparkNearestTime` …) are exported.
+- Context menu: `SContextMenuTrigger({ onTap })` — a plain tap / click on the trigger area. Use it instead of an
+  `.onClick()` on the trigger content (see Fixed).
+- `SparkColor.toCss(argb)`: ArkUI `#AARRGGBB` → CSS `#RRGGBBAA`, for putting computed colours into component `tokens`.
+
+### Fixed
+
+- Item: on narrow widths (below 360vp, e.g. phones in portrait) trailing `SItemActions` such as a chevron,
+  icon, switch or badge no longer drop to a new line — the text column shrinks instead. Only wide action groups
+  (several buttons) still wrap under the text, and only when keeping them inline would leave the text less than
+  120vp.
+- Context menu: the click produced by the finger lift that ends a long-press (and the click after a right
+  click) no longer counts as a tap — `onTap` is not fired for it, so long-pressing a card opens the menu without
+  also activating the card. An `.onClick()` chained on the trigger content still fires in that case (ArkUI gives
+  the inner handler the click first); move it to `onTap`.
+- Component colour tokens (`SButton({ tokens: { foreground } })` and every other `tokens` colour): a
+  `theme.colors.*` value passed as is was read as CSS `#RRGGBBAA` with its channels rotated (`#FF4169E1` royal
+  blue rendered pink, `#FFE7000B` red an almost transparent yellow — icons and labels near invisible). Values
+  equal to a current theme colour are now recognised as `#AARRGGBB`; convert other ARGB strings (e.g.
+  `SparkColor.alpha()` results) with `SparkColor.toCss()`.
+
 ## 1.0.0
 
 - **Color picker**: `SColorPanel` (inline: saturation / brightness area, hue and alpha sliders over a

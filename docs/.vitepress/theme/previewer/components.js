@@ -1560,6 +1560,117 @@ const SDatePicker = def('SDatePicker', (props) => {
   };
 });
 
+// ------------------------------------------------------------------------------------------------ time picker
+
+const TIME_ROW = 32;
+
+function timeColumn(items, selected, onPick) {
+  // CSS scroll-snap wheel; the middle row is the selection (highlight drawn by the panel)
+  let timer = 0;
+  const onScroll = (e) => {
+    const el = e.target;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const i = Math.round(el.scrollTop / TIME_ROW);
+      const it = items[i];
+      if (it && !it.disabled && i !== selected) {
+        onPick(i);
+      }
+    }, 120);
+  };
+  return h('div', {
+    class: 'ark-time-col',
+    onScroll,
+    onVnodeMounted: (vn) => { vn.el.scrollTop = selected * TIME_ROW; },
+    onVnodeUpdated: (vn) => {
+      if (Math.abs(vn.el.scrollTop - selected * TIME_ROW) > 1) {
+        vn.el.scrollTo({ top: selected * TIME_ROW, behavior: 'smooth' });
+      }
+    }
+  }, items.map((it, i) => h('div', {
+    class: ['ark-time-row', i === selected && 'selected', it.disabled && 'disabled'],
+    onClick: () => !it.disabled && onPick(i)
+  }, it.label)));
+}
+
+const STimePicker = def('STimePicker', (props) => {
+  const [value, set] = useModel(props, 'value', 'defaultValue', '', 'onValueChange');
+  const open = ref(false);
+  const el = ref(null);
+  const onDoc = (e) => {
+    if (open.value && el.value && !el.value.contains(e.target)) {
+      open.value = false;
+    }
+  };
+  onMounted(() => document.addEventListener('pointerdown', onDoc));
+  onBeforeUnmount(() => document.removeEventListener('pointerdown', onDoc));
+  const parse = (v) => {
+    const m = /^(d{1,2}):(d{2})$/.exec(String(v ?? ''));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+  };
+  const pad = (n) => String(n).padStart(2, '0');
+  return () => {
+    const o = props.n.props;
+    const step = Math.max(1, Math.min(60, Math.floor(Number(o.minuteStep ?? 1)) || 1));
+    const zh = o.locale === 'zh';
+    const am = zh ? '上午' : 'AM';
+    const pm = zh ? '下午' : 'PM';
+    const min = parse(o.minTime);
+    const max = parse(o.maxTime);
+    const inRange = (t) => (min < 0 || t >= min) && (max < 0 || t <= max);
+    const cur = parse(value.value);
+    const now = new Date();
+    const shown = cur >= 0 ? cur : now.getHours() * 60 + Math.floor(now.getMinutes() / step) * step;
+    const hour = Math.floor(shown / 60);
+    const minute = shown % 60;
+    const h12 = !!o.hour12;
+    const mins = [];
+    for (let m = 0; m < 60; m += step) {
+      mins.push(m);
+    }
+    const hourOk = (hh) => mins.some((m) => inRange(hh * 60 + m));
+    const hourAt = (i) => (h12 ? (hour < 12 ? 0 : 12) + i : i);
+    const hours = Array.from({ length: h12 ? 12 : 24 }, (_, i) => ({
+      label: h12 ? String(i === 0 ? 12 : i) : pad(i), disabled: !hourOk(hourAt(i))
+    }));
+    const minutes = mins.map((m) => ({ label: pad(m), disabled: !inRange(hour * 60 + m) }));
+    const commit = (t) => { if (t >= 0) { set(`${pad(Math.floor(t / 60))}:${pad(t % 60)}`); } };
+    const nearestIn = (hh) => {
+      const ok = mins.filter((m) => inRange(hh * 60 + m));
+      if (!ok.length) {
+        return -1;
+      }
+      return hh * 60 + ok.reduce((a, b) => (Math.abs(b - minute) < Math.abs(a - minute) ? b : a));
+    };
+    const label = cur >= 0
+      ? (h12 ? `${(Math.floor(cur / 60) % 12) || 12}:${pad(cur % 60)} ${cur < 720 ? am : pm}` : `${pad(Math.floor(cur / 60))}:${pad(cur % 60)}`)
+      : undefined;
+    const cols = [
+      timeColumn(hours, h12 ? hour % 12 : hour, (i) => commit(nearestIn(hourAt(i)))),
+      h('div', { class: 'ark-time-colon' }, ':'),
+      timeColumn(minutes, Math.max(0, mins.indexOf(minute)), (i) => commit(hour * 60 + mins[i]))
+    ];
+    if (h12) {
+      cols.push(timeColumn([{ label: am, disabled: ![...Array(12).keys()].some(hourOk) },
+        { label: pm, disabled: ![...Array(12).keys()].some((i) => hourOk(i + 12)) }], hour < 12 ? 0 : 1,
+        (p) => commit(nearestIn(p * 12 + (hour % 12)))));
+    }
+    return h('span', rootProps(props.n, 'ark-overlay-root', {}, { ref: el }), [
+      h('button', {
+        class: ['ark-btn', 'ark-btn-outline', o.disabled && 'disabled'],
+        style: { width: `${typeof o.triggerWidth === 'number' ? o.triggerWidth : 140}px`, justifyContent: 'flex-start', fontWeight: 400, fontVariantNumeric: 'tabular-nums' },
+        disabled: !!o.disabled,
+        onClick: () => !o.disabled && (open.value = !open.value)
+      }, [
+        icon('clock', 16),
+        h('span', { class: label ? '' : 'ark-placeholder' }, label ?? txt(o.placeholder ?? (zh ? '选择时间' : 'Pick a time')))
+      ]),
+      open.value ? h('div', { class: 'ark-floating ark-time-panel side-bottom align-start' },
+        h('div', { class: 'ark-time-wheels' }, [h('div', { class: 'ark-time-highlight' }), ...cols])) : null
+    ]);
+  };
+});
+
 // ------------------------------------------------------------------------------------------------ registry
 
 const passthrough = (n) => h('div', rootProps(n, 'ark-passthrough'), n.children());
@@ -1615,7 +1726,7 @@ export function createRegistry() {
     SAspectRatio, SScrollArea, SNumberField: C(SNumberField), SPinInput: C(SPinInput), STagsInput: C(STagsInput),
     SInputGroup, SInputGroupAddon, SInputGroupText, SInputGroupButton, SInputGroupInput: C(SInputGroupInput),
     SStepper: C(SStepper), SStepperItem: C(SStepperItem), SCodeBlock, SCalendar: C(SCalendar),
-    SRangeCalendar: C(SCalendar), SDatePicker: C(SDatePicker), SDateRangePicker: C(SDatePicker),
+    SRangeCalendar: C(SCalendar), SDatePicker: C(SDatePicker), SDateRangePicker: C(SDatePicker), STimePicker: C(STimePicker),
     SColorPanel: C(SColorPanel), SColorPicker: C(SColorPicker),
     // charts (charts.js), layout blocks (blocks.js)
     ...charts,
