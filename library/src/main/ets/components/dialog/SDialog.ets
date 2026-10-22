@@ -303,7 +303,7 @@ export struct SDialogTitle {
       .fontSize(this.theme.text.lg)
       .fontWeight(this.theme.text.weightSemibold)
       .fontColor(this.theme.colors.foreground)
-      .lineHeight(this.theme.text.lg)
+      .lineHeight(Math.ceil(this.theme.text.lg * 1.25)) // leading-none clips CJK glyphs — keep 1.25x
   }
 }
 

@@ -925,6 +925,8 @@ export struct SSidebarMenuButton {
       if (this.icon !== undefined) {
         SIcon({ name: this.icon, sizing: 16, color: this.fg })
       }
+      // icon rail: the label and badge leave the layout (not just clipped), so a rail wider than the
+      // shadcn 3rem never shows a truncated "…" and the icon sits centred
       Text(this.text)
         .layoutWeight(1)
         .fontSize(this.sizing === 'sm' ? this.theme.text.xs : this.theme.text.sm)
@@ -932,16 +934,20 @@ export struct SSidebarMenuButton {
         .fontColor(this.fg)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .visibility(this.iconOnly ? Visibility.None : Visibility.Visible)
       if (this.badge !== undefined) {
         Text(this.badge)
           .fontSize(this.theme.text.xs)
           .fontWeight(this.theme.text.weightMedium)
           .fontColor(this.fg)
           .maxLines(1)
-          .opacity(this.iconOnly ? 0 : 1)
+          .visibility(this.iconOnly ? Visibility.None : Visibility.Visible)
       }
-      this.content()
+      if (!this.iconOnly) {
+        this.content()
+      }
     }
+    .justifyContent(this.iconOnly ? FlexAlign.Center : FlexAlign.Start)
     .width('100%')
     .height(this.rowHeight())
     .padding({ left: 8, right: 8 })

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.1
+
+### Added
+- AppShell: `contentSafeArea` (default `true`). `false` lets non-scrolling content run edge to edge under the
+  navigation indicator and pad itself (immersive canvases, maps, pages that use `SPage({ safeArea: true })`),
+  instead of the shell appending a bottom-inset strip in the page background.
+
+### Fixed
+- Sidebar: in the icon rail, menu button labels and badges now leave the layout and the icon is centred; a rail
+  wider than the shadcn 3rem (`--sidebar-width-icon`) no longer shows a truncated `…` next to each icon.
+- Typography / Label / Dialog title: `leading-none` (line height = font size) clipped the top of CJK glyphs
+  (e.g. 已, 毕); these now use 1.25× the font size.
+
 ## 1.1.0
 
 ### Added

@@ -30,13 +30,13 @@ export struct SLabel {
           Text(this.text)
             .fontSize(this.theme.text.sm)
             .fontWeight(this.theme.text.weightMedium)
-            .lineHeight(this.theme.text.sm)
+            .lineHeight(Math.ceil(this.theme.text.sm * 1.25)) // leading-none clips CJK glyphs (top of 已 / 毕) — keep 1.25x
             .fontColor(this.theme.colors.foreground)
           if (this.required) {
             Text('*')
               .fontSize(this.theme.text.sm)
               .fontWeight(this.theme.text.weightMedium)
-              .lineHeight(this.theme.text.sm)
+              .lineHeight(Math.ceil(this.theme.text.sm * 1.25)) // leading-none clips CJK glyphs (top of 已 / 毕) — keep 1.25x
               .fontColor(this.theme.colors.destructive)
               .accessibilityLevel('no')
           }

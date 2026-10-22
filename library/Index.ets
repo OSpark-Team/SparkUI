@@ -1,4 +1,4 @@
-export const SPARKUI_VERSION: string = '1.1.0';
+export const SPARKUI_VERSION: string = '1.1.1';
 
 // core
 export { SparkUI } from './src/main/ets/core/SparkUI';

@@ -216,6 +216,7 @@ struct AppShellMain {
   @Param topbarLeading: TopbarLeading = 'auto';
   @Param translucent: boolean = true;
   @Param safeArea: boolean = true;
+  @Param contentSafeArea: boolean = true;
   @Param scrollable: boolean = true;
   @Param footerText: ResourceStr | undefined = undefined;
   @Param maxContentWidth: number | undefined = undefined;
@@ -254,7 +255,7 @@ struct AppShellMain {
 
   @Computed
   get bottomInset(): number {
-    if (!this.safeArea || (this.ctx?.insetFramed ?? false)) {
+    if (!this.safeArea || !this.contentSafeArea || (this.ctx?.insetFramed ?? false)) {
       return 0;
     }
     return this.layout.env.safeArea.bottom;
@@ -493,6 +494,11 @@ export struct SAppShell {
   @Param scrollable: boolean = true;
   /** pad the window safe area (immersive pages) */
   @Param safeArea: boolean = true;
+  /**
+   * pad the bottom inset under the content (default). false: the content runs edge to edge under the
+   * navigation indicator and pads itself (immersive canvases, maps, pages using SPage({ safeArea: true }))
+   */
+  @Param contentSafeArea: boolean = true;
   /** max width of the page content (0 = unlimited; unset = `--app-shell-content-max-width`, else 1200) */
   @Param maxContentWidth: number | undefined = undefined;
   /**
@@ -637,6 +643,7 @@ export struct SAppShell {
               translucent: this.topbarBlur,
               scrollable: this.scrollable,
               safeArea: this.safeArea,
+              contentSafeArea: this.contentSafeArea,
               footerText: this.footerText,
               maxContentWidth: this.maxContentWidth,
               tokens: this.tokens,

@@ -137,7 +137,7 @@ export struct SSmall {
   build() {
     Text(this.text)
       .fontSize(this.theme.text.sm)
-      .lineHeight(this.theme.text.sm)
+      .lineHeight(Math.ceil(this.theme.text.sm * 1.25)) // leading-none clips CJK glyphs (top of 已 / 毕) — keep 1.25x
       .fontWeight(this.theme.text.weightMedium)
       .fontColor(this.theme.colors.foreground)
   }
